@@ -1,3 +1,4 @@
+
 import { Ingredient, Product, Recipe, Unit, GlobalSettings, FixedCostItem } from './types';
 
 // Conversion helpers
@@ -27,49 +28,86 @@ export const calculateProductMetrics = (
   recipe: Recipe,
   ingredients: Ingredient[],
   settings: GlobalSettings,
-  allProducts: Product[] // Needed to calculate total volume
+  allProducts: Product[] 
 ) => {
-  // 1. Material Cost
+  // TVA Logic
+  const isTvaSubject = settings.isTvaSubject;
+  const tvaRate = product.tvaRate ?? settings.defaultTvaRate ?? 0;
+
+  // 1. Material Cost per Produced Unit
+  // NOTE: If isTvaSubject is true, we assume ingredient prices in DB are HT (because business recovers VAT).
+  // If false, ingredient prices are TTC (final cost for artisan).
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
   const unitMaterialCost = batchMaterialCost / (recipe.batchYield || 1);
 
-  // 2. Labor Cost
+  // 2. Labor Cost per Unit
   const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
 
   // 3. Allocated Fixed Costs
-  // Sum of all estimated sales to get total volume
   const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
   
   const allocatedFixedCost = totalEstimatedVolume > 0 
     ? totalFixedCosts / totalEstimatedVolume
-    : 0; // Or warn user
+    : 0;
 
-  // 4. Product Loss Adjustment
-  const lossMultiplier = 1 / (1 - (product.lossRate / 100));
-  const baseVariableCosts = unitMaterialCost + product.packagingCost + product.variableDeliveryCost;
-  const totalVariableCostsWithLoss = baseVariableCosts * lossMultiplier;
-
-  // 5. Full Cost
-  const fullCost = totalVariableCostsWithLoss + laborCost + allocatedFixedCost;
-
-  // 6. Minimum Price (Rentability 0 profit)
-  const taxRateDecimal = settings.taxRate / 100;
-  const divisor = 1 - taxRateDecimal > 0 ? 1 - taxRateDecimal : 1;
+  // 4. Manufacturing Loss (Waste during creation)
+  let safeLossRate = product.lossRate;
+  if (safeLossRate >= 100) safeLossRate = 99.9;
+  if (safeLossRate < 0) safeLossRate = 0;
   
-  const minPriceBreakeven = fullCost / divisor;
+  const manufacturingLossMultiplier = 1 / (1 - (safeLossRate / 100));
 
-  // 7. Target Price
-  const priceWithMargin = (fullCost + product.targetMargin) / divisor;
+  // 5. Unsold Items Impact (Finished goods thrown away)
+  const sales = product.estimatedMonthlySales || 1;
+  const unsold = product.unsoldEstimate || 0;
+  
+  // Ratios for cost attribution
+  const materialProductionRatio = (sales + unsold) / sales;
+  const packagingQuantity = sales + (product.packagingUsedOnUnsold ? unsold : 0);
+  const packagingRatio = packagingQuantity / sales;
+
+  // Variable Costs per Sold Unit calculation
+  const finalMaterialCost = unitMaterialCost * manufacturingLossMultiplier * materialProductionRatio;
+  const finalPackagingCost = product.packagingCost * manufacturingLossMultiplier * packagingRatio;
+  const finalDeliveryCost = product.variableDeliveryCost;
+
+  const totalVariableCosts = finalMaterialCost + finalPackagingCost + finalDeliveryCost;
+
+  // 6. Full Cost
+  // If isTvaSubject, this is Full Cost HT.
+  const fullCost = totalVariableCosts + laborCost + allocatedFixedCost;
+
+  // 7. Minimum Price (Breakeven)
+  // Social contributions (settings.taxRate) are deducted from Revenue.
+  // Revenue Base:
+  // - If isTvaSubject: Contributions are usually on CA HT (or Net). We'll assume CA HT.
+  // - If !isTvaSubject: Contributions are on CA Total.
+  
+  const socialRateDecimal = settings.taxRate / 100;
+  const divisor = 1 - socialRateDecimal > 0 ? 1 - socialRateDecimal : 1;
+  
+  // Price required to cover Full Cost after paying social charges
+  const minPriceBreakevenHT = fullCost / divisor;
+
+  // 8. Target Price
+  const priceWithMarginHT = (fullCost + product.targetMargin) / divisor;
+
+  // 9. TTC Conversions
+  const minPriceBreakevenTTC = isTvaSubject ? minPriceBreakevenHT * (1 + tvaRate / 100) : minPriceBreakevenHT;
+  const priceWithMarginTTC = isTvaSubject ? priceWithMarginHT * (1 + tvaRate / 100) : priceWithMarginHT;
 
   return {
     unitMaterialCost,
     laborCost,
     allocatedFixedCost,
-    fullCost,
-    minPriceBreakeven,
-    priceWithMargin,
-    totalVariableCosts: totalVariableCostsWithLoss
+    fullCost, // This is HT if isTvaSubject, else TTC (cost to artisan)
+    minPriceBreakeven: minPriceBreakevenHT, // HT if subject
+    minPriceBreakevenTTC,
+    priceWithMargin: priceWithMarginHT, // HT if subject
+    priceWithMarginTTC,
+    totalVariableCosts,
+    tvaRate: isTvaSubject ? tvaRate : 0
   };
 };
 
@@ -84,6 +122,8 @@ export const INITIAL_SETTINGS: GlobalSettings = {
     { id: 'fc4', name: 'Banque', amount: 10 },
   ],
   taxRate: 22,
+  isTvaSubject: false,
+  defaultTvaRate: 5.5,
 };
 
 export const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -133,6 +173,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     packagingCost: 0.10,
     variableDeliveryCost: 0,
     lossRate: 5,
+    unsoldEstimate: 2,
+    packagingUsedOnUnsold: false, 
     targetMargin: 1.0,
     estimatedMonthlySales: 50,
     category: 'biscuit'
@@ -145,6 +187,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     packagingCost: 1.50,
     variableDeliveryCost: 0,
     lossRate: 0,
+    unsoldEstimate: 0,
+    packagingUsedOnUnsold: true, 
     targetMargin: 10.0,
     estimatedMonthlySales: 10,
     category: 'entremet'

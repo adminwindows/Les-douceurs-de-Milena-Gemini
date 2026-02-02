@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { convertToCostPerBaseUnit, calculateRecipeMaterialCost } from '../../utils';
@@ -12,6 +13,7 @@ interface Props {
 
 export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredients, recipes, setRecipes }) => {
   const [activeTab, setActiveTab] = useState<'ingredients' | 'recettes'>('ingredients');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // --- Ingredient State ---
   const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, quantity: 1, price: 0 });
@@ -20,19 +22,47 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
     if (!newIng.name || newIng.price === undefined || !newIng.quantity) return;
     const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price), Number(newIng.quantity), newIng.unit as Unit);
     
-    setIngredients([...ingredients, {
-      id: Date.now().toString(),
-      name: newIng.name,
-      unit: newIng.unit as Unit,
-      price: Number(newIng.price),
-      quantity: Number(newIng.quantity),
-      costPerBaseUnit
-    }]);
+    if (editingId) {
+      setIngredients(ingredients.map(i => i.id === editingId ? {
+        ...i,
+        name: newIng.name!,
+        unit: newIng.unit as Unit,
+        price: Number(newIng.price),
+        quantity: Number(newIng.quantity),
+        costPerBaseUnit
+      } : i));
+      setEditingId(null);
+    } else {
+      setIngredients([...ingredients, {
+        id: Date.now().toString(),
+        name: newIng.name,
+        unit: newIng.unit as Unit,
+        price: Number(newIng.price),
+        quantity: Number(newIng.quantity),
+        costPerBaseUnit
+      }]);
+    }
+    setNewIng({ unit: Unit.KG, quantity: 1, name: '', price: 0 });
+  };
+
+  const handleEditIngredient = (ing: Ingredient) => {
+    setNewIng({
+      name: ing.name,
+      unit: ing.unit,
+      price: ing.price,
+      quantity: ing.quantity
+    });
+    setEditingId(ing.id);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
     setNewIng({ unit: Unit.KG, quantity: 1, name: '', price: 0 });
   };
 
   const handleDeleteIngredient = (id: string) => {
     setIngredients(ingredients.filter(i => i.id !== id));
+    if (editingId === id) handleCancelEdit();
   };
 
   // --- Recipe State ---
@@ -74,9 +104,6 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
     setRecipes(recipes.filter(r => r.id !== id));
   };
 
-  const getIngredientName = (id: string) => ingredients.find(i => i.id === id)?.name || 'Inconnu';
-  const getIngredientUnit = (id: string) => ingredients.find(i => i.id === id)?.unit || '';
-
   // Calculate provisional cost of new recipe
   const tempRecipe: Recipe = {
     id: 'temp',
@@ -90,16 +117,16 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
 
   return (
     <div className="space-y-6">
-      <div className="flex space-x-4 border-b border-slate-200">
+      <div className="flex space-x-4 border-b border-slate-300 dark:border-slate-700">
         <button 
           onClick={() => setActiveTab('ingredients')}
-          className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ingredients' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ingredients' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
         >
           Ingrédients ({ingredients.length})
         </button>
         <button 
           onClick={() => setActiveTab('recettes')}
-          className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'recettes' ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'recettes' ? 'border-rose-500 text-rose-600 dark:text-rose-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'}`}
         >
           Recettes ({recipes.length})
         </button>
@@ -108,10 +135,10 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
       {activeTab === 'ingredients' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Stock Ingrédients</h3>
-            <div className="overflow-x-auto">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Stock Ingrédients</h3>
+            <div className="overflow-x-auto border border-slate-300 dark:border-slate-700 rounded-lg">
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 text-slate-600 font-medium">
+                <thead className="bg-slate-200 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold">
                   <tr>
                     <th className="p-3">Nom</th>
                     <th className="p-3">Achat</th>
@@ -119,24 +146,25 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                     <th className="p-3 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {ingredients.map(ing => (
-                    <tr key={ing.id} className="hover:bg-slate-50">
-                      <td className="p-3 font-medium text-slate-800">{ing.name}</td>
-                      <td className="p-3 text-slate-600">
+                    <tr key={ing.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 ${editingId === ing.id ? 'bg-rose-50 dark:bg-rose-900/20' : ''}`}>
+                      <td className="p-3 font-medium text-slate-800 dark:text-slate-200">{ing.name}</td>
+                      <td className="p-3 text-slate-600 dark:text-slate-400">
                         {ing.price}€ / {ing.quantity} {ing.unit}
                       </td>
-                      <td className="p-3 text-emerald-600 font-medium">
+                      <td className="p-3 text-emerald-600 dark:text-emerald-400 font-medium">
                         {(ing.costPerBaseUnit * (ing.unit === Unit.KG || ing.unit === Unit.L ? 1000 : 1)).toFixed(2)}€ 
                         / {ing.unit === Unit.KG ? 'kg' : ing.unit === Unit.L ? 'L' : ing.unit}
                       </td>
-                      <td className="p-3 text-right">
-                        <button onClick={() => handleDeleteIngredient(ing.id)} className="text-red-400 hover:text-red-600 font-medium">Supprimer</button>
+                      <td className="p-3 text-right space-x-2">
+                        <button onClick={() => handleEditIngredient(ing)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-medium">Modif.</button>
+                        <button onClick={() => handleDeleteIngredient(ing.id)} className="text-red-400 hover:text-red-600 font-medium">Suppr.</button>
                       </td>
                     </tr>
                   ))}
                   {ingredients.length === 0 && (
-                    <tr><td colSpan={4} className="p-4 text-center text-slate-400">Aucun ingrédient. Ajoutez-en un à droite.</td></tr>
+                    <tr><td colSpan={4} className="p-4 text-center text-slate-400 dark:text-slate-500">Aucun ingrédient. Ajoutez-en un à droite.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -144,7 +172,9 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
           </Card>
 
           <Card className="h-fit sticky top-24">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">Ajouter un ingrédient</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">
+              {editingId ? "Modifier l'ingrédient" : "Ajouter un ingrédient"}
+            </h3>
             <div className="space-y-4">
               <Input 
                 label="Nom" 
@@ -180,9 +210,16 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 onChange={e => setNewIng({...newIng, quantity: parseFloat(e.target.value)})} 
                 helperText={newIng.unit === Unit.KG ? "Ex: Si 2.5kg, entrez 2.5" : ""}
               />
-              <Button className="w-full" onClick={handleAddIngredient} disabled={!newIng.name}>
-                Ajouter au stock
-              </Button>
+              <div className="flex gap-2">
+                {editingId && (
+                   <Button variant="secondary" onClick={handleCancelEdit} className="w-1/3">
+                     Annuler
+                   </Button>
+                )}
+                <Button className="flex-1" onClick={handleAddIngredient} disabled={!newIng.name}>
+                  {editingId ? "Mettre à jour" : "Ajouter au stock"}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
@@ -191,7 +228,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
           {/* New Recipe Form */}
           <div className="lg:col-span-5 space-y-6">
             <Card className="sticky top-24">
-              <h3 className="text-lg font-bold text-slate-800 mb-4">Créer une Recette</h3>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4">Créer une Recette</h3>
               
               <div className="space-y-4 mb-6">
                 <Input 
@@ -218,11 +255,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">Composition du batch</h4>
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-700 mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Composition du batch</h4>
                 <div className="flex gap-2 mb-2">
                   <select 
-                    className="flex-1 text-sm border-slate-200 rounded-md"
+                    className="flex-1 text-sm border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                     value={selectedIngId}
                     onChange={e => setSelectedIngId(e.target.value)}
                   >
@@ -232,7 +269,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                   <input 
                     type="number" 
                     placeholder="Qté" 
-                    className="w-20 text-sm border-slate-200 rounded-md"
+                    className="w-20 text-sm border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                     value={selectedIngQty}
                     onChange={e => setSelectedIngQty(e.target.value)}
                   />
@@ -245,7 +282,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                     if(!ing) return null;
                     const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pcs';
                     return (
-                      <div key={idx} className="flex justify-between text-sm text-slate-600 bg-white px-2 py-1 rounded border border-slate-100">
+                      <div key={idx} className="flex justify-between text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-slate-100 dark:border-slate-700">
                         <span>{ing.name}</span>
                         <span>{ri.quantity} {displayUnit}</span>
                       </div>
@@ -255,12 +292,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 </div>
               </div>
 
-              <div className="bg-emerald-50 p-4 rounded-lg mb-4">
-                <div className="flex justify-between text-sm text-emerald-800 mb-1">
+              <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg mb-4 border border-emerald-100 dark:border-emerald-800">
+                <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300 mb-1">
                   <span>Coût Matières Batch:</span>
                   <span className="font-bold">{tempBatchCost.toFixed(2)} €</span>
                 </div>
-                <div className="flex justify-between text-sm text-emerald-800">
+                <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300">
                   <span>Coût Matières / Unité:</span>
                   <span className="font-bold">{tempUnitCost.toFixed(2)} €</span>
                 </div>
@@ -274,7 +311,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
 
           {/* Recipe List */}
           <div className="lg:col-span-7 space-y-4">
-             <h3 className="text-lg font-bold text-slate-800">Mes Recettes</h3>
+             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Mes Recettes</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                {recipes.map(recipe => {
                  const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
@@ -282,21 +319,21 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                  return (
                    <Card key={recipe.id} className="relative hover:shadow-md transition-shadow">
                      <div className="flex justify-between items-start mb-2">
-                       <h4 className="font-bold text-slate-800">{recipe.name}</h4>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-100">{recipe.name}</h4>
                        <button onClick={() => handleDeleteRecipe(recipe.id)} className="text-xs text-red-400 hover:text-red-600">X</button>
                      </div>
-                     <div className="text-sm text-slate-500 mb-4">
+                     <div className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                        Rendement: {recipe.batchYield} unités <br/>
                        {recipe.ingredients.length} ingrédients
                      </div>
-                     <div className="pt-3 border-t border-slate-100 flex justify-between items-end">
+                     <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-between items-end">
                        <div>
-                         <p className="text-xs text-slate-400">Coût unitaire mat.</p>
-                         <p className="text-lg font-bold text-rose-600">{unitCost.toFixed(2)} €</p>
+                         <p className="text-xs text-slate-400 dark:text-slate-500">Coût unitaire mat.</p>
+                         <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{unitCost.toFixed(2)} €</p>
                        </div>
                        <div className="text-right">
-                         <p className="text-xs text-slate-400">Coût batch</p>
-                         <p className="font-medium text-slate-600">{batchCost.toFixed(2)} €</p>
+                         <p className="text-xs text-slate-400 dark:text-slate-500">Coût batch</p>
+                         <p className="font-medium text-slate-600 dark:text-slate-300">{batchCost.toFixed(2)} €</p>
                        </div>
                      </div>
                    </Card>

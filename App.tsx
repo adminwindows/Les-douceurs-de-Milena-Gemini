@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { IngredientsRecettes } from './components/views/IngredientsRecettes';
-import { Products } from './components/views/Products';
+import { ProductsContent } from './components/views/Products'; 
 import { Analysis } from './components/views/Analysis';
 import { MonthlyReport } from './components/views/MonthlyReport';
 import { Settings } from './components/views/Settings';
-import { Orders } from './components/views/Orders'; // New component
+import { Orders } from './components/views/Orders'; 
+import { UserGuide } from './components/views/UserGuide'; 
 import { 
   INITIAL_INGREDIENTS, 
   INITIAL_RECIPES, 
@@ -14,7 +16,24 @@ import {
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData } from './types';
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report'>('products');
+  // Default tab is now 'guide'
+  const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide'>('guide');
+  
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // Apply theme class to HTML element
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
   
   // State
   const [ingredients, setIngredients] = useState<Ingredient[]>(INITIAL_INGREDIENTS);
@@ -70,10 +89,11 @@ const App = () => {
           setRecipes={setRecipes} 
         />;
       case 'products':
-        return <Products 
+        return <ProductsContent 
           products={products} 
           setProducts={setProducts} 
           recipes={recipes} 
+          settings={settings} 
         />;
       case 'orders':
         return <Orders 
@@ -99,39 +119,50 @@ const App = () => {
           setSavedReports={setSavedReports}
           setSettings={setSettings}
         />;
+      case 'guide':
+        return <UserGuide />;
       default:
-        return <Products products={products} setProducts={setProducts} recipes={recipes} />;
+        return <UserGuide />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDF8F6]">
+    <div className="min-h-screen flex flex-col bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300">
       {/* Header */}
-      <header className="bg-white border-b border-rose-100 sticky top-0 z-20 shadow-sm no-print">
+      <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 sticky top-0 z-20 shadow-sm no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
               <span className="text-3xl">🧁</span>
               <div>
-                <h1 className="text-xl font-bold text-rose-950 font-serif tracking-tight">Les douceurs de Miléna</h1>
-                <p className="text-xs text-stone-500">Gestion Artisanale</p>
+                <h1 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif tracking-tight">Les douceurs de Miléna</h1>
+                <p className="text-xs text-stone-500 dark:text-stone-400">Gestion Artisanale</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
-              <label className="text-xs text-stone-400 cursor-pointer hover:text-stone-600">
+              <button 
+                onClick={toggleTheme}
+                className="p-2 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-rose-100 dark:hover:bg-stone-700 transition-colors"
+                title={theme === 'light' ? 'Passer en mode sombre' : 'Passer en mode clair'}
+              >
+                {theme === 'light' ? '🌙' : '☀️'}
+              </button>
+              
+              <label className="text-xs text-stone-400 dark:text-stone-500 cursor-pointer hover:text-stone-600 dark:hover:text-stone-300">
                 📥 Charger
                 <input type="file" onChange={importData} accept=".json" className="hidden" />
               </label>
-              <button onClick={exportData} className="text-xs text-stone-400 hover:text-stone-600">
+              <button onClick={exportData} className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300">
                 💾 Sauvegarder
               </button>
             </div>
           </div>
           
           {/* Navigation */}
-          <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-0 hide-scrollbar pt-2">
+          <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-0 hide-scrollbar pt-2 border-t border-transparent dark:border-stone-800">
              {[
+               { id: 'guide', label: '📖 Guide & Aide' },
                { id: 'settings', label: 'Paramètres' },
                { id: 'ingredients', label: 'Ingrédients' },
                { id: 'products', label: 'Produits' },
@@ -146,7 +177,7 @@ const App = () => {
                    whitespace-nowrap pb-3 px-3 border-b-2 font-medium text-sm transition-colors
                    ${activeTab === tab.id 
                      ? 'border-[#D45D79] text-[#D45D79] font-bold' 
-                     : 'border-transparent text-stone-500 hover:text-stone-800 hover:border-stone-300'}
+                     : 'border-transparent text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:border-stone-300 dark:hover:border-stone-600'}
                  `}
                >
                  {tab.label}
@@ -157,13 +188,13 @@ const App = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 text-stone-900 dark:text-stone-100">
         {renderContent()}
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-rose-100 py-6 mt-auto no-print">
-        <div className="max-w-7xl mx-auto px-4 text-center text-stone-400 text-sm">
+      <footer className="bg-white dark:bg-stone-900 border-t border-rose-100 dark:border-stone-800 py-6 mt-auto no-print transition-colors duration-300">
+        <div className="max-w-7xl mx-auto px-4 text-center text-stone-400 dark:text-stone-600 text-sm">
           <p className="font-serif">Les douceurs de Miléna © {new Date().getFullYear()}</p>
         </div>
       </footer>

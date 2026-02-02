@@ -1,3 +1,4 @@
+
 export enum Unit {
   G = 'g',
   KG = 'kg',
@@ -35,10 +36,13 @@ export interface Product {
   laborTimeMinutes: number;
   packagingCost: number;
   variableDeliveryCost: number;
-  lossRate: number;
+  lossRate: number; // Taux de perte fabrication (cassé, raté)
+  unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
+  packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
   targetMargin: number;
-  estimatedMonthlySales: number; // Moved from global to per-product
-  category: 'gateau' | 'biscuit' | 'entremet' | 'autre';
+  estimatedMonthlySales: number; 
+  category: string;
+  tvaRate?: number; // Nouveau: Taux de TVA spécifique au produit
 }
 
 export interface FixedCostItem {
@@ -50,8 +54,10 @@ export interface FixedCostItem {
 export interface GlobalSettings {
   currency: string;
   hourlyRate: number;
-  fixedCostItems: FixedCostItem[]; // Detailed list instead of single number
-  taxRate: number;
+  fixedCostItems: FixedCostItem[]; 
+  taxRate: number; // Cotisations sociales
+  isTvaSubject: boolean; // Nouveau: Assujetti à la TVA ?
+  defaultTvaRate: number; // Nouveau: Taux par défaut (ex: 5.5)
 }
 
 // --- Orders & Reporting ---
@@ -73,7 +79,15 @@ export interface Order {
 export interface MonthlyEntry {
   productId: string;
   quantitySold: number;
-  actualPrice: number;
+  quantityUnsold: number; // Invendus réels du mois
+  actualPrice: number; // Prix de vente unitaire (TTC si assujetti)
+}
+
+export interface InventoryEntry {
+  ingredientId: string;
+  startStock: number; // Quantity
+  purchasedQuantity: number; // Quantity added this month
+  endStock: number; // Quantity counted at end of month
 }
 
 export interface MonthlyReportData {
@@ -81,8 +95,9 @@ export interface MonthlyReportData {
   monthStr: string; // YYYY-MM
   sales: MonthlyEntry[];
   actualFixedCostItems: FixedCostItem[];
-  actualIngredientSpend: number;
+  actualIngredientSpend: number; // Method 2: Total cash spent
+  inventory: InventoryEntry[]; // Method 3: Stock variation
   totalRevenue: number;
   netResult: number;
-  isLocked: boolean; // If true, represents a saved archive
+  isLocked: boolean; 
 }
