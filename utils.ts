@@ -12,6 +12,26 @@ export const formatCurrency = (amount: number, currency = '€') => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
+export const clampLossRate = (lossRate: number): number => {
+  if (!Number.isFinite(lossRate)) return 0;
+  return Math.min(Math.max(lossRate, 0), 99.9);
+};
+
+export const getLossMultiplier = (lossRate: number): number => {
+  const safeLossRate = clampLossRate(lossRate);
+  return 1 / (1 - safeLossRate / 100);
+};
+
+export const calculateUnitCostWithLoss = (unitCost: number, lossRate: number): number => {
+  return unitCost * getLossMultiplier(lossRate);
+};
+
+export const calculateFixedCostPerUnit = (products: Product[], settings: GlobalSettings): number => {
+  const totalEstimatedVolume = products.reduce((sum, p) => sum + (p.estimatedMonthlySales ?? 0), 0);
+  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
+  return totalEstimatedVolume > 0 ? totalFixedCosts / totalEstimatedVolume : 0;
+};
+
 // Core Calculation Logic
 export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredient[]): number => {
   const batchCost = recipe.ingredients.reduce((total, item) => {
@@ -38,17 +58,11 @@ export const calculateProductMetrics = (
 
   // 3. Allocated Fixed Costs
   // Sum of all estimated sales to get total volume
-  const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
-  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
-  
-  const allocatedFixedCost = totalEstimatedVolume > 0 
-    ? totalFixedCosts / totalEstimatedVolume
-    : 0; // Or warn user
+  const allocatedFixedCost = calculateFixedCostPerUnit(allProducts, settings);
 
   // 4. Product Loss Adjustment
-  const lossMultiplier = 1 / (1 - (product.lossRate / 100));
   const baseVariableCosts = unitMaterialCost + product.packagingCost + product.variableDeliveryCost;
-  const totalVariableCostsWithLoss = baseVariableCosts * lossMultiplier;
+  const totalVariableCostsWithLoss = calculateUnitCostWithLoss(baseVariableCosts, product.lossRate);
 
   // 5. Full Cost
   const fullCost = totalVariableCostsWithLoss + laborCost + allocatedFixedCost;
@@ -71,6 +85,25 @@ export const calculateProductMetrics = (
     priceWithMargin,
     totalVariableCosts: totalVariableCostsWithLoss
   };
+};
+
+export const calculateDefaultActualPrice = (
+  product: Product,
+  recipe: Recipe | undefined,
+  ingredients: Ingredient[],
+  settings: GlobalSettings,
+  allProducts: Product[]
+): number => {
+  if (!recipe) return 0;
+  const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
+  const unitCost = batchCost / (recipe.batchYield || 1);
+  const unitCostWithLoss = calculateUnitCostWithLoss(unitCost, product.lossRate);
+  const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const fixedCostPerUnit = calculateFixedCostPerUnit(allProducts, settings);
+  const baseCost = unitCostWithLoss + product.packagingCost + product.variableDeliveryCost + laborCost + fixedCostPerUnit;
+  const divisor = 1 - settings.taxRate / 100;
+  const safeDivisor = divisor > 0 ? divisor : 1;
+  return baseCost / safeDivisor + product.targetMargin;
 };
 
 // Initial Sample Data

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData } from '../../types';
-import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
+import { calculateDefaultActualPrice, calculateRecipeMaterialCost, calculateUnitCostWithLoss, formatCurrency } from '../../utils';
 import { Card, Input, Button } from '../ui/Common';
 
 interface Props {
@@ -49,15 +49,28 @@ export const MonthlyReport: React.FC<Props> = ({
         });
       });
 
-      const initialSales = products.map(p => ({
-        productId: p.id,
-        quantitySold: aggregatedSales[p.id] || 0,
-        actualPrice: (calculateRecipeMaterialCost(recipes.find(r => r.id === p.recipeId)!, ingredients) / (recipes.find(r => r.id === p.recipeId)?.batchYield || 1) + p.packagingCost + p.variableDeliveryCost + ((p.laborTimeMinutes/60)*settings.hourlyRate) + (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales||1),0))) / (1 - settings.taxRate/100) + p.targetMargin
-        // Rough default price estimate based on current settings, user can override
-      }));
+      const initialSales = products.map(p => {
+        const recipe = recipes.find(r => r.id === p.recipeId);
+        return {
+          productId: p.id,
+          quantitySold: aggregatedSales[p.id] || 0,
+          actualPrice: calculateDefaultActualPrice(p, recipe, ingredients, settings, products)
+          // Rough default price estimate based on current settings, user can override
+        };
+      });
       setSales(initialSales);
     }
-  }, [selectedMonth, orders.length, settings.fixedCostItems.length]); // Dependency simplifications for MVP
+  }, [
+    selectedMonth,
+    orders,
+    products,
+    recipes,
+    ingredients,
+    savedReports,
+    settings.fixedCostItems,
+    settings.hourlyRate,
+    settings.taxRate
+  ]);
 
   // --- Handlers ---
   const handleSaleChange = (productId: string, field: 'quantitySold' | 'actualPrice', value: number) => {
@@ -101,7 +114,7 @@ export const MonthlyReport: React.FC<Props> = ({
     if (!product || !recipe) return sum;
     const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
     const unitCost = batchCost / (recipe.batchYield || 1);
-    const unitCostWithLoss = unitCost * (1 / (1 - product.lossRate / 100));
+    const unitCostWithLoss = calculateUnitCostWithLoss(unitCost, product.lossRate);
     return sum + (unitCostWithLoss * s.quantitySold);
   }, 0);
 
