@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Order, Product, OrderItem } from '../../types';
 import { Card, Button, Input, Select } from '../ui/Common';
-import { toNumber } from '../../utils';
+import { toInputValue, toNumber } from '../../utils';
 
 interface Props {
   orders: Order[];
@@ -14,7 +14,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
   const [currentItem, setCurrentItem] = useState<{ productId: string, quantity: number }>({ productId: '', quantity: 1 });
 
   const addItemToOrder = () => {
-    if (!currentItem.productId || currentItem.quantity <= 0) return;
+    if (!currentItem.productId || !Number.isFinite(currentItem.quantity) || currentItem.quantity <= 0) return;
     const existing = (newOrder.items || []).find(i => i.productId === currentItem.productId);
     
     let updatedItems;
@@ -86,8 +86,8 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
                 <input 
                   type="number" 
                   className="w-16 px-2 py-2 rounded border border-stone-300 text-sm"
-                  value={currentItem.quantity}
-                  onChange={e => setCurrentItem({...currentItem, quantity: toNumber(e.target.value, 1)})}
+                  value={toInputValue(currentItem.quantity)}
+                  onChange={e => setCurrentItem({...currentItem, quantity: toNumber(e.target.value)})}
                 />
                 <Button size="sm" onClick={addItemToOrder}>+</Button>
               </div>

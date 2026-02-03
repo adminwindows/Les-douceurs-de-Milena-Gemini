@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
-import { convertToCostPerBaseUnit, calculateRecipeMaterialCost, toNumber } from '../../utils';
+import { convertToCostPerBaseUnit, calculateRecipeMaterialCost, toInputValue, toNumber } from '../../utils';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -17,15 +17,19 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
   const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, quantity: 1, price: 0 });
 
   const handleAddIngredient = () => {
-    if (!newIng.name || newIng.price === undefined || !newIng.quantity) return;
-    const costPerBaseUnit = convertToCostPerBaseUnit(toNumber(newIng.price ?? 0), toNumber(newIng.quantity ?? 0), newIng.unit as Unit);
+    const priceValue = toNumber(newIng.price ?? '');
+    const quantityValue = toNumber(newIng.quantity ?? '');
+    if (!newIng.name || !Number.isFinite(priceValue) || !Number.isFinite(quantityValue) || quantityValue <= 0 || priceValue < 0) {
+      return;
+    }
+    const costPerBaseUnit = convertToCostPerBaseUnit(priceValue, quantityValue, newIng.unit as Unit);
     
     setIngredients([...ingredients, {
       id: Date.now().toString(),
       name: newIng.name,
       unit: newIng.unit as Unit,
-      price: toNumber(newIng.price ?? 0),
-      quantity: toNumber(newIng.quantity ?? 0),
+      price: priceValue,
+      quantity: quantityValue,
       costPerBaseUnit
     }]);
     setNewIng({ unit: Unit.KG, quantity: 1, name: '', price: 0 });
@@ -59,12 +63,15 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
 
   const handleSaveRecipe = () => {
     if (!newRecipe.name || currentRecipeIngs.length === 0) return;
+    if (!canSaveRecipe) return;
+    const batchYieldValue = toNumber(newRecipe.batchYield ?? '');
+    const lossPercentageValue = toNumber(newRecipe.lossPercentage ?? '');
     setRecipes([...recipes, {
       id: Date.now().toString(),
       name: newRecipe.name!,
       ingredients: currentRecipeIngs,
-      batchYield: toNumber(newRecipe.batchYield ?? 1, 1) || 1,
-      lossPercentage: toNumber(newRecipe.lossPercentage ?? 0)
+      batchYield: batchYieldValue,
+      lossPercentage: lossPercentageValue
     }]);
     setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
     setCurrentRecipeIngs([]);
@@ -78,15 +85,38 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
   const getIngredientUnit = (id: string) => ingredients.find(i => i.id === id)?.unit || '';
 
   // Calculate provisional cost of new recipe
+  const tempRecipeBatchYield = toNumber(newRecipe.batchYield ?? '');
+  const tempRecipeLoss = toNumber(newRecipe.lossPercentage ?? '');
   const tempRecipe: Recipe = {
     id: 'temp',
     name: 'temp',
     ingredients: currentRecipeIngs,
-    batchYield: toNumber(newRecipe.batchYield ?? 1, 1) || 1,
-    lossPercentage: toNumber(newRecipe.lossPercentage ?? 0)
+    batchYield: Number.isFinite(tempRecipeBatchYield) && tempRecipeBatchYield > 0 ? tempRecipeBatchYield : 1,
+    lossPercentage: Number.isFinite(tempRecipeLoss) && tempRecipeLoss >= 0 ? tempRecipeLoss : 0
   };
   const tempBatchCost = calculateRecipeMaterialCost(tempRecipe, ingredients);
-  const tempUnitCost = tempBatchCost / (toNumber(newRecipe.batchYield ?? 1, 1) || 1);
+  const tempUnitCost = tempBatchCost / tempRecipe.batchYield;
+
+  const ingredientPriceValue = toNumber(newIng.price ?? '');
+  const ingredientQuantityValue = toNumber(newIng.quantity ?? '');
+  const batchYieldValue = toNumber(newRecipe.batchYield ?? '');
+  const lossPercentageValue = toNumber(newRecipe.lossPercentage ?? '');
+  const ingredientPriceError = newIng.price !== undefined && (!Number.isFinite(ingredientPriceValue) || ingredientPriceValue < 0) ? '≥ 0' : undefined;
+  const ingredientQuantityError = newIng.quantity !== undefined && (!Number.isFinite(ingredientQuantityValue) || ingredientQuantityValue <= 0) ? '> 0' : undefined;
+  const batchYieldError = !Number.isFinite(batchYieldValue) || batchYieldValue <= 0 ? '> 0' : undefined;
+  const lossPercentageError = !Number.isFinite(lossPercentageValue) || lossPercentageValue < 0 || lossPercentageValue >= 100 ? '0 à 99.99' : undefined;
+  const canAddIngredient = !!newIng.name
+    && Number.isFinite(ingredientPriceValue)
+    && ingredientPriceValue >= 0
+    && Number.isFinite(ingredientQuantityValue)
+    && ingredientQuantityValue > 0;
+  const canSaveRecipe = !!newRecipe.name
+    && currentRecipeIngs.length > 0
+    && Number.isFinite(batchYieldValue)
+    && batchYieldValue > 0
+    && Number.isFinite(lossPercentageValue)
+    && lossPercentageValue >= 0
+    && lossPercentageValue < 100;
 
   return (
     <div className="space-y-6">
@@ -157,8 +187,9 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                   label="Prix d'achat (€)" 
                   type="number" 
                   step="0.01"
-                  value={newIng.price} 
-                  onChange={e => setNewIng({...newIng, price: toNumber(e.target.value)})} 
+                  value={toInputValue(newIng.price ?? Number.NaN)} 
+                  onChange={e => setNewIng({...newIng, price: toNumber(e.target.value)})}
+                  error={ingredientPriceError}
                 />
                  <Select 
                   label="Unité stock" 
@@ -176,11 +207,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
               <Input 
                 label={`Quantité achetée (en ${newIng.unit})`} 
                 type="number" 
-                value={newIng.quantity} 
-                onChange={e => setNewIng({...newIng, quantity: toNumber(e.target.value)})} 
+                value={toInputValue(newIng.quantity ?? Number.NaN)} 
+                onChange={e => setNewIng({...newIng, quantity: toNumber(e.target.value)})}
+                error={ingredientQuantityError}
                 helperText={newIng.unit === Unit.KG ? "Ex: Si 2.5kg, entrez 2.5" : ""}
               />
-              <Button className="w-full" onClick={handleAddIngredient} disabled={!newIng.name}>
+              <Button className="w-full" onClick={handleAddIngredient} disabled={!canAddIngredient}>
                 Ajouter au stock
               </Button>
             </div>
@@ -204,15 +236,17 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                   <Input 
                     label="Rendement" 
                     type="number"
-                    value={newRecipe.batchYield} 
+                    value={toInputValue(newRecipe.batchYield ?? Number.NaN)} 
                     onChange={e => setNewRecipe({...newRecipe, batchYield: toNumber(e.target.value)})} 
+                    error={batchYieldError}
                     helperText="Nb. de portions/unités obtenues avec ce batch"
                   />
                   <Input 
                     label="Pertes mat. (%)" 
                     type="number"
-                    value={newRecipe.lossPercentage} 
-                    onChange={e => setNewRecipe({...newRecipe, lossPercentage: toNumber(e.target.value)})} 
+                    value={toInputValue(newRecipe.lossPercentage ?? Number.NaN)} 
+                    onChange={e => setNewRecipe({...newRecipe, lossPercentage: toNumber(e.target.value)})}
+                    error={lossPercentageError}
                     helperText="Pâte restée dans le bol..."
                   />
                 </div>
@@ -266,7 +300,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 </div>
               </div>
 
-              <Button className="w-full" onClick={handleSaveRecipe} disabled={!newRecipe.name || currentRecipeIngs.length === 0}>
+              <Button className="w-full" onClick={handleSaveRecipe} disabled={!canSaveRecipe}>
                 Enregistrer la recette
               </Button>
             </Card>

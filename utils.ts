@@ -9,22 +9,28 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
 };
 
 export const formatCurrency = (amount: number, currency = '€') => {
+  if (!Number.isFinite(amount)) {
+    return '-';
+  }
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
-export const toNumber = (value: string | number, fallback = 0): number => {
+export const toNumber = (value: string | number, fallback = Number.NaN): number => {
+  if (typeof value === 'string' && value.trim() === '') {
+    return fallback;
+  }
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-export const clampLossRate = (lossRate: number): number => {
-  if (!Number.isFinite(lossRate)) return 0;
-  return Math.min(Math.max(lossRate, 0), 99.9);
+export const toInputValue = (value: number): number | '' => {
+  return Number.isFinite(value) ? value : '';
 };
 
 export const getLossMultiplier = (lossRate: number): number => {
-  const safeLossRate = clampLossRate(lossRate);
-  return 1 / (1 - safeLossRate / 100);
+  if (!Number.isFinite(lossRate)) return Number.NaN;
+  if (lossRate < 0 || lossRate >= 100) return Number.NaN;
+  return 1 / (1 - lossRate / 100);
 };
 
 export const calculateUnitCostWithLoss = (unitCost: number, lossRate: number): number => {
@@ -32,8 +38,16 @@ export const calculateUnitCostWithLoss = (unitCost: number, lossRate: number): n
 };
 
 export const calculateFixedCostPerUnit = (products: Product[], settings: GlobalSettings): number => {
-  const totalEstimatedVolume = products.reduce((sum, p) => sum + (p.estimatedMonthlySales ?? 0), 0);
+  const totalEstimatedVolume = products.reduce((sum, p) => {
+    if (!Number.isFinite(p.estimatedMonthlySales)) {
+      return Number.NaN;
+    }
+    return sum + (p.estimatedMonthlySales ?? 0);
+  }, 0);
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
+  if (!Number.isFinite(totalEstimatedVolume)) {
+    return Number.NaN;
+  }
   return totalEstimatedVolume > 0 ? totalFixedCosts / totalEstimatedVolume : 0;
 };
 
@@ -74,12 +88,13 @@ export const calculateProductMetrics = (
 
   // 6. Minimum Price (Rentability 0 profit)
   const taxRateDecimal = settings.taxRate / 100;
-  const divisor = 1 - taxRateDecimal > 0 ? 1 - taxRateDecimal : 1;
+  const divisor = 1 - taxRateDecimal;
+  const hasValidTaxRate = Number.isFinite(divisor) && divisor > 0;
   
-  const minPriceBreakeven = fullCost / divisor;
+  const minPriceBreakeven = hasValidTaxRate ? fullCost / divisor : Number.NaN;
 
   // 7. Target Price
-  const priceWithMargin = (fullCost + product.targetMargin) / divisor;
+  const priceWithMargin = hasValidTaxRate ? (fullCost + product.targetMargin) / divisor : Number.NaN;
 
   return {
     unitMaterialCost,
@@ -107,8 +122,10 @@ export const calculateDefaultActualPrice = (
   const fixedCostPerUnit = calculateFixedCostPerUnit(allProducts, settings);
   const baseCost = unitCostWithLoss + product.packagingCost + product.variableDeliveryCost + laborCost + fixedCostPerUnit;
   const divisor = 1 - settings.taxRate / 100;
-  const safeDivisor = divisor > 0 ? divisor : 1;
-  return baseCost / safeDivisor + product.targetMargin;
+  if (!Number.isFinite(divisor) || divisor <= 0) {
+    return Number.NaN;
+  }
+  return baseCost / divisor + product.targetMargin;
 };
 
 // Initial Sample Data

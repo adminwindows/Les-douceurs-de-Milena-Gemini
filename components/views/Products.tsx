@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product, Recipe } from '../../types';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
-import { toNumber } from '../../utils';
+import { toInputValue, toNumber } from '../../utils';
 
 interface Props {
   products: Product[];
@@ -22,17 +22,39 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.recipeId) return;
+    const estimatedMonthlySalesValue = toNumber(newProduct.estimatedMonthlySales ?? '');
+    const laborTimeValue = toNumber(newProduct.laborTimeMinutes ?? '');
+    const packagingCostValue = toNumber(newProduct.packagingCost ?? '');
+    const deliveryCostValue = toNumber(newProduct.variableDeliveryCost ?? '');
+    const lossRateValue = toNumber(newProduct.lossRate ?? '');
+    const targetMarginValue = toNumber(newProduct.targetMargin ?? '');
+    const isValid = [
+      estimatedMonthlySalesValue,
+      laborTimeValue,
+      packagingCostValue,
+      deliveryCostValue,
+      lossRateValue,
+      targetMarginValue
+    ].every(value => Number.isFinite(value))
+      && estimatedMonthlySalesValue >= 0
+      && laborTimeValue >= 0
+      && packagingCostValue >= 0
+      && deliveryCostValue >= 0
+      && lossRateValue >= 0
+      && lossRateValue < 100
+      && targetMarginValue >= 0;
+    if (!isValid) return;
 
     setProducts([...products, {
       id: Date.now().toString(),
       name: newProduct.name,
       recipeId: newProduct.recipeId,
-      laborTimeMinutes: toNumber(newProduct.laborTimeMinutes ?? 0),
-      packagingCost: toNumber(newProduct.packagingCost ?? 0),
-      variableDeliveryCost: toNumber(newProduct.variableDeliveryCost ?? 0),
-      lossRate: toNumber(newProduct.lossRate ?? 0),
-      targetMargin: toNumber(newProduct.targetMargin ?? 0),
-      estimatedMonthlySales: toNumber(newProduct.estimatedMonthlySales ?? 0),
+      laborTimeMinutes: laborTimeValue,
+      packagingCost: packagingCostValue,
+      variableDeliveryCost: deliveryCostValue,
+      lossRate: lossRateValue,
+      targetMargin: targetMarginValue,
+      estimatedMonthlySales: estimatedMonthlySalesValue,
       category: newProduct.category as any
     }]);
 
@@ -52,6 +74,27 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
   const handleDeleteProduct = (id: string) => {
     setProducts(products.filter(p => p.id !== id));
   };
+
+  const estimatedMonthlySalesValue = toNumber(newProduct.estimatedMonthlySales ?? '');
+  const laborTimeValue = toNumber(newProduct.laborTimeMinutes ?? '');
+  const packagingCostValue = toNumber(newProduct.packagingCost ?? '');
+  const deliveryCostValue = toNumber(newProduct.variableDeliveryCost ?? '');
+  const lossRateValue = toNumber(newProduct.lossRate ?? '');
+  const targetMarginValue = toNumber(newProduct.targetMargin ?? '');
+  const estimatedMonthlySalesError = !Number.isFinite(estimatedMonthlySalesValue) || estimatedMonthlySalesValue < 0 ? '≥ 0' : undefined;
+  const laborTimeError = !Number.isFinite(laborTimeValue) || laborTimeValue < 0 ? '≥ 0' : undefined;
+  const packagingCostError = !Number.isFinite(packagingCostValue) || packagingCostValue < 0 ? '≥ 0' : undefined;
+  const deliveryCostError = !Number.isFinite(deliveryCostValue) || deliveryCostValue < 0 ? '≥ 0' : undefined;
+  const lossRateError = !Number.isFinite(lossRateValue) || lossRateValue < 0 || lossRateValue >= 100 ? '0 à 99.99' : undefined;
+  const targetMarginError = !Number.isFinite(targetMarginValue) || targetMarginValue < 0 ? '≥ 0' : undefined;
+  const canAddProduct = !!newProduct.name
+    && !!newProduct.recipeId
+    && !estimatedMonthlySalesError
+    && !laborTimeError
+    && !packagingCostError
+    && !deliveryCostError
+    && !lossRateError
+    && !targetMarginError;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -98,8 +141,9 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 label="Ventes estimées / mois" 
                 type="number"
                 suffix="unités"
-                value={newProduct.estimatedMonthlySales} 
-                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: toNumber(e.target.value)})} 
+                value={toInputValue(newProduct.estimatedMonthlySales ?? Number.NaN)} 
+                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: toNumber(e.target.value)})}
+                error={estimatedMonthlySalesError}
                 helperText="Sert à répartir vos charges fixes (Loyer, etc.)"
               />
             </div>
@@ -109,8 +153,9 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 label="Main d'œuvre" 
                 type="number"
                 suffix="min"
-                value={newProduct.laborTimeMinutes} 
-                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: toNumber(e.target.value)})} 
+                value={toInputValue(newProduct.laborTimeMinutes ?? Number.NaN)} 
+                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: toNumber(e.target.value)})}
+                error={laborTimeError}
                 helperText="Temps/unité"
               />
                <Input 
@@ -118,8 +163,9 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 type="number"
                 step="0.01"
                 suffix="€"
-                value={newProduct.packagingCost} 
-                onChange={e => setNewProduct({...newProduct, packagingCost: toNumber(e.target.value)})} 
+                value={toInputValue(newProduct.packagingCost ?? Number.NaN)} 
+                onChange={e => setNewProduct({...newProduct, packagingCost: toNumber(e.target.value)})}
+                error={packagingCostError}
               />
             </div>
 
@@ -128,16 +174,18 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 label="Pertes invendus" 
                 type="number"
                 suffix="%"
-                value={newProduct.lossRate} 
-                onChange={e => setNewProduct({...newProduct, lossRate: toNumber(e.target.value)})} 
+                value={toInputValue(newProduct.lossRate ?? Number.NaN)} 
+                onChange={e => setNewProduct({...newProduct, lossRate: toNumber(e.target.value)})}
+                error={lossRateError}
               />
               <Input 
                 label="Marge cible" 
                 type="number"
                 step="0.10"
                 suffix="€"
-                value={newProduct.targetMargin} 
-                onChange={e => setNewProduct({...newProduct, targetMargin: toNumber(e.target.value)})} 
+                value={toInputValue(newProduct.targetMargin ?? Number.NaN)} 
+                onChange={e => setNewProduct({...newProduct, targetMargin: toNumber(e.target.value)})}
+                error={targetMarginError}
                 helperText="Profit net souhaité"
               />
             </div>
@@ -145,7 +193,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
             <Button 
               className="w-full mt-4 py-3 shadow-md" 
               onClick={handleAddProduct} 
-              disabled={!newProduct.name || !newProduct.recipeId}
+              disabled={!canAddProduct}
             >
               Ajouter au Catalogue
             </Button>

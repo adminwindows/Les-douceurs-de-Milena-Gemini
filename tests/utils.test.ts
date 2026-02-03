@@ -4,8 +4,8 @@ import {
   calculateFixedCostPerUnit,
   calculateProductMetrics,
   calculateUnitCostWithLoss,
-  clampLossRate,
   getLossMultiplier,
+  toInputValue,
   toNumber
 } from '../utils';
 import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
@@ -32,30 +32,25 @@ const baseRecipe: Recipe = {
 };
 
 describe('loss helpers', () => {
-  it('clamps loss rates into a safe range', () => {
-    expect(clampLossRate(-10)).toBe(0);
-    expect(clampLossRate(150)).toBe(99.9);
+  it('returns NaN for invalid loss rates', () => {
+    expect(Number.isNaN(getLossMultiplier(-1))).toBe(true);
+    expect(Number.isNaN(getLossMultiplier(100))).toBe(true);
+    expect(Number.isNaN(getLossMultiplier(Number.NaN))).toBe(true);
   });
 
-  it('normalizes invalid loss rates to zero', () => {
-    expect(clampLossRate(Number.NaN)).toBe(0);
-    expect(clampLossRate(Number.POSITIVE_INFINITY)).toBe(0);
-  });
-
-  it('returns a finite multiplier for extreme loss rates', () => {
-    const multiplier = getLossMultiplier(100);
+  it('returns a finite multiplier for valid loss rates', () => {
+    const multiplier = getLossMultiplier(5);
     expect(Number.isFinite(multiplier)).toBe(true);
   });
 
-  it('applies loss multiplier without producing infinity', () => {
+  it('applies loss multiplier and preserves NaN on invalid inputs', () => {
     const cost = calculateUnitCostWithLoss(10, 100);
-    expect(Number.isFinite(cost)).toBe(true);
-    expect(cost).toBeGreaterThan(0);
+    expect(Number.isNaN(cost)).toBe(true);
   });
 });
 
 describe('product calculations', () => {
-  it('avoids infinite totals when loss rate is 100%', () => {
+  it('produces NaN totals when loss rate is invalid', () => {
     const product: Product = {
       id: 'p1',
       name: 'Test',
@@ -77,9 +72,9 @@ describe('product calculations', () => {
       [product]
     );
 
-    expect(Number.isFinite(metrics.fullCost)).toBe(true);
-    expect(Number.isFinite(metrics.minPriceBreakeven)).toBe(true);
-    expect(Number.isFinite(metrics.priceWithMargin)).toBe(true);
+    expect(Number.isNaN(metrics.fullCost)).toBe(true);
+    expect(Number.isNaN(metrics.minPriceBreakeven)).toBe(true);
+    expect(Number.isNaN(metrics.priceWithMargin)).toBe(true);
   });
 });
 
@@ -127,7 +122,7 @@ describe('report defaults', () => {
     expect(calculateFixedCostPerUnit(products, baseSettings)).toBe(2.5);
   });
 
-  it('handles excessive tax rates without returning infinity', () => {
+  it('returns NaN for excessive tax rates', () => {
     const product: Product = {
       id: 'p1',
       name: 'High Tax',
@@ -147,14 +142,21 @@ describe('report defaults', () => {
       { ...baseSettings, taxRate: 150 },
       [product]
     );
-    expect(Number.isFinite(price)).toBe(true);
+    expect(Number.isNaN(price)).toBe(true);
   });
 });
 
 describe('number parsing', () => {
   it('coerces finite values and falls back on invalid values', () => {
     expect(toNumber('12.5')).toBe(12.5);
-    expect(toNumber('')).toBe(0);
+    expect(Number.isNaN(toNumber(''))).toBe(true);
     expect(toNumber('nope', 3)).toBe(3);
+  });
+});
+
+describe('input formatting', () => {
+  it('returns empty string for invalid numbers', () => {
+    expect(toInputValue(Number.NaN)).toBe('');
+    expect(toInputValue(Number.POSITIVE_INFINITY)).toBe('');
   });
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GlobalSettings, FixedCostItem } from '../../types';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
-import { formatCurrency, toNumber } from '../../utils';
+import { formatCurrency, toInputValue, toNumber } from '../../utils';
 
 interface Props {
   settings: GlobalSettings;
@@ -17,10 +17,12 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
 
   const handleAddCost = () => {
     if (!newCost.name || !newCost.amount) return;
+    const parsedAmount = toNumber(newCost.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) return;
     const item: FixedCostItem = {
       id: Date.now().toString(),
       name: newCost.name,
-      amount: toNumber(newCost.amount)
+      amount: parsedAmount
     };
     setSettings(prev => ({
       ...prev,
@@ -37,6 +39,10 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
   };
 
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, i) => sum + i.amount, 0);
+  const hourlyRateError = !Number.isFinite(settings.hourlyRate) || settings.hourlyRate < 0 ? 'Valeur invalide' : undefined;
+  const taxRateError = !Number.isFinite(settings.taxRate) || settings.taxRate < 0 || settings.taxRate >= 100 ? '0 à 99.99' : undefined;
+  const parsedNewCostAmount = toNumber(newCost.amount);
+  const canAddCost = newCost.name && Number.isFinite(parsedNewCostAmount) && parsedNewCostAmount >= 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -53,8 +59,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
               label="Taux horaire"
               type="number"
               suffix="€/h"
-              value={settings.hourlyRate}
+              value={toInputValue(settings.hourlyRate)}
               onChange={e => handleChange('hourlyRate', toNumber(e.target.value))}
+              error={hourlyRateError}
               helperText="Votre objectif de rémunération horaire."
             />
             
@@ -64,8 +71,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 label="Prélèvements sur CA"
                 type="number"
                 suffix="%"
-                value={settings.taxRate}
+                value={toInputValue(settings.taxRate)}
                 onChange={e => handleChange('taxRate', toNumber(e.target.value))}
+                error={taxRateError}
                 helperText="Cotisations URSSAF + Impôts sur le revenu."
               />
               <InfoTooltip text="Ce pourcentage est déduit de votre prix de vente pour payer les charges sociales." />
@@ -111,7 +119,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 onChange={e => setNewCost({...newCost, amount: e.target.value})}
               />
             </div>
-            <Button size="sm" onClick={handleAddCost} disabled={!newCost.name || !newCost.amount} className="w-full">
+            <Button size="sm" onClick={handleAddCost} disabled={!canAddCost} className="w-full">
               Ajouter
             </Button>
           </div>

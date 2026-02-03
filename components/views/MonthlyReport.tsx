@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData } from '../../types';
-import { calculateDefaultActualPrice, calculateRecipeMaterialCost, calculateUnitCostWithLoss, formatCurrency, toNumber } from '../../utils';
+import { calculateDefaultActualPrice, calculateRecipeMaterialCost, calculateUnitCostWithLoss, formatCurrency, toInputValue, toNumber } from '../../utils';
 import { Card, Input, Button } from '../ui/Common';
 
 interface Props {
@@ -82,6 +82,7 @@ export const MonthlyReport: React.FC<Props> = ({
   };
 
   const saveReport = () => {
+    if (!canSaveReport) return;
     const report: MonthlyReportData = {
       id: selectedMonth,
       monthStr: selectedMonth,
@@ -125,6 +126,16 @@ export const MonthlyReport: React.FC<Props> = ({
   const grossMargin = totalRevenue - totalVariableCosts;
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
   const netResult = grossMargin - totalActualFixedCosts;
+
+  const salesErrors = sales.map(s => ({
+    quantitySold: !Number.isFinite(s.quantitySold) || s.quantitySold < 0 ? '≥ 0' : undefined,
+    actualPrice: !Number.isFinite(s.actualPrice) || s.actualPrice < 0 ? '≥ 0' : undefined
+  }));
+  const fixedCostErrors = actualFixedItems.map(item => !Number.isFinite(item.amount) || item.amount < 0);
+  const actualIngredientSpendError = !useCalculatedFoodCost && (!Number.isFinite(actualIngredientSpend) || actualIngredientSpend < 0);
+  const canSaveReport = salesErrors.every(err => !err.quantitySold && !err.actualPrice)
+    && fixedCostErrors.every(isInvalid => !isInvalid)
+    && !actualIngredientSpendError;
 
   if (viewHistory) {
     return (
@@ -172,9 +183,10 @@ export const MonthlyReport: React.FC<Props> = ({
           <h3 className="text-lg font-bold text-stone-800 mb-4 font-serif">1. Ventes Réelles</h3>
           <p className="text-xs text-stone-500 mb-4">Pré-rempli avec les commandes livrées ce mois-ci.</p>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-            {sales.map(s => {
+            {sales.map((s, index) => {
               const p = products.find(prod => prod.id === s.productId);
               if (!p) return null;
+              const saleError = salesErrors[index];
               return (
                 <div key={s.productId} className="p-3 border border-stone-100 rounded-lg bg-stone-50">
                   <div className="font-medium text-stone-700 text-sm mb-2">{p.name}</div>
@@ -183,16 +195,18 @@ export const MonthlyReport: React.FC<Props> = ({
                       className="flex-1"
                       label="Qté" 
                       type="number" 
-                      value={s.quantitySold}
+                      value={toInputValue(s.quantitySold)}
                       onChange={e => handleSaleChange(s.productId, 'quantitySold', toNumber(e.target.value))}
+                      error={saleError?.quantitySold}
                     />
                     <Input 
                       className="flex-1"
                       label="Prix Réel" 
                       type="number" 
                       suffix="€"
-                      value={s.actualPrice}
+                      value={toInputValue(s.actualPrice)}
                       onChange={e => handleSaleChange(s.productId, 'actualPrice', toNumber(e.target.value))}
+                      error={saleError?.actualPrice}
                     />
                   </div>
                 </div>
@@ -212,7 +226,7 @@ export const MonthlyReport: React.FC<Props> = ({
                 <input 
                   type="number" 
                   className="w-20 text-right bg-stone-50 border border-stone-200 rounded px-1 py-0.5"
-                  value={item.amount}
+                  value={toInputValue(item.amount)}
                   onChange={e => handleFixedItemChange(item.id, toNumber(e.target.value))}
                 />
               </div>
@@ -242,14 +256,15 @@ export const MonthlyReport: React.FC<Props> = ({
                  label="Total achats ingrédients" 
                  type="number"
                  suffix="€"
-                 value={actualIngredientSpend}
+                 value={toInputValue(actualIngredientSpend)}
                  onChange={e => setActualIngredientSpend(toNumber(e.target.value))}
+                 error={actualIngredientSpendError ? '≥ 0' : undefined}
                />
              )}
           </div>
         </Card>
 
-        <Button className="w-full shadow-lg" onClick={saveReport}>Sauvegarder ce Bilan</Button>
+        <Button className="w-full shadow-lg" onClick={saveReport} disabled={!canSaveReport}>Sauvegarder ce Bilan</Button>
       </div>
 
       {/* Report Output */}
