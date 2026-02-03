@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { GlobalSettings, FixedCostItem } from '../../types';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, toNumber } from '../../utils';
 
 interface Props {
   settings: GlobalSettings;
@@ -20,7 +20,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
     const item: FixedCostItem = {
       id: Date.now().toString(),
       name: newCost.name,
-      amount: parseFloat(newCost.amount)
+      amount: toNumber(newCost.amount)
     };
     setSettings(prev => ({
       ...prev,
@@ -54,7 +54,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
               type="number"
               suffix="€/h"
               value={settings.hourlyRate}
-              onChange={e => handleChange('hourlyRate', parseFloat(e.target.value))}
+              onChange={e => handleChange('hourlyRate', toNumber(e.target.value))}
               helperText="Votre objectif de rémunération horaire."
             />
             
@@ -65,7 +65,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 type="number"
                 suffix="%"
                 value={settings.taxRate}
-                onChange={e => handleChange('taxRate', parseFloat(e.target.value))}
+                onChange={e => handleChange('taxRate', toNumber(e.target.value))}
                 helperText="Cotisations URSSAF + Impôts sur le revenu."
               />
               <InfoTooltip text="Ce pourcentage est déduit de votre prix de vente pour payer les charges sociales." />

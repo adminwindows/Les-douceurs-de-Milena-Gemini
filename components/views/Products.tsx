@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, Recipe } from '../../types';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
+import { toNumber } from '../../utils';
 
 interface Props {
   products: Product[];
@@ -26,12 +27,12 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
       id: Date.now().toString(),
       name: newProduct.name,
       recipeId: newProduct.recipeId,
-      laborTimeMinutes: Number(newProduct.laborTimeMinutes),
-      packagingCost: Number(newProduct.packagingCost),
-      variableDeliveryCost: Number(newProduct.variableDeliveryCost),
-      lossRate: Number(newProduct.lossRate),
-      targetMargin: Number(newProduct.targetMargin),
-      estimatedMonthlySales: Number(newProduct.estimatedMonthlySales),
+      laborTimeMinutes: toNumber(newProduct.laborTimeMinutes ?? 0),
+      packagingCost: toNumber(newProduct.packagingCost ?? 0),
+      variableDeliveryCost: toNumber(newProduct.variableDeliveryCost ?? 0),
+      lossRate: toNumber(newProduct.lossRate ?? 0),
+      targetMargin: toNumber(newProduct.targetMargin ?? 0),
+      estimatedMonthlySales: toNumber(newProduct.estimatedMonthlySales ?? 0),
       category: newProduct.category as any
     }]);
 
@@ -98,7 +99,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 type="number"
                 suffix="unités"
                 value={newProduct.estimatedMonthlySales} 
-                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: toNumber(e.target.value)})} 
                 helperText="Sert à répartir vos charges fixes (Loyer, etc.)"
               />
             </div>
@@ -109,7 +110,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 type="number"
                 suffix="min"
                 value={newProduct.laborTimeMinutes} 
-                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: toNumber(e.target.value)})} 
                 helperText="Temps/unité"
               />
                <Input 
@@ -118,7 +119,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 step="0.01"
                 suffix="€"
                 value={newProduct.packagingCost} 
-                onChange={e => setNewProduct({...newProduct, packagingCost: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, packagingCost: toNumber(e.target.value)})} 
               />
             </div>
 
@@ -128,7 +129,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 type="number"
                 suffix="%"
                 value={newProduct.lossRate} 
-                onChange={e => setNewProduct({...newProduct, lossRate: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, lossRate: toNumber(e.target.value)})} 
               />
               <Input 
                 label="Marge cible" 
@@ -136,7 +137,7 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
                 step="0.10"
                 suffix="€"
                 value={newProduct.targetMargin} 
-                onChange={e => setNewProduct({...newProduct, targetMargin: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, targetMargin: toNumber(e.target.value)})} 
                 helperText="Profit net souhaité"
               />
             </div>

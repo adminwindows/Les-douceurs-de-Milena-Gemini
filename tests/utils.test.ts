@@ -5,7 +5,8 @@ import {
   calculateProductMetrics,
   calculateUnitCostWithLoss,
   clampLossRate,
-  getLossMultiplier
+  getLossMultiplier,
+  toNumber
 } from '../utils';
 import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
 
@@ -34,6 +35,11 @@ describe('loss helpers', () => {
   it('clamps loss rates into a safe range', () => {
     expect(clampLossRate(-10)).toBe(0);
     expect(clampLossRate(150)).toBe(99.9);
+  });
+
+  it('normalizes invalid loss rates to zero', () => {
+    expect(clampLossRate(Number.NaN)).toBe(0);
+    expect(clampLossRate(Number.POSITIVE_INFINITY)).toBe(0);
   });
 
   it('returns a finite multiplier for extreme loss rates', () => {
@@ -111,5 +117,44 @@ describe('report defaults', () => {
     };
 
     expect(calculateFixedCostPerUnit([product], baseSettings)).toBe(0);
+  });
+
+  it('calculates fixed-cost allocation across multiple products', () => {
+    const products: Product[] = [
+      { id: 'p1', name: 'A', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 0, variableDeliveryCost: 0, lossRate: 0, targetMargin: 0, estimatedMonthlySales: 10, category: 'gateau' },
+      { id: 'p2', name: 'B', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 0, variableDeliveryCost: 0, lossRate: 0, targetMargin: 0, estimatedMonthlySales: 30, category: 'biscuit' }
+    ];
+    expect(calculateFixedCostPerUnit(products, baseSettings)).toBe(2.5);
+  });
+
+  it('handles excessive tax rates without returning infinity', () => {
+    const product: Product = {
+      id: 'p1',
+      name: 'High Tax',
+      recipeId: 'r1',
+      laborTimeMinutes: 0,
+      packagingCost: 0,
+      variableDeliveryCost: 0,
+      lossRate: 0,
+      targetMargin: 0,
+      estimatedMonthlySales: 10,
+      category: 'biscuit'
+    };
+    const price = calculateDefaultActualPrice(
+      product,
+      baseRecipe,
+      baseIngredients,
+      { ...baseSettings, taxRate: 150 },
+      [product]
+    );
+    expect(Number.isFinite(price)).toBe(true);
+  });
+});
+
+describe('number parsing', () => {
+  it('coerces finite values and falls back on invalid values', () => {
+    expect(toNumber('12.5')).toBe(12.5);
+    expect(toNumber('')).toBe(0);
+    expect(toNumber('nope', 3)).toBe(3);
   });
 });

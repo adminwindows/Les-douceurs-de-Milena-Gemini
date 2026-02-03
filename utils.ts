@@ -12,6 +12,11 @@ export const formatCurrency = (amount: number, currency = '€') => {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
+export const toNumber = (value: string | number, fallback = 0): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 export const clampLossRate = (lossRate: number): number => {
   if (!Number.isFinite(lossRate)) return 0;
   return Math.min(Math.max(lossRate, 0), 99.9);

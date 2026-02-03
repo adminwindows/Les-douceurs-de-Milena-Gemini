@@ -15,3 +15,13 @@ This contains everything you need to run your app locally.
    `npm install`
 2. Run the app:
    `npm run dev`
+
+## Tests
+
+Run the unit tests:
+
+`npm run test:run`
+
+## CI
+
+GitHub Actions runs the test suite and a production build on each push and pull request.

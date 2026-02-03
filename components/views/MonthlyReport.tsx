@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData } from '../../types';
-import { calculateDefaultActualPrice, calculateRecipeMaterialCost, calculateUnitCostWithLoss, formatCurrency } from '../../utils';
+import { calculateDefaultActualPrice, calculateRecipeMaterialCost, calculateUnitCostWithLoss, formatCurrency, toNumber } from '../../utils';
 import { Card, Input, Button } from '../ui/Common';
 
 interface Props {
@@ -184,7 +184,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       label="Qté" 
                       type="number" 
                       value={s.quantitySold}
-                      onChange={e => handleSaleChange(s.productId, 'quantitySold', parseFloat(e.target.value))}
+                      onChange={e => handleSaleChange(s.productId, 'quantitySold', toNumber(e.target.value))}
                     />
                     <Input 
                       className="flex-1"
@@ -192,7 +192,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       type="number" 
                       suffix="€"
                       value={s.actualPrice}
-                      onChange={e => handleSaleChange(s.productId, 'actualPrice', parseFloat(e.target.value))}
+                      onChange={e => handleSaleChange(s.productId, 'actualPrice', toNumber(e.target.value))}
                     />
                   </div>
                 </div>
@@ -213,7 +213,7 @@ export const MonthlyReport: React.FC<Props> = ({
                   type="number" 
                   className="w-20 text-right bg-stone-50 border border-stone-200 rounded px-1 py-0.5"
                   value={item.amount}
-                  onChange={e => handleFixedItemChange(item.id, parseFloat(e.target.value))}
+                  onChange={e => handleFixedItemChange(item.id, toNumber(e.target.value))}
                 />
               </div>
             ))}
@@ -243,7 +243,7 @@ export const MonthlyReport: React.FC<Props> = ({
                  type="number"
                  suffix="€"
                  value={actualIngredientSpend}
-                 onChange={e => setActualIngredientSpend(parseFloat(e.target.value))}
+                 onChange={e => setActualIngredientSpend(toNumber(e.target.value))}
                />
              )}
           </div>
