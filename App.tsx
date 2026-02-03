@@ -15,6 +15,7 @@ import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData }
 
 const App = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report'>('products');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   
   // State
   const [ingredients, setIngredients] = useState<Ingredient[]>(INITIAL_INGREDIENTS);
@@ -23,6 +24,21 @@ const App = () => {
   const [settings, setSettings] = useState<GlobalSettings>(INITIAL_SETTINGS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [savedReports, setSavedReports] = useState<MonthlyReportData[]>([]);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (storedTheme) {
+      setTheme(storedTheme);
+      return;
+    }
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   // Persistence Helpers
   const exportData = () => {
@@ -119,6 +135,14 @@ const App = () => {
             </div>
             
             <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))}
+                className="text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1"
+                aria-label={theme === 'dark' ? 'Activer le mode clair' : 'Activer le mode sombre'}
+              >
+                {theme === 'dark' ? '🌞 Clair' : '🌙 Sombre'}
+              </button>
               <label className="text-xs text-stone-400 cursor-pointer hover:text-stone-600">
                 📥 Charger
                 <input type="file" onChange={importData} accept=".json" className="hidden" />
