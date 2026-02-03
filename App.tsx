@@ -13,7 +13,8 @@ import {
   INITIAL_PRODUCTS, 
   INITIAL_SETTINGS 
 } from './utils';
-import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData } from './types';
+import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Unit } from './types';
+import { isFiniteNumber, isNonEmptyString, isValidNonNegativeNumber, isValidPercentage, isValidPositiveNumber } from './validation';
 
 const App = () => {
   // Default tab is now 'guide'
@@ -61,6 +62,114 @@ const App = () => {
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
+        const isValidUnit = (value: unknown): value is Unit =>
+          Object.values(Unit).includes(value as Unit);
+        const isValidIngredient = (value: any): value is Ingredient =>
+          Boolean(value)
+          && isNonEmptyString(value.id)
+          && isNonEmptyString(value.name)
+          && isValidUnit(value.unit)
+          && isValidNonNegativeNumber(value.price)
+          && isValidPositiveNumber(value.quantity)
+          && isValidNonNegativeNumber(value.costPerBaseUnit);
+        const isValidRecipe = (value: any): value is Recipe =>
+          Boolean(value)
+          && isNonEmptyString(value.id)
+          && isNonEmptyString(value.name)
+          && Array.isArray(value.ingredients)
+          && value.ingredients.every((item: any) =>
+            Boolean(item)
+            && isNonEmptyString(item.ingredientId)
+            && isValidPositiveNumber(item.quantity)
+          )
+          && isValidPositiveNumber(value.batchYield)
+          && isValidPercentage(value.lossPercentage);
+        const isValidProduct = (value: any): value is Product =>
+          Boolean(value)
+          && isNonEmptyString(value.id)
+          && isNonEmptyString(value.name)
+          && isNonEmptyString(value.recipeId)
+          && isValidNonNegativeNumber(value.laborTimeMinutes)
+          && isValidNonNegativeNumber(value.packagingCost)
+          && isValidNonNegativeNumber(value.variableDeliveryCost)
+          && isValidPercentage(value.lossRate)
+          && isValidNonNegativeNumber(value.unsoldEstimate)
+          && typeof value.packagingUsedOnUnsold === 'boolean'
+          && isValidNonNegativeNumber(value.targetMargin)
+          && isValidNonNegativeNumber(value.estimatedMonthlySales)
+          && isNonEmptyString(value.category)
+          && (value.tvaRate === undefined || isValidPercentage(value.tvaRate));
+        const isValidSettings = (value: any): value is GlobalSettings =>
+          Boolean(value)
+          && isNonEmptyString(value.currency)
+          && isValidNonNegativeNumber(value.hourlyRate)
+          && Array.isArray(value.fixedCostItems)
+          && value.fixedCostItems.every((item: any) =>
+            Boolean(item)
+            && isNonEmptyString(item.id)
+            && isNonEmptyString(item.name)
+            && isValidNonNegativeNumber(item.amount)
+          )
+          && isValidPercentage(value.taxRate)
+          && typeof value.isTvaSubject === 'boolean'
+          && isValidPercentage(value.defaultTvaRate);
+        const isValidOrder = (value: any): value is Order =>
+          Boolean(value)
+          && isNonEmptyString(value.id)
+          && isNonEmptyString(value.customerName)
+          && isNonEmptyString(value.date)
+          && Array.isArray(value.items)
+          && value.items.every((item: any) =>
+            Boolean(item)
+            && isNonEmptyString(item.productId)
+            && isValidPositiveNumber(item.quantity)
+          )
+          && (value.status === 'pending' || value.status === 'completed' || value.status === 'cancelled')
+          && (value.notes === undefined || typeof value.notes === 'string');
+        const isValidMonthlyReport = (value: any): value is MonthlyReportData =>
+          Boolean(value)
+          && isNonEmptyString(value.id)
+          && isNonEmptyString(value.monthStr)
+          && Array.isArray(value.sales)
+          && value.sales.every((sale: any) =>
+            Boolean(sale)
+            && isNonEmptyString(sale.productId)
+            && isValidNonNegativeNumber(sale.quantitySold)
+            && isValidNonNegativeNumber(sale.quantityUnsold)
+            && isValidNonNegativeNumber(sale.actualPrice)
+          )
+          && Array.isArray(value.actualFixedCostItems)
+          && value.actualFixedCostItems.every((item: any) =>
+            Boolean(item)
+            && isNonEmptyString(item.id)
+            && isNonEmptyString(item.name)
+            && isValidNonNegativeNumber(item.amount)
+          )
+          && isValidNonNegativeNumber(value.actualIngredientSpend)
+          && Array.isArray(value.inventory)
+          && value.inventory.every((item: any) =>
+            Boolean(item)
+            && isNonEmptyString(item.ingredientId)
+            && isValidNonNegativeNumber(item.startStock)
+            && isValidNonNegativeNumber(item.purchasedQuantity)
+            && isValidNonNegativeNumber(item.endStock)
+          )
+          && isValidNonNegativeNumber(value.totalRevenue)
+          && isFiniteNumber(value.netResult)
+          && typeof value.isLocked === 'boolean';
+
+        if (
+          !json
+          || (json.ingredients && (!Array.isArray(json.ingredients) || !json.ingredients.every(isValidIngredient)))
+          || (json.recipes && (!Array.isArray(json.recipes) || !json.recipes.every(isValidRecipe)))
+          || (json.products && (!Array.isArray(json.products) || !json.products.every(isValidProduct)))
+          || (json.settings && !isValidSettings(json.settings))
+          || (json.orders && (!Array.isArray(json.orders) || !json.orders.every(isValidOrder)))
+          || (json.savedReports && (!Array.isArray(json.savedReports) || !json.savedReports.every(isValidMonthlyReport)))
+        ) {
+          alert("Le fichier importé contient des données invalides.");
+          return;
+        }
         if (window.confirm("Voulez-vous ÉCRASER les données actuelles (Ok) ou FUSIONNER (Annuler - non dispo MVP) ?")) {
           if (json.ingredients) setIngredients(json.ingredients);
           if (json.recipes) setRecipes(json.recipes);

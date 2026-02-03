@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Product, Recipe, Ingredient, GlobalSettings } from '../../types';
 import { calculateProductMetrics, formatCurrency } from '../../utils';
+import { isValidNonNegativeNumber, isValidPercentage, isValidPositiveNumber } from '../../validation';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -39,11 +40,28 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
 
   const [isCustomCategory, setIsCustomCategory] = useState(false);
 
-  const lossRate = newProduct.lossRate ?? 0;
-  const isLossRateValid = !isNaN(lossRate) && lossRate >= 0 && lossRate < 100;
+  const lossRate = Number(newProduct.lossRate);
+  const isLossRateValid = isValidPercentage(lossRate);
+  const isLaborTimeValid = isValidNonNegativeNumber(Number(newProduct.laborTimeMinutes));
+  const isPackagingCostValid = isValidNonNegativeNumber(Number(newProduct.packagingCost));
+  const isDeliveryCostValid = isValidNonNegativeNumber(Number(newProduct.variableDeliveryCost));
+  const isUnsoldValid = isValidNonNegativeNumber(Number(newProduct.unsoldEstimate));
+  const isTargetMarginValid = isValidNonNegativeNumber(Number(newProduct.targetMargin));
+  const isSalesValid = isValidNonNegativeNumber(Number(newProduct.estimatedMonthlySales));
+  const isTvaRateValid = !isTvaEnabled || isValidPercentage(Number(newProduct.tvaRate));
+  const isProductValid = Boolean(newProduct.name)
+    && Boolean(newProduct.recipeId)
+    && isLossRateValid
+    && isLaborTimeValid
+    && isPackagingCostValid
+    && isDeliveryCostValid
+    && isUnsoldValid
+    && isTargetMarginValid
+    && isSalesValid
+    && isTvaRateValid;
 
   const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.recipeId || !isLossRateValid) return;
+    if (!isProductValid) return;
 
     setProducts([...products, {
       id: Date.now().toString(),
@@ -150,12 +168,13 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             )}
 
             <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700 grid grid-cols-2 gap-4">
-               <Input 
+              <Input 
                 label="Ventes / mois" 
                 type="number"
                 suffix="u"
                 value={newProduct.estimatedMonthlySales} 
-                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: parseFloat(e.target.value)})}
+                error={!isSalesValid ? '≥ 0' : undefined}
                 helperText="Prévision"
               />
                <Input 
@@ -163,7 +182,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 type="number"
                 suffix="u"
                 value={newProduct.unsoldEstimate} 
-                onChange={e => setNewProduct({...newProduct, unsoldEstimate: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, unsoldEstimate: parseFloat(e.target.value)})}
+                error={!isUnsoldValid ? '≥ 0' : undefined}
                 helperText="Pertes produits finis"
               />
             </div>
@@ -174,7 +194,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 type="number"
                 suffix="min"
                 value={newProduct.laborTimeMinutes} 
-                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: parseFloat(e.target.value)})}
+                error={!isLaborTimeValid ? '≥ 0' : undefined}
                 helperText="Temps/unité"
               />
                <Input 
@@ -183,7 +204,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 step="0.01"
                 suffix="€"
                 value={newProduct.packagingCost} 
-                onChange={e => setNewProduct({...newProduct, packagingCost: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, packagingCost: parseFloat(e.target.value)})}
+                error={!isPackagingCostValid ? '≥ 0' : undefined}
               />
             </div>
             
@@ -223,7 +245,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 step="0.10"
                 suffix="€"
                 value={newProduct.targetMargin} 
-                onChange={e => setNewProduct({...newProduct, targetMargin: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, targetMargin: parseFloat(e.target.value)})}
+                error={!isTargetMarginValid ? '≥ 0' : undefined}
                 helperText="Profit net souhaité"
               />
             </div>
@@ -235,7 +258,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 step="0.1"
                 suffix="%"
                 value={newProduct.tvaRate} 
-                onChange={e => setNewProduct({...newProduct, tvaRate: parseFloat(e.target.value)})} 
+                onChange={e => setNewProduct({...newProduct, tvaRate: parseFloat(e.target.value)})}
+                error={!isTvaRateValid ? '< 100%' : undefined}
                 helperText={`Par défaut: ${defaultTva}%`}
               />
             )}
@@ -243,7 +267,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             <Button 
               className="w-full mt-4 py-3 shadow-md" 
               onClick={handleAddProduct} 
-              disabled={!newProduct.name || !newProduct.recipeId || !isLossRateValid}
+              disabled={!isProductValid}
             >
               Ajouter au Catalogue
             </Button>

@@ -1,25 +1,43 @@
 
 import { Ingredient, Product, Recipe, Unit, GlobalSettings, FixedCostItem } from './types';
+import { isValidNonNegativeNumber, isValidPercentage, isValidPositiveNumber, isFiniteNumber } from './validation';
 
 // Conversion helpers
 export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: Unit): number => {
-  if (quantity === 0) return 0;
+  if (!isValidPositiveNumber(price) || !isValidPositiveNumber(quantity)) return NaN;
   let multiplier = 1;
   if (unit === Unit.KG || unit === Unit.L) multiplier = 1000;
   return price / (quantity * multiplier);
 };
 
 export const formatCurrency = (amount: number, currency = '€') => {
+  if (!isFiniteNumber(amount)) return '—';
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+};
+
+export const getManufacturingLossMultiplier = (lossRate: number): number => {
+  if (!isValidPercentage(lossRate)) return NaN;
+  return 1 / (1 - lossRate / 100);
 };
 
 // Core Calculation Logic
 export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredient[]): number => {
+  if (!isValidPercentage(recipe.lossPercentage)) return NaN;
+  let hasInvalid = false;
   const batchCost = recipe.ingredients.reduce((total, item) => {
+    if (!isValidPositiveNumber(item.quantity)) {
+      hasInvalid = true;
+      return total;
+    }
     const ingredient = ingredients.find(i => i.id === item.ingredientId);
     if (!ingredient) return total;
+    if (!isValidNonNegativeNumber(ingredient.costPerBaseUnit)) {
+      hasInvalid = true;
+      return total;
+    }
     return total + (item.quantity * ingredient.costPerBaseUnit);
   }, 0);
+  if (hasInvalid) return NaN;
   return batchCost * (1 + (recipe.lossPercentage / 100));
 };
 
@@ -32,45 +50,67 @@ export const calculateProductMetrics = (
 ) => {
   // TVA Logic
   const isTvaSubject = settings.isTvaSubject;
-  const tvaRate = product.tvaRate ?? settings.defaultTvaRate ?? 0;
+  const tvaRateValue = product.tvaRate ?? settings.defaultTvaRate ?? 0;
+  const tvaRate = isValidPercentage(tvaRateValue) ? tvaRateValue : NaN;
 
   // 1. Material Cost per Produced Unit
   // NOTE: If isTvaSubject is true, we assume ingredient prices in DB are HT (because business recovers VAT).
   // If false, ingredient prices are TTC (final cost for artisan).
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
-  const unitMaterialCost = batchMaterialCost / (recipe.batchYield || 1);
+  const unitMaterialCost = isValidPositiveNumber(recipe.batchYield)
+    ? batchMaterialCost / recipe.batchYield
+    : NaN;
 
   // 2. Labor Cost per Unit
-  const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const laborCost = isValidNonNegativeNumber(product.laborTimeMinutes) && isValidNonNegativeNumber(settings.hourlyRate)
+    ? (product.laborTimeMinutes / 60) * settings.hourlyRate
+    : NaN;
 
   // 3. Allocated Fixed Costs
-  const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
-  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
+  let invalidVolume = false;
+  const totalEstimatedVolume = allProducts.reduce((sum, p) => {
+    if (!isValidNonNegativeNumber(p.estimatedMonthlySales)) {
+      invalidVolume = true;
+      return sum;
+    }
+    return sum + p.estimatedMonthlySales;
+  }, 0);
+  let invalidFixedCost = false;
+  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => {
+    if (!isValidNonNegativeNumber(item.amount)) {
+      invalidFixedCost = true;
+      return sum;
+    }
+    return sum + item.amount;
+  }, 0);
   
-  const allocatedFixedCost = totalEstimatedVolume > 0 
+  const allocatedFixedCost = !invalidVolume && !invalidFixedCost && totalEstimatedVolume > 0
     ? totalFixedCosts / totalEstimatedVolume
-    : 0;
+    : NaN;
 
   // 4. Manufacturing Loss (Waste during creation)
-  let safeLossRate = product.lossRate;
-  if (safeLossRate >= 100) safeLossRate = 99.9;
-  if (safeLossRate < 0) safeLossRate = 0;
-  
-  const manufacturingLossMultiplier = 1 / (1 - (safeLossRate / 100));
+  const manufacturingLossMultiplier = getManufacturingLossMultiplier(product.lossRate);
 
   // 5. Unsold Items Impact (Finished goods thrown away)
-  const sales = product.estimatedMonthlySales || 1;
-  const unsold = product.unsoldEstimate || 0;
+  const sales = product.estimatedMonthlySales;
+  const unsold = product.unsoldEstimate;
   
   // Ratios for cost attribution
-  const materialProductionRatio = (sales + unsold) / sales;
-  const packagingQuantity = sales + (product.packagingUsedOnUnsold ? unsold : 0);
-  const packagingRatio = packagingQuantity / sales;
+  const materialProductionRatio = isValidPositiveNumber(sales) && isValidNonNegativeNumber(unsold)
+    ? (sales + unsold) / sales
+    : NaN;
+  const packagingQuantity = isValidPositiveNumber(sales) && isValidNonNegativeNumber(unsold)
+    ? sales + (product.packagingUsedOnUnsold ? unsold : 0)
+    : NaN;
+  const packagingRatio = isValidPositiveNumber(sales) && isFiniteNumber(packagingQuantity)
+    ? packagingQuantity / sales
+    : NaN;
 
   // Variable Costs per Sold Unit calculation
+  const packagingCost = isValidNonNegativeNumber(product.packagingCost) ? product.packagingCost : NaN;
   const finalMaterialCost = unitMaterialCost * manufacturingLossMultiplier * materialProductionRatio;
-  const finalPackagingCost = product.packagingCost * manufacturingLossMultiplier * packagingRatio;
-  const finalDeliveryCost = product.variableDeliveryCost;
+  const finalPackagingCost = packagingCost * manufacturingLossMultiplier * packagingRatio;
+  const finalDeliveryCost = isValidNonNegativeNumber(product.variableDeliveryCost) ? product.variableDeliveryCost : NaN;
 
   const totalVariableCosts = finalMaterialCost + finalPackagingCost + finalDeliveryCost;
 
@@ -85,13 +125,16 @@ export const calculateProductMetrics = (
   // - If !isTvaSubject: Contributions are on CA Total.
   
   const socialRateDecimal = settings.taxRate / 100;
-  const divisor = 1 - socialRateDecimal > 0 ? 1 - socialRateDecimal : 1;
+  const divisor = isValidPercentage(settings.taxRate) && 1 - socialRateDecimal > 0
+    ? 1 - socialRateDecimal
+    : NaN;
   
   // Price required to cover Full Cost after paying social charges
   const minPriceBreakevenHT = fullCost / divisor;
 
   // 8. Target Price
-  const priceWithMarginHT = (fullCost + product.targetMargin) / divisor;
+  const targetMargin = isValidNonNegativeNumber(product.targetMargin) ? product.targetMargin : NaN;
+  const priceWithMarginHT = (fullCost + targetMargin) / divisor;
 
   // 9. TTC Conversions
   const minPriceBreakevenTTC = isTvaSubject ? minPriceBreakevenHT * (1 + tvaRate / 100) : minPriceBreakevenHT;

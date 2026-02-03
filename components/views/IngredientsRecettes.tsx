@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { convertToCostPerBaseUnit, calculateRecipeMaterialCost } from '../../utils';
+import { isValidPercentage, isValidPositiveNumber } from '../../validation';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -18,8 +19,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
   // --- Ingredient State ---
   const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, quantity: 1, price: 0 });
 
+  const isIngredientPriceValid = isValidPositiveNumber(Number(newIng.price));
+  const isIngredientQuantityValid = isValidPositiveNumber(Number(newIng.quantity));
+  const canSaveIngredient = Boolean(newIng.name) && isIngredientPriceValid && isIngredientQuantityValid;
+
   const handleAddIngredient = () => {
-    if (!newIng.name || newIng.price === undefined || !newIng.quantity) return;
+    if (!canSaveIngredient) return;
     const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price), Number(newIng.quantity), newIng.unit as Unit);
     
     if (editingId) {
@@ -87,14 +92,18 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
     setSelectedIngQty('');
   };
 
+  const isBatchYieldValid = isValidPositiveNumber(Number(newRecipe.batchYield));
+  const isLossPercentageValid = isValidPercentage(Number(newRecipe.lossPercentage));
+  const canSaveRecipe = Boolean(newRecipe.name) && currentRecipeIngs.length > 0 && isBatchYieldValid && isLossPercentageValid;
+
   const handleSaveRecipe = () => {
-    if (!newRecipe.name || currentRecipeIngs.length === 0) return;
+    if (!canSaveRecipe) return;
     setRecipes([...recipes, {
       id: Date.now().toString(),
       name: newRecipe.name!,
       ingredients: currentRecipeIngs,
-      batchYield: Number(newRecipe.batchYield) || 1,
-      lossPercentage: Number(newRecipe.lossPercentage) || 0
+      batchYield: Number(newRecipe.batchYield),
+      lossPercentage: Number(newRecipe.lossPercentage)
     }]);
     setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
     setCurrentRecipeIngs([]);
@@ -109,11 +118,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
     id: 'temp',
     name: 'temp',
     ingredients: currentRecipeIngs,
-    batchYield: newRecipe.batchYield || 1,
-    lossPercentage: newRecipe.lossPercentage || 0
+    batchYield: Number(newRecipe.batchYield),
+    lossPercentage: Number(newRecipe.lossPercentage)
   };
   const tempBatchCost = calculateRecipeMaterialCost(tempRecipe, ingredients);
-  const tempUnitCost = tempBatchCost / (newRecipe.batchYield || 1);
+  const tempUnitCost = isBatchYieldValid ? tempBatchCost / Number(newRecipe.batchYield) : NaN;
 
   return (
     <div className="space-y-6">
@@ -188,7 +197,8 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                   type="number" 
                   step="0.01"
                   value={newIng.price} 
-                  onChange={e => setNewIng({...newIng, price: parseFloat(e.target.value)})} 
+                  onChange={e => setNewIng({...newIng, price: parseFloat(e.target.value)})}
+                  error={!isIngredientPriceValid ? '> 0' : undefined}
                 />
                  <Select 
                   label="Unité stock" 
@@ -207,7 +217,8 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 label={`Quantité achetée (en ${newIng.unit})`} 
                 type="number" 
                 value={newIng.quantity} 
-                onChange={e => setNewIng({...newIng, quantity: parseFloat(e.target.value)})} 
+                onChange={e => setNewIng({...newIng, quantity: parseFloat(e.target.value)})}
+                error={!isIngredientQuantityValid ? '> 0' : undefined}
                 helperText={newIng.unit === Unit.KG ? "Ex: Si 2.5kg, entrez 2.5" : ""}
               />
               <div className="flex gap-2">
@@ -216,7 +227,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                      Annuler
                    </Button>
                 )}
-                <Button className="flex-1" onClick={handleAddIngredient} disabled={!newIng.name}>
+                <Button className="flex-1" onClick={handleAddIngredient} disabled={!canSaveIngredient}>
                   {editingId ? "Mettre à jour" : "Ajouter au stock"}
                 </Button>
               </div>
@@ -242,14 +253,16 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                     label="Rendement" 
                     type="number"
                     value={newRecipe.batchYield} 
-                    onChange={e => setNewRecipe({...newRecipe, batchYield: parseFloat(e.target.value)})} 
+                    onChange={e => setNewRecipe({...newRecipe, batchYield: parseFloat(e.target.value)})}
+                    error={!isBatchYieldValid ? '> 0' : undefined}
                     helperText="Nb. de portions/unités obtenues avec ce batch"
                   />
                   <Input 
                     label="Pertes mat. (%)" 
                     type="number"
                     value={newRecipe.lossPercentage} 
-                    onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseFloat(e.target.value)})} 
+                    onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseFloat(e.target.value)})}
+                    error={!isLossPercentageValid ? '< 100%' : undefined}
                     helperText="Pâte restée dans le bol..."
                   />
                 </div>
@@ -303,7 +316,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, setIngredien
                 </div>
               </div>
 
-              <Button className="w-full" onClick={handleSaveRecipe} disabled={!newRecipe.name || currentRecipeIngs.length === 0}>
+              <Button className="w-full" onClick={handleSaveRecipe} disabled={!canSaveRecipe}>
                 Enregistrer la recette
               </Button>
             </Card>

@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit } from '../../types';
-import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
+import { calculateRecipeMaterialCost, formatCurrency, getManufacturingLossMultiplier } from '../../utils';
+import { isValidNonNegativeNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -36,15 +37,13 @@ const calculateTheoreticalConsumption = (
     const qtyPerBatch = recIng.quantity;
     
     // Qty per unit
-    const qtyPerUnit = qtyPerBatch / (recipe.batchYield || 1);
+    const qtyPerUnit = recipe.batchYield > 0 ? qtyPerBatch / recipe.batchYield : NaN;
 
     // Apply Manufacturing Loss (product level)
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate/100);
+    const mfgLossMultiplier = getManufacturingLossMultiplier(product.lossRate);
 
     // Total used = (Sold + Unsold) * QtyPerUnit * MfgLoss
-    const totalUnitsProduced = sale.quantitySold + (sale.quantityUnsold || 0);
+    const totalUnitsProduced = sale.quantitySold + sale.quantityUnsold;
     
     return total + (totalUnitsProduced * qtyPerUnit * mfgLossMultiplier);
   }, 0);
@@ -65,6 +64,19 @@ export const MonthlyReport: React.FC<Props> = ({
   
   // Cost Calculation Mode: 0 = Calculated, 1 = Cash Spend, 2 = Inventory Variation
   const [costMode, setCostMode] = useState<0 | 1 | 2>(0);
+  const hasInvalidSales = sales.some(s =>
+    !isValidNonNegativeNumber(s.quantitySold)
+    || !isValidNonNegativeNumber(s.quantityUnsold)
+    || !isValidNonNegativeNumber(s.actualPrice)
+  );
+  const hasInvalidFixedCosts = actualFixedItems.some(item => !isValidNonNegativeNumber(item.amount));
+  const hasInvalidInventory = inventory.some(item =>
+    !isValidNonNegativeNumber(item.startStock)
+    || !isValidNonNegativeNumber(item.purchasedQuantity)
+    || !isValidNonNegativeNumber(item.endStock)
+  );
+  const hasInvalidIngredientSpend = !isValidNonNegativeNumber(actualIngredientSpend);
+  const hasInvalidReportValues = hasInvalidSales || hasInvalidFixedCosts || hasInvalidInventory || hasInvalidIngredientSpend;
 
   // --- Initialization Logic ---
   useEffect(() => {
@@ -92,14 +104,16 @@ export const MonthlyReport: React.FC<Props> = ({
         // Calculate theoretical price TTC for initialization
         const recipe = recipes.find(r => r.id === p.recipeId);
         const batchCost = recipe ? calculateRecipeMaterialCost(recipe, ingredients) : 0;
-        const unitMat = batchCost / (recipe?.batchYield || 1);
-        const labor = (p.laborTimeMinutes/60) * settings.hourlyRate;
-        const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales||1),0));
+        const unitMat = recipe && recipe.batchYield > 0 ? batchCost / recipe.batchYield : NaN;
+        const labor = (p.laborTimeMinutes / 60) * settings.hourlyRate;
+        const totalFixed = settings.fixedCostItems.reduce((s, i) => s + i.amount, 0);
+        const totalVolume = products.reduce((s, prod) => s + (prod.estimatedMonthlySales || 0), 0);
+        const fixed = totalVolume > 0 ? totalFixed / totalVolume : NaN;
         
         // Basic estimation without complex loss logic for default value
         const totalCostHT = unitMat + p.packagingCost + p.variableDeliveryCost + labor + fixed;
-        const socialDivisor = (1 - settings.taxRate/100);
-        const priceHT = (totalCostHT + p.targetMargin) / socialDivisor;
+        const socialDivisor = (1 - settings.taxRate / 100);
+        const priceHT = socialDivisor > 0 ? (totalCostHT + p.targetMargin) / socialDivisor : NaN;
         const tvaRate = p.tvaRate ?? settings.defaultTvaRate ?? 0;
         const priceTTC = isTva ? priceHT * (1 + tvaRate/100) : priceHT;
 
@@ -185,13 +199,11 @@ export const MonthlyReport: React.FC<Props> = ({
     if (!product || !recipe) return sum;
 
     const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
-    const unitCost = batchCost / (recipe.batchYield || 1);
+    const unitCost = recipe.batchYield > 0 ? batchCost / recipe.batchYield : NaN;
     
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate / 100);
+    const mfgLossMultiplier = getManufacturingLossMultiplier(product.lossRate);
 
-    const totalUnits = s.quantitySold + (s.quantityUnsold || 0);
+    const totalUnits = s.quantitySold + s.quantityUnsold;
     return sum + (unitCost * mfgLossMultiplier * totalUnits);
   }, 0);
 
@@ -216,9 +228,7 @@ export const MonthlyReport: React.FC<Props> = ({
   const totalPackagingCost = sales.reduce((sum, s) => {
     const product = products.find(p => p.id === s.productId);
     if (!product) return sum;
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate / 100);
+    const mfgLossMultiplier = getManufacturingLossMultiplier(product.lossRate);
     const totalPackagedUnits = s.quantitySold + (product.packagingUsedOnUnsold ? (s.quantityUnsold || 0) : 0);
     return sum + (product.packagingCost * totalPackagedUnits * mfgLossMultiplier);
   }, 0);
@@ -284,6 +294,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       type="number" 
                       value={s.quantitySold}
                       onChange={e => handleSaleChange(s.productId, 'quantitySold', parseFloat(e.target.value))}
+                      error={!isValidNonNegativeNumber(s.quantitySold) ? '≥ 0' : undefined}
                     />
                     <Input 
                       className="w-20"
@@ -291,6 +302,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       type="number" 
                       value={s.quantityUnsold}
                       onChange={e => handleSaleChange(s.productId, 'quantityUnsold', parseFloat(e.target.value))}
+                      error={!isValidNonNegativeNumber(s.quantityUnsold) ? '≥ 0' : undefined}
                     />
                     <Input 
                       className="w-24"
@@ -299,6 +311,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       suffix="€"
                       value={s.actualPrice}
                       onChange={e => handleSaleChange(s.productId, 'actualPrice', parseFloat(e.target.value))}
+                      error={!isValidNonNegativeNumber(s.actualPrice) ? '≥ 0' : undefined}
                     />
                   </div>
                 </div>
@@ -383,7 +396,14 @@ export const MonthlyReport: React.FC<Props> = ({
           </div>
         </Card>
 
-        <Button className="w-full shadow-lg" onClick={saveReport}>Sauvegarder ce Bilan</Button>
+        {hasInvalidReportValues && (
+          <p className="text-xs text-red-500 dark:text-red-400">
+            Corrigez les champs numériques invalides (valeurs ≥ 0 requises) avant de sauvegarder.
+          </p>
+        )}
+        <Button className="w-full shadow-lg" onClick={saveReport} disabled={hasInvalidReportValues}>
+          Sauvegarder ce Bilan
+        </Button>
       </div>
 
       {/* Report Output */}

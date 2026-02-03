@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { GlobalSettings, FixedCostItem } from '../../types';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 import { formatCurrency } from '../../utils';
+import { isValidNonNegativeNumber, isValidPercentage } from '../../validation';
 
 interface Props {
   settings: GlobalSettings;
@@ -16,12 +17,16 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const newCostAmount = parseFloat(newCost.amount);
+  const isNewCostAmountValid = isValidNonNegativeNumber(newCostAmount);
+  const canAddCost = Boolean(newCost.name) && isNewCostAmountValid;
+
   const handleAddCost = () => {
-    if (!newCost.name || !newCost.amount) return;
+    if (!canAddCost) return;
     const item: FixedCostItem = {
       id: Date.now().toString(),
       name: newCost.name,
-      amount: parseFloat(newCost.amount)
+      amount: newCostAmount
     };
     setSettings(prev => ({
       ...prev,
@@ -38,6 +43,9 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
   };
 
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, i) => sum + i.amount, 0);
+  const isDefaultTvaValid = isValidPercentage(settings.defaultTvaRate);
+  const isTaxRateValid = isValidPercentage(settings.taxRate);
+  const isHourlyRateValid = isValidNonNegativeNumber(settings.hourlyRate);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -84,6 +92,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 suffix="%"
                 value={settings.defaultTvaRate}
                 onChange={e => handleChange('defaultTvaRate', parseFloat(e.target.value))}
+                error={!isDefaultTvaValid ? '< 100%' : undefined}
                 helperText="Généralement 5.5% pour l'alimentaire."
               />
             )}
@@ -95,6 +104,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 suffix="%"
                 value={settings.taxRate}
                 onChange={e => handleChange('taxRate', parseFloat(e.target.value))}
+                error={!isTaxRateValid ? '< 100%' : undefined}
                 helperText={settings.isTvaSubject 
                   ? "Pourcentage prélevé sur votre CA Hors Taxe." 
                   : "Pourcentage prélevé sur votre CA Total."}
@@ -107,6 +117,7 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
               suffix="€/h"
               value={settings.hourlyRate}
               onChange={e => handleChange('hourlyRate', parseFloat(e.target.value))}
+              error={!isHourlyRateValid ? '≥ 0' : undefined}
               helperText="Pour estimer le coût de votre temps de travail."
             />
           </div>
@@ -150,7 +161,10 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
                 onChange={e => setNewCost({...newCost, amount: e.target.value})}
               />
             </div>
-            <Button size="sm" onClick={handleAddCost} disabled={!newCost.name || !newCost.amount} className="w-full">
+            {!isNewCostAmountValid && newCost.amount !== '' && (
+              <p className="text-xs text-red-500 dark:text-red-400">Montant ≥ 0 requis.</p>
+            )}
+            <Button size="sm" onClick={handleAddCost} disabled={!canAddCost} className="w-full">
               Ajouter
             </Button>
           </div>
