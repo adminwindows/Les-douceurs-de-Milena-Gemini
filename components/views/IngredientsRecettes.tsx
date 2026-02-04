@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { calculateRecipeMaterialCost } from '../../utils';
+import { isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input } from '../ui/Common';
 
 interface Props {
@@ -20,9 +21,13 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   const [selectedIngId, setSelectedIngId] = useState<string>('');
   const [selectedIngQty, setSelectedIngQty] = useState<string>('');
 
+  const isBatchYieldValid = isPositiveNumber(newRecipe.batchYield);
+  const isLossPercentageValid = isPercentage(newRecipe.lossPercentage);
+  const isRecipeFormValid = Boolean(newRecipe.name && currentRecipeIngs.length > 0 && isBatchYieldValid && isLossPercentageValid);
+
   const handleAddIngToRecipe = () => {
-    const qty = parseFloat(selectedIngQty);
-    if (!selectedIngId || isNaN(qty) || qty <= 0) return;
+    const qty = parseOptionalNumber(selectedIngQty);
+    if (!selectedIngId || !isPositiveNumber(qty)) return;
     
     // Check if already added
     const exists = currentRecipeIngs.find(i => i.ingredientId === selectedIngId);
@@ -37,13 +42,13 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   };
 
   const handleSaveRecipe = () => {
-    if (!newRecipe.name || currentRecipeIngs.length === 0) return;
+    if (!isRecipeFormValid) return;
     setRecipes([...recipes, {
       id: Date.now().toString(),
       name: newRecipe.name!,
       ingredients: currentRecipeIngs,
-      batchYield: Number(newRecipe.batchYield) || 1,
-      lossPercentage: Number(newRecipe.lossPercentage) || 0
+      batchYield: Number(newRecipe.batchYield ?? 1),
+      lossPercentage: Number(newRecipe.lossPercentage ?? 0)
     }]);
     setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
     setCurrentRecipeIngs([]);
@@ -71,11 +76,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
     id: 'temp',
     name: 'temp',
     ingredients: currentRecipeIngs,
-    batchYield: newRecipe.batchYield || 1,
-    lossPercentage: newRecipe.lossPercentage || 0
+    batchYield: newRecipe.batchYield ?? 1,
+    lossPercentage: newRecipe.lossPercentage ?? 0
   };
   const tempBatchCost = calculateRecipeMaterialCost(tempRecipe, ingredients);
-  const tempUnitCost = tempBatchCost / (newRecipe.batchYield || 1);
+  const tempUnitCost = tempBatchCost / (newRecipe.batchYield ?? 1);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -96,16 +101,18 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               <Input 
                 label="Rendement" 
                 type="number"
-                value={newRecipe.batchYield} 
-                onChange={e => setNewRecipe({...newRecipe, batchYield: parseFloat(e.target.value)})} 
+                value={newRecipe.batchYield ?? ''} 
+                onChange={e => setNewRecipe({...newRecipe, batchYield: parseOptionalNumber(e.target.value)})} 
                 helperText="Nb. de portions/unités obtenues avec ce batch"
+                error={isBatchYieldValid ? undefined : '> 0'}
               />
               <Input 
                 label="Pertes mat. (%)" 
                 type="number"
-                value={newRecipe.lossPercentage} 
-                onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseFloat(e.target.value)})} 
+                value={newRecipe.lossPercentage ?? ''} 
+                onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseOptionalNumber(e.target.value)})} 
                 helperText="Pâte restée dans le bol..."
+                error={isLossPercentageValid ? undefined : '< 100%'}
               />
             </div>
           </div>
@@ -158,7 +165,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleSaveRecipe} disabled={!newRecipe.name || currentRecipeIngs.length === 0}>
+          <Button className="w-full" onClick={handleSaveRecipe} disabled={!isRecipeFormValid}>
             Enregistrer la recette
           </Button>
         </Card>
@@ -170,12 +177,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recipes.map(recipe => {
               const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
-              const unitCost = batchCost / (recipe.batchYield || 1);
+              const unitCost = batchCost / (recipe.batchYield ?? 1);
               
               const isScaling = scalerTargets.hasOwnProperty(recipe.id);
               const targetQtyStr = scalerTargets[recipe.id] || '';
               const targetQty = parseFloat(targetQtyStr);
-              const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / (recipe.batchYield || 1) : 1;
+              const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / (recipe.batchYield ?? 1) : 1;
 
               return (
                 <Card key={recipe.id} className="relative hover:shadow-md transition-shadow">

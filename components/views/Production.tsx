@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { ProductionBatch, Product, Order } from '../../types';
-import { Card, Button, Input, Select, InfoTooltip } from '../ui/Common';
+import { Card, Button, Input } from '../ui/Common';
+import { isPositiveNumber, parseOptionalNumber } from '../../validation';
 
 interface Props {
   productionBatches: ProductionBatch[];
@@ -15,9 +16,10 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
     date: new Date().toISOString().split('T')[0],
     quantity: 0
   });
+  const isBatchQuantityValid = isPositiveNumber(newBatch.quantity);
 
   const handleAddBatch = () => {
-    if (!newBatch.productId || !newBatch.quantity) return;
+    if (!newBatch.productId || !isBatchQuantityValid) return;
     setProductionBatches([
       {
         id: Date.now().toString(),
@@ -115,12 +117,13 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
                 <Input 
                 label="Quantité Produite" 
                 type="number"
-                value={newBatch.quantity} 
-                onChange={e => setNewBatch({...newBatch, quantity: parseFloat(e.target.value)})} 
+                value={newBatch.quantity ?? ''} 
+                onChange={e => setNewBatch({...newBatch, quantity: parseOptionalNumber(e.target.value)})} 
                 helperText="Nombre d'unités (ex: 50 cookies)"
+                error={isBatchQuantityValid ? undefined : '> 0'}
                 />
 
-                <Button onClick={handleAddBatch} disabled={!newBatch.productId || !newBatch.quantity} className="w-full shadow-md">
+                <Button onClick={handleAddBatch} disabled={!newBatch.productId || !isBatchQuantityValid} className="w-full shadow-md">
                 Valider la Production
                 </Button>
             </div>
