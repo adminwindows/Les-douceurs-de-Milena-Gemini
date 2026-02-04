@@ -129,8 +129,9 @@ export const INITIAL_SETTINGS: GlobalSettings = {
 export const INITIAL_INGREDIENTS: Ingredient[] = [
   { id: '1', name: 'Farine T55', unit: Unit.KG, price: 1.20, quantity: 1, costPerBaseUnit: 0.0012 },
   { id: '2', name: 'Sucre Blanc', unit: Unit.KG, price: 1.50, quantity: 1, costPerBaseUnit: 0.0015 },
-  { id: '3', name: 'Beurre Doux', unit: Unit.KG, price: 8.00, quantity: 0.5, costPerBaseUnit: 0.016 },
-  { id: '4', name: 'Oeufs', unit: Unit.PIECE, price: 2.50, quantity: 6, costPerBaseUnit: 0.416 },
+  // Fix: Butter price per KG is 16.00 if costPerBaseUnit is 0.016. Quantity 0.5 is current stock.
+  { id: '3', name: 'Beurre Doux', unit: Unit.KG, price: 16.00, quantity: 0.5, costPerBaseUnit: 0.016 },
+  { id: '4', name: 'Oeufs', unit: Unit.PIECE, price: 0.42, quantity: 6, costPerBaseUnit: 0.42 }, // Fix Price per unit
   { id: '5', name: 'Chocolat Noir 70%', unit: Unit.KG, price: 15.00, quantity: 1, costPerBaseUnit: 0.015 },
   { id: '6', name: 'Crème Liquide 35%', unit: Unit.L, price: 4.00, quantity: 1, costPerBaseUnit: 0.004 },
 ];

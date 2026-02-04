@@ -1,7 +1,7 @@
 
-import React from 'react';
-import { Ingredient, Product, Recipe, GlobalSettings } from '../../types';
-import { calculateProductMetrics, formatCurrency } from '../../utils';
+import React, { useState } from 'react';
+import { Ingredient, Product, Recipe, GlobalSettings, Purchase } from '../../types';
+import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit } from '../../utils';
 import { Card, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -9,23 +9,104 @@ interface Props {
   recipes: Recipe[];
   ingredients: Ingredient[];
   settings: GlobalSettings;
+  purchases: Purchase[];
 }
 
-export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, settings }) => {
+type PriceMode = 'standard' | 'average' | 'last';
+
+export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, settings, purchases }) => {
   const isTva = settings.isTvaSubject;
+  const [priceMode, setPriceMode] = useState<PriceMode>('standard');
+
+  // Helper to recalculate ingredients cost based on mode
+  const activeIngredients = ingredients.map(ing => {
+      let calcPrice = ing.price; // Default to Standard
+
+      if (priceMode === 'average') {
+          const ingPurchases = purchases.filter(p => p.ingredientId === ing.id);
+          const totalQty = ingPurchases.reduce((acc, p) => acc + p.quantity, 0);
+          const totalSpent = ingPurchases.reduce((acc, p) => acc + p.price, 0);
+          if (totalQty > 0) {
+              calcPrice = totalSpent / totalQty;
+          } else {
+              // Fallback to Standard
+              calcPrice = ing.price;
+          }
+      } else if (priceMode === 'last') {
+          const ingPurchases = purchases
+             .filter(p => p.ingredientId === ing.id)
+             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          if (ingPurchases.length > 0) {
+              const last = ingPurchases[0];
+              calcPrice = last.price / last.quantity;
+          } else {
+              // Fallback to Standard
+              calcPrice = ing.price;
+          }
+      }
+
+      // Important: Always recalculate costPerBaseUnit to ensure consistency, 
+      // even for Standard mode (to fix potential drift in initial data)
+      return {
+          ...ing,
+          price: calcPrice,
+          costPerBaseUnit: convertToCostPerBaseUnit(calcPrice, 1, ing.unit)
+      };
+  });
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#FFF0F3] dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-xl flex items-start gap-4 shadow-sm">
-        <span className="text-2xl">💡</span>
-        <div className="text-sm text-rose-900 dark:text-rose-100">
-          <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? '(Mode Assujetti TVA)' : '(Mode Franchise)'}</p>
-          <ul className="list-disc pl-4 space-y-1 text-rose-800 dark:text-rose-200">
-            <li><strong>Coût Complet :</strong> Inclut matières, emballage, main d'œuvre ({settings.hourlyRate}€/h) et charges fixes. {isTva && "(Affiché Hors Taxe)"}</li>
-            <li><strong>Prix Min (Rentable) :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.</li>
-            <li><strong>Prix Conseillé :</strong> Inclut votre marge cible pour générer du profit.</li>
-          </ul>
-        </div>
+      <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 bg-[#FFF0F3] dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-xl flex items-start gap-4 shadow-sm">
+            <span className="text-2xl">💡</span>
+            <div className="text-sm text-rose-900 dark:text-rose-100">
+              <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? '(Mode Assujetti TVA)' : '(Mode Franchise)'}</p>
+              <ul className="list-disc pl-4 space-y-1 text-rose-800 dark:text-rose-200">
+                <li><strong>Coût Complet :</strong> Inclut matières, emballage, main d'œuvre ({settings.hourlyRate}€/h) et charges fixes. {isTva && "(Affiché Hors Taxe)"}</li>
+                <li><strong>Prix Min (Rentable) :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="md:w-1/3 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-xl shadow-sm">
+              <label className="text-sm font-bold text-stone-700 dark:text-stone-300 block mb-3">Base de calcul des Coûts Matières</label>
+              <div className="flex flex-col gap-2">
+                 <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="priceMode" 
+                        value="standard" 
+                        checked={priceMode === 'standard'} 
+                        onChange={() => setPriceMode('standard')}
+                        className="text-[#D45D79] focus:ring-[#D45D79]"
+                    />
+                    <span className="text-sm text-stone-700 dark:text-stone-300">Prix Standard (Fiche Technique)</span>
+                 </label>
+                 <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="priceMode" 
+                        value="average" 
+                        checked={priceMode === 'average'} 
+                        onChange={() => setPriceMode('average')}
+                        className="text-[#D45D79] focus:ring-[#D45D79]"
+                    />
+                    <span className="text-sm text-stone-700 dark:text-stone-300">Prix Moyen Pondéré (Achats)</span>
+                 </label>
+                 <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="priceMode" 
+                        value="last" 
+                        checked={priceMode === 'last'} 
+                        onChange={() => setPriceMode('last')}
+                        className="text-[#D45D79] focus:ring-[#D45D79]"
+                    />
+                    <span className="text-sm text-stone-700 dark:text-stone-300">Dernier Prix d'Achat</span>
+                 </label>
+              </div>
+          </div>
       </div>
 
       <div className="overflow-x-auto shadow-md border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800">
@@ -55,7 +136,7 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
               const recipe = recipes.find(r => r.id === product.recipeId);
               if (!recipe) return null;
               
-              const metrics = calculateProductMetrics(product, recipe, ingredients, settings, products);
+              const metrics = calculateProductMetrics(product, recipe, activeIngredients, settings, products);
               
               const fcPercent = (metrics.unitMaterialCost / metrics.priceWithMargin) * 100;
               let fcColor = "text-emerald-600 dark:text-emerald-400";

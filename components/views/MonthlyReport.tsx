@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit } from '../../types';
+import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
 import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 
@@ -13,6 +13,7 @@ interface Props {
   savedReports: MonthlyReportData[];
   setSavedReports: React.Dispatch<React.SetStateAction<MonthlyReportData[]>>;
   setSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>; 
+  productionBatches: ProductionBatch[];
 }
 
 // Helper: Calculate theoretical consumption for a single ingredient based on sales
@@ -51,7 +52,7 @@ const calculateTheoreticalConsumption = (
 };
 
 export const MonthlyReport: React.FC<Props> = ({ 
-  settings, products, recipes, ingredients, orders, savedReports, setSavedReports, setSettings 
+  settings, products, recipes, ingredients, orders, savedReports, setSavedReports, setSettings, productionBatches
 }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
   const [viewHistory, setViewHistory] = useState(false);
@@ -79,16 +80,29 @@ export const MonthlyReport: React.FC<Props> = ({
       setActualFixedItems(settings.fixedCostItems.map(i => ({ ...i })));
       
       // Orders Aggregation
-      const relevantOrders = orders.filter(o => o.date.startsWith(selectedMonth) && o.status !== 'cancelled');
+      const relevantOrders = orders.filter(o => o.date.startsWith(selectedMonth) && o.status !== 'completed'); // Only completed for stats? Actually app usually counts all unless cancelled.
+      const relevantCompletedOrders = orders.filter(o => o.date.startsWith(selectedMonth) && o.status !== 'cancelled');
+
       const aggregatedSales: Record<string, number> = {};
       
-      relevantOrders.forEach(o => {
+      relevantCompletedOrders.forEach(o => {
         o.items.forEach(item => {
           aggregatedSales[item.productId] = (aggregatedSales[item.productId] || 0) + item.quantity;
         });
       });
 
+      // Production Aggregation for the month
+      const aggregatedProduction: Record<string, number> = {};
+      productionBatches.filter(b => b.date.startsWith(selectedMonth)).forEach(b => {
+          aggregatedProduction[b.productId] = (aggregatedProduction[b.productId] || 0) + b.quantity;
+      });
+
       const initialSales = products.map(p => {
+        const sold = aggregatedSales[p.id] || 0;
+        const produced = aggregatedProduction[p.id] || 0;
+        // Logic: Unsold is Production - Sold. Cannot be negative (if stock error, 0).
+        const calculatedUnsold = Math.max(0, produced - sold);
+
         // Calculate theoretical price TTC for initialization
         const recipe = recipes.find(r => r.id === p.recipeId);
         const batchCost = recipe ? calculateRecipeMaterialCost(recipe, ingredients) : 0;
@@ -105,8 +119,8 @@ export const MonthlyReport: React.FC<Props> = ({
 
         return {
           productId: p.id,
-          quantitySold: aggregatedSales[p.id] || 0,
-          quantityUnsold: p.unsoldEstimate || 0,
+          quantitySold: sold,
+          quantityUnsold: calculatedUnsold,
           actualPrice: priceTTC // Always store TTC (or Net if no Tva)
         };
       });
@@ -120,7 +134,7 @@ export const MonthlyReport: React.FC<Props> = ({
         endStock: ing.quantity 
       })));
     }
-  }, [selectedMonth, orders.length, settings.fixedCostItems.length, isTva]);
+  }, [selectedMonth, orders.length, settings.fixedCostItems.length, isTva, productionBatches.length]);
 
   // --- Handlers ---
   const handleSaleChange = (productId: string, field: 'quantitySold' | 'actualPrice' | 'quantityUnsold', value: number) => {
@@ -133,24 +147,6 @@ export const MonthlyReport: React.FC<Props> = ({
 
   const handleInventoryChange = (ingId: string, field: keyof InventoryEntry, value: number) => {
     setInventory(prev => prev.map(i => i.ingredientId === ingId ? { ...i, [field]: value } : i));
-  };
-
-  const saveReport = () => {
-    const report: MonthlyReportData = {
-      id: selectedMonth,
-      monthStr: selectedMonth,
-      sales,
-      actualFixedCostItems: actualFixedItems,
-      actualIngredientSpend,
-      inventory,
-      totalRevenue: totalRevenueTTC, // Storing TTC as total revenue reference
-      netResult,
-      isLocked: true
-    };
-    
-    const others = savedReports.filter(r => r.monthStr !== selectedMonth);
-    setSavedReports([...others, report]);
-    alert('Bilan sauvegardé !');
   };
 
   // --- Calculations ---
@@ -236,16 +232,48 @@ export const MonthlyReport: React.FC<Props> = ({
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
   const netResult = grossMargin - totalActualFixedCosts;
 
+  const saveReport = () => {
+    const report: MonthlyReportData = {
+      id: selectedMonth,
+      monthStr: selectedMonth,
+      sales,
+      actualFixedCostItems: actualFixedItems,
+      actualIngredientSpend,
+      inventory,
+      totalRevenue: totalRevenueTTC, // Storing TTC as total revenue reference
+      netResult,
+      isLocked: true
+    };
+    
+    // Save to App state
+    const others = savedReports.filter(r => r.monthStr !== selectedMonth);
+    setSavedReports([...others, report]);
+    
+    // Trigger download
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bilan_milena_${selectedMonth}.json`;
+    a.click();
+
+    alert('Bilan sauvegardé et téléchargé !');
+  };
+
   if (viewHistory) {
      return (
         <div className="space-y-6">
           <Button onClick={() => setViewHistory(false)} variant="secondary">← Retour au bilan actuel</Button>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {savedReports.map(report => (
-              <Card key={report.id} onClick={() => { setSelectedMonth(report.monthStr); setViewHistory(false); }} className="cursor-pointer">
-                 {report.monthStr} - {formatCurrency(report.netResult)}
+              <Card key={report.id} onClick={() => { setSelectedMonth(report.monthStr); setViewHistory(false); }} className="cursor-pointer hover:border-rose-300">
+                 <div className="font-bold mb-2">{report.monthStr}</div>
+                 <div className={report.netResult >= 0 ? "text-emerald-600 font-bold" : "text-red-500 font-bold"}>
+                     {formatCurrency(report.netResult)}
+                 </div>
               </Card>
             ))}
+            {savedReports.length === 0 && <p className="text-stone-500 italic col-span-3">Aucun bilan archivé.</p>}
           </div>
         </div>
      )
@@ -270,13 +298,29 @@ export const MonthlyReport: React.FC<Props> = ({
 
         <Card>
           <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4 font-serif">1. Ventes & Invendus</h3>
+          <p className="text-xs text-stone-500 mb-3">Invendus pré-remplis = Production - Commandes. Modifiable si besoin.</p>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
             {sales.map(s => {
               const p = products.find(prod => prod.id === s.productId);
               if (!p) return null;
+              
+              // Warning logic
+              const realSold = orders
+                  .filter(o => o.date.startsWith(selectedMonth) && o.status !== 'cancelled')
+                  .reduce((sum, o) => sum + (o.items.find(i=>i.productId === p.id)?.quantity || 0), 0);
+                  
+              const realProd = productionBatches
+                  .filter(b => b.date.startsWith(selectedMonth) && b.productId === p.id)
+                  .reduce((sum, b) => sum + b.quantity, 0);
+                  
+              const manualEditWarning = s.quantitySold !== realSold || s.quantityUnsold !== Math.max(0, realProd - realSold);
+
               return (
-                <div key={s.productId} className="p-3 border border-stone-200 dark:border-stone-700 rounded-lg bg-stone-50 dark:bg-stone-900">
-                  <div className="font-medium text-stone-700 dark:text-stone-300 text-sm mb-2">{p.name}</div>
+                <div key={s.productId} className={`p-3 border rounded-lg ${manualEditWarning ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/10' : 'bg-stone-50 border-stone-200 dark:bg-stone-900 dark:border-stone-700'}`}>
+                  <div className="flex justify-between items-center mb-2">
+                      <div className="font-medium text-stone-700 dark:text-stone-300 text-sm">{p.name}</div>
+                      {manualEditWarning && <InfoTooltip text={`Données réelles: ${realSold} vendus, ${Math.max(0, realProd - realSold)} invendus. Vous avez modifié ces valeurs.`} />}
+                  </div>
                   <div className="flex gap-2">
                     <Input 
                       className="flex-1"

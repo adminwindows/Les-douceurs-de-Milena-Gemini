@@ -11,9 +11,26 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: Unit;
-  price: number;
-  quantity: number;
+  price: number; // Prix standard (Fiche technique)
+  quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
   costPerBaseUnit: number;
+}
+
+// Nouveau : Journal des achats pour gérer les variations de prix
+export interface Purchase {
+  id: string;
+  date: string;
+  ingredientId: string;
+  quantity: number; // Quantité achetée (dans l'unité de l'ingrédient)
+  price: number; // Prix TOTAL payé pour cette quantité
+}
+
+// Nouveau : Journal de production pour déstocker les ingrédients
+export interface ProductionBatch {
+  id: string;
+  date: string;
+  productId: string;
+  quantity: number; // Nombre d'unités produites
 }
 
 export interface RecipeIngredient {

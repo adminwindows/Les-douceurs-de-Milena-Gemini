@@ -25,12 +25,44 @@
       h1, h2, h3 { font-family: 'Playfair Display', serif; }
       
       @media print {
-        @page { margin: 1cm; size: portrait; }
-        body { background: white; -webkit-print-color-adjust: exact; }
-        header, nav, footer, .no-print { display: none !important; }
+        @page { margin: 1cm; size: auto; }
+        body { 
+          background: white !important; 
+          color: black !important;
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important;
+        }
+        
+        /* Hide UI elements */
+        header, nav, footer, .no-print, button, input[type="file"], .card-shadow { 
+          display: none !important; 
+        }
+
+        /* Reset Layout */
+        main { 
+          padding: 0 !important; 
+          margin: 0 !important; 
+          width: 100% !important; 
+          max-width: none !important; 
+          overflow: visible !important;
+        }
+
+        /* Card Styling for Print */
+        .card, div[class*="bg-white"] { 
+          box-shadow: none !important; 
+          border: 1px solid #ddd !important; 
+          break-inside: avoid; 
+          background: white !important;
+        }
+
+        /* Ensure tables print fully */
+        table { width: 100% !important; }
+        
+        /* Force text colors for readability */
+        .text-stone-500, .text-stone-400 { color: #666 !important; }
+        
+        /* Show print-only elements */
         .print-only { display: block !important; }
-        main { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
-        .card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
       }
     </style>
   <script type="importmap">

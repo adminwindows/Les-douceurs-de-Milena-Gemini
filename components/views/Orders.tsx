@@ -1,15 +1,17 @@
 
 import React, { useState } from 'react';
-import { Order, Product, OrderItem } from '../../types';
-import { Card, Button, Input, Select } from '../ui/Common';
+import { Order, Product, OrderItem, ProductionBatch } from '../../types';
+import { Card, Button, Input, Select, InfoTooltip } from '../ui/Common';
 
 interface Props {
   orders: Order[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   products: Product[];
+  productionBatches: ProductionBatch[];
+  setProductionBatches: React.Dispatch<React.SetStateAction<ProductionBatch[]>>;
 }
 
-export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
+export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
   const [newOrder, setNewOrder] = useState<Partial<Order>>({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
   const [currentItem, setCurrentItem] = useState<{ productId: string, quantity: number }>({ productId: '', quantity: 1 });
 
@@ -47,8 +49,63 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
     setOrders(orders.filter(o => o.id !== id));
   };
 
-  const toggleStatus = (id: string) => {
-    setOrders(orders.map(o => o.id === id ? { ...o, status: o.status === 'pending' ? 'completed' : 'pending' } : o));
+  const sendToProduction = (order: Order) => {
+    const newBatches: ProductionBatch[] = order.items.map(item => ({
+        id: Date.now().toString() + Math.random().toString(),
+        date: order.date, // Use delivery date as production date default
+        productId: item.productId,
+        quantity: item.quantity
+    }));
+    setProductionBatches(prev => [...prev, ...newBatches]);
+    alert("Produits ajoutés à la file de production !");
+  };
+
+  const toggleStatus = (order: Order) => {
+    const nextStatus = order.status === 'pending' ? 'completed' : 'pending';
+    
+    // Logic: If marking as completed, ask to add to production
+    if (nextStatus === 'completed') {
+       const confirmProd = window.confirm("Commande livrée ! \n\nAvez-vous déjà enregistré la production ? \nSi NON, cliquez sur OK pour le faire maintenant.\nSi OUI, cliquez sur Annuler pour juste marquer la commande comme livrée.");
+       
+       if (confirmProd) {
+           const newBatches: ProductionBatch[] = order.items.map(item => ({
+               id: Date.now().toString() + Math.random().toString(),
+               date: order.date,
+               productId: item.productId,
+               quantity: item.quantity
+           }));
+           setProductionBatches(prev => [...prev, ...newBatches]);
+           alert("Production enregistrée avec succès.");
+       }
+    }
+
+    setOrders(orders.map(o => o.id === order.id ? { ...o, status: nextStatus } : o));
+  };
+
+  // Warning System: Check if Total Delivered > Total Produced
+  const getProductWarnings = (productId: string) => {
+      const prod = products.find(p => p.id === productId);
+      if(!prod) return null;
+      
+      const totalDelivered = orders
+        .filter(o => o.status === 'completed')
+        .reduce((sum, o) => {
+            const item = o.items.find(i => i.productId === productId);
+            return sum + (item?.quantity || 0);
+        }, 0);
+        
+      const totalProduced = productionBatches
+        .filter(b => b.productId === productId)
+        .reduce((sum, b) => sum + b.quantity, 0);
+
+      if (totalDelivered > totalProduced) {
+          return {
+              type: 'warning',
+              diff: totalDelivered - totalProduced,
+              msg: `Attention: ${totalDelivered} livrés pour seulement ${totalProduced} produits enregistrés !`
+          };
+      }
+      return null;
   };
 
   return (
@@ -137,7 +194,12 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
                   <p className="text-sm text-stone-500 dark:text-stone-400 mb-3">Pour le : {new Date(order.date).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-2 no-print">
-                   <button onClick={() => toggleStatus(order.id)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-emerald-600 dark:hover:text-emerald-400 underline">
+                   {order.status === 'pending' && (
+                     <button onClick={() => sendToProduction(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-stone-100 dark:bg-stone-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 transition-colors">
+                        👩‍🍳 Produire
+                     </button>
+                   )}
+                   <button onClick={() => toggleStatus(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-emerald-600 dark:hover:text-emerald-400 underline">
                      {order.status === 'pending' ? 'Marquer livrée' : 'Marquer à faire'}
                    </button>
                    <button onClick={() => deleteOrder(order.id)} className="text-xs font-medium text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400">
@@ -149,9 +211,19 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products }) => {
               <div className="pl-4 border-l-2 border-stone-100 dark:border-stone-700 space-y-1">
                 {order.items.map((item, idx) => {
                   const p = products.find(prod => prod.id === item.productId);
+                  const warning = getProductWarnings(item.productId);
+                  
                   return (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-stone-700 dark:text-stone-300">{p?.name || 'Produit supprimé'}</span>
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <div className="flex items-center gap-2">
+                          <span className="text-stone-700 dark:text-stone-300">{p?.name || 'Produit supprimé'}</span>
+                          {warning && order.status === 'completed' && (
+                              <InfoTooltip text={warning.msg} />
+                          )}
+                          {warning && order.status === 'completed' && (
+                               <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded">Stock ?</span>
+                          )}
+                      </div>
                       <span className="font-bold text-stone-900 dark:text-stone-100">x{item.quantity}</span>
                     </div>
                   );

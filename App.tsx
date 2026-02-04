@@ -7,22 +7,169 @@ import { MonthlyReport } from './components/views/MonthlyReport';
 import { Settings } from './components/views/Settings';
 import { Orders } from './components/views/Orders'; 
 import { UserGuide } from './components/views/UserGuide'; 
+import { ShoppingList } from './components/views/ShoppingList';
+import { StockManagement } from './components/views/StockManagement';
+import { Production } from './components/views/Production';
+import { Button } from './components/ui/Common';
 import { 
   INITIAL_INGREDIENTS, 
   INITIAL_RECIPES, 
   INITIAL_PRODUCTS, 
   INITIAL_SETTINGS 
 } from './utils';
-import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData } from './types';
+import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
+
+// --- Data Manager Modal Component ---
+const DataManagerModal = ({ 
+  isOpen, onClose, 
+  data, setData 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void,
+  data: any,
+  setData: (key: string, val: any) => void
+}) => {
+  if (!isOpen) return null;
+
+  const [mode, setMode] = useState<'export' | 'import'>('export');
+  const [selection, setSelection] = useState({
+    settings: true,
+    catalog: true, // Ing, Rec, Prod
+    operations: true, // Orders, Stock, Prod Batches
+    reports: true
+  });
+
+  const toggle = (key: keyof typeof selection) => setSelection(prev => ({...prev, [key]: !prev[key]}));
+
+  const handleExport = () => {
+    const exportData: any = {};
+    if (selection.settings) {
+      exportData.settings = data.settings;
+    }
+    if (selection.catalog) {
+      exportData.ingredients = data.ingredients;
+      exportData.recipes = data.recipes;
+      exportData.products = data.products;
+    }
+    if (selection.operations) {
+      exportData.orders = data.orders;
+      exportData.purchases = data.purchases;
+      exportData.productionBatches = data.productionBatches;
+    }
+    if (selection.reports) {
+      exportData.savedReports = data.savedReports;
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().slice(0,10);
+    const parts = Object.keys(selection).filter(k => (selection as any)[k]).join('-');
+    a.download = `milena_backup_${parts}_${date}.json`;
+    a.click();
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        let msg = "Données chargées :\n";
+        
+        if (json.settings && selection.settings) { setData('settings', json.settings); msg += "- Paramètres\n"; }
+        
+        if (selection.catalog) {
+           if (json.ingredients) { setData('ingredients', json.ingredients); msg += "- Ingrédients\n"; }
+           if (json.recipes) { setData('recipes', json.recipes); msg += "- Recettes\n"; }
+           if (json.products) { setData('products', json.products); msg += "- Produits\n"; }
+        }
+        
+        if (selection.operations) {
+           if (json.orders) { setData('orders', json.orders); msg += "- Commandes\n"; }
+           if (json.purchases) { setData('purchases', json.purchases); msg += "- Achats\n"; }
+           if (json.productionBatches) { setData('productionBatches', json.productionBatches); msg += "- Production\n"; }
+        }
+        
+        if (json.savedReports && selection.reports) { setData('savedReports', json.savedReports); msg += "- Bilans archivés\n"; }
+        
+        alert(msg);
+        onClose();
+      } catch (err) {
+        alert("Erreur: Fichier invalide.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-stone-900 rounded-xl shadow-2xl max-w-md w-full p-6 border border-stone-200 dark:border-stone-700">
+        <h3 className="text-xl font-bold font-serif mb-4 text-stone-900 dark:text-white">Gestion des Sauvegardes</h3>
+        
+        <div className="flex gap-2 mb-6 p-1 bg-stone-100 dark:bg-stone-800 rounded-lg">
+          <button 
+            onClick={() => setMode('export')}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${mode === 'export' ? 'bg-white dark:bg-stone-700 shadow text-rose-600' : 'text-stone-500'}`}
+          >
+            💾 Sauvegarder (Export)
+          </button>
+          <button 
+            onClick={() => setMode('import')}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${mode === 'import' ? 'bg-white dark:bg-stone-700 shadow text-emerald-600' : 'text-stone-500'}`}
+          >
+            📥 Charger (Import)
+          </button>
+        </div>
+
+        <p className="text-sm text-stone-500 mb-3 font-medium">Sélectionnez les données concernées :</p>
+        <div className="space-y-3 mb-6">
+          <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 dark:border-stone-700">
+            <span className="text-stone-800 dark:text-stone-200 text-sm">🛠️ Paramètres</span>
+            <input type="checkbox" checked={selection.settings} onChange={() => toggle('settings')} className="accent-rose-500 w-5 h-5"/>
+          </label>
+          <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 dark:border-stone-700">
+            <span className="text-stone-800 dark:text-stone-200 text-sm">📚 Catalogue (Ingr. / Recettes / Prod.)</span>
+            <input type="checkbox" checked={selection.catalog} onChange={() => toggle('catalog')} className="accent-rose-500 w-5 h-5"/>
+          </label>
+          <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 dark:border-stone-700">
+            <span className="text-stone-800 dark:text-stone-200 text-sm">⚡ Activité (Commandes / Stocks)</span>
+            <input type="checkbox" checked={selection.operations} onChange={() => toggle('operations')} className="accent-rose-500 w-5 h-5"/>
+          </label>
+          <label className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 dark:border-stone-700">
+            <span className="text-stone-800 dark:text-stone-200 text-sm">📊 Archives Bilans</span>
+            <input type="checkbox" checked={selection.reports} onChange={() => toggle('reports')} className="accent-rose-500 w-5 h-5"/>
+          </label>
+        </div>
+
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onClose} className="flex-1">Fermer</Button>
+          {mode === 'export' ? (
+             <Button onClick={handleExport} className="flex-1">Télécharger le fichier</Button>
+          ) : (
+             <label className="flex-1">
+               <div className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm text-center cursor-pointer transition-colors shadow-sm">
+                 Choisir un fichier...
+               </div>
+               <input type="file" onChange={handleImport} accept=".json" className="hidden" />
+             </label>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const App = () => {
   // Default tab is now 'guide'
-  const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide'>('guide');
+  const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production'>('guide');
+  const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // Apply theme class to HTML element
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -42,39 +189,21 @@ const App = () => {
   const [settings, setSettings] = useState<GlobalSettings>(INITIAL_SETTINGS);
   const [orders, setOrders] = useState<Order[]>([]);
   const [savedReports, setSavedReports] = useState<MonthlyReportData[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>([]);
 
-  // Persistence Helpers
-  const exportData = () => {
-    const data = { ingredients, recipes, products, settings, orders, savedReports };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `backup_milena_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-  };
-
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        if (window.confirm("Voulez-vous ÉCRASER les données actuelles (Ok) ou FUSIONNER (Annuler - non dispo MVP) ?")) {
-          if (json.ingredients) setIngredients(json.ingredients);
-          if (json.recipes) setRecipes(json.recipes);
-          if (json.products) setProducts(json.products);
-          if (json.settings) setSettings(json.settings);
-          if (json.orders) setOrders(json.orders);
-          if (json.savedReports) setSavedReports(json.savedReports);
-          alert("Données chargées avec succès !");
-        }
-      } catch (err) {
-        alert("Erreur lors de la lecture du fichier.");
+  // Generic Setter for Modal
+  const setData = (key: string, val: any) => {
+      switch(key) {
+          case 'ingredients': setIngredients(val); break;
+          case 'recipes': setRecipes(val); break;
+          case 'products': setProducts(val); break;
+          case 'settings': setSettings(val); break;
+          case 'orders': setOrders(val); break;
+          case 'savedReports': setSavedReports(val); break;
+          case 'purchases': setPurchases(val); break;
+          case 'productionBatches': setProductionBatches(val); break;
       }
-    };
-    reader.readAsText(file);
   };
 
   const renderContent = () => {
@@ -84,9 +213,25 @@ const App = () => {
       case 'ingredients':
         return <IngredientsRecettes 
           ingredients={ingredients} 
-          setIngredients={setIngredients} 
           recipes={recipes} 
           setRecipes={setRecipes} 
+        />;
+      case 'stock':
+        return <StockManagement 
+          ingredients={ingredients}
+          setIngredients={setIngredients}
+          purchases={purchases}
+          setPurchases={setPurchases}
+          productionBatches={productionBatches}
+          recipes={recipes}
+          products={products}
+        />;
+      case 'production':
+        return <Production 
+          productionBatches={productionBatches}
+          setProductionBatches={setProductionBatches}
+          products={products}
+          orders={orders} 
         />;
       case 'products':
         return <ProductsContent 
@@ -99,7 +244,9 @@ const App = () => {
         return <Orders 
           orders={orders} 
           setOrders={setOrders} 
-          products={products} 
+          products={products}
+          productionBatches={productionBatches}
+          setProductionBatches={setProductionBatches}
         />;
       case 'analysis':
         return <Analysis 
@@ -107,6 +254,7 @@ const App = () => {
           recipes={recipes} 
           ingredients={ingredients} 
           settings={settings} 
+          purchases={purchases}
         />;
       case 'report':
         return <MonthlyReport 
@@ -118,6 +266,14 @@ const App = () => {
           savedReports={savedReports}
           setSavedReports={setSavedReports}
           setSettings={setSettings}
+          productionBatches={productionBatches}
+        />;
+      case 'shopping':
+        return <ShoppingList 
+          orders={orders}
+          products={products}
+          recipes={recipes}
+          ingredients={ingredients}
         />;
       case 'guide':
         return <UserGuide />;
@@ -128,6 +284,14 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300">
+      
+      <DataManagerModal 
+        isOpen={isDataModalOpen} 
+        onClose={() => setIsDataModalOpen(false)}
+        data={{ ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches }}
+        setData={setData}
+      />
+
       {/* Header */}
       <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 sticky top-0 z-20 shadow-sm no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -149,12 +313,11 @@ const App = () => {
                 {theme === 'light' ? '🌙' : '☀️'}
               </button>
               
-              <label className="text-xs text-stone-400 dark:text-stone-500 cursor-pointer hover:text-stone-600 dark:hover:text-stone-300">
-                📥 Charger
-                <input type="file" onChange={importData} accept=".json" className="hidden" />
-              </label>
-              <button onClick={exportData} className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300">
-                💾 Sauvegarder
+              <button 
+                 onClick={() => setIsDataModalOpen(true)}
+                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-xs font-bold transition-colors"
+              >
+                💾 Sauvegardes / Données
               </button>
             </div>
           </div>
@@ -162,13 +325,16 @@ const App = () => {
           {/* Navigation */}
           <nav className="flex space-x-1 sm:space-x-4 overflow-x-auto pb-0 hide-scrollbar pt-2 border-t border-transparent dark:border-stone-800">
              {[
-               { id: 'guide', label: '📖 Guide & Aide' },
-               { id: 'settings', label: 'Paramètres' },
-               { id: 'ingredients', label: 'Ingrédients' },
-               { id: 'products', label: 'Produits' },
+               { id: 'guide', label: '📖 Guide' },
                { id: 'orders', label: 'Commandes' },
-               { id: 'analysis', label: 'Analyse Prix' },
+               { id: 'shopping', label: '🛒 Courses' },
+               { id: 'production', label: '👩‍🍳 Production' },
+               { id: 'stock', label: '📦 Stocks & Achats' },
+               { id: 'ingredients', label: 'Recettes' },
+               { id: 'products', label: 'Produits' },
+               { id: 'analysis', label: 'Prix' },
                { id: 'report', label: 'Bilan' },
+               { id: 'settings', label: 'Paramètres' },
              ].map((tab) => (
                <button
                  key={tab.id}
