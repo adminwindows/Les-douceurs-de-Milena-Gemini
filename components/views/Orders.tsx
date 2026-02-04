@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Order, Product, OrderItem, ProductionBatch } from '../../types';
-import { Card, Button, Input, Select, InfoTooltip } from '../ui/Common';
+import { Order, Product, ProductionBatch } from '../../types';
+import { Card, Button, Input, InfoTooltip } from '../ui/Common';
+import { isPositiveNumber, parseOptionalNumber } from '../../validation';
 
 interface Props {
   orders: Order[];
@@ -13,10 +14,11 @@ interface Props {
 
 export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
   const [newOrder, setNewOrder] = useState<Partial<Order>>({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
-  const [currentItem, setCurrentItem] = useState<{ productId: string, quantity: number }>({ productId: '', quantity: 1 });
+  const [currentItem, setCurrentItem] = useState<{ productId: string, quantity?: number }>({ productId: '', quantity: 1 });
+  const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
 
   const addItemToOrder = () => {
-    if (!currentItem.productId || currentItem.quantity <= 0) return;
+    if (!currentItem.productId || !isCurrentItemQuantityValid) return;
     const existing = (newOrder.items || []).find(i => i.productId === currentItem.productId);
     
     let updatedItems;
@@ -143,10 +145,10 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                 <input 
                   type="number" 
                   className="w-16 px-2 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-                  value={currentItem.quantity}
-                  onChange={e => setCurrentItem({...currentItem, quantity: parseFloat(e.target.value)})}
+                  value={currentItem.quantity ?? ''}
+                  onChange={e => setCurrentItem({...currentItem, quantity: parseOptionalNumber(e.target.value)})}
                 />
-                <Button size="sm" onClick={addItemToOrder}>+</Button>
+                <Button size="sm" onClick={addItemToOrder} disabled={!currentItem.productId || !isCurrentItemQuantityValid}>+</Button>
               </div>
 
               <div className="space-y-1 mt-3">
