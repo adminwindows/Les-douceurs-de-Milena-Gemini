@@ -1,5 +1,6 @@
 
 import { Ingredient, Product, Recipe, Unit, GlobalSettings, FixedCostItem } from './types';
+import { getLossMultiplier, isPercentage, isPositiveNumber } from './validation';
 
 // Conversion helpers
 export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: Unit): number => {
@@ -9,8 +10,9 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
   return price / (quantity * multiplier);
 };
 
-export const formatCurrency = (amount: number, currency = '€') => {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+export const formatCurrency = (amount: number, currency = 'EUR') => {
+  if (!Number.isFinite(amount)) return '-';
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount);
 };
 
 // Core Calculation Logic
@@ -20,6 +22,7 @@ export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredi
     if (!ingredient) return total;
     return total + (item.quantity * ingredient.costPerBaseUnit);
   }, 0);
+  if (!isPercentage(recipe.lossPercentage)) return Number.NaN;
   return batchCost * (1 + (recipe.lossPercentage / 100));
 };
 
@@ -38,13 +41,13 @@ export const calculateProductMetrics = (
   // NOTE: If isTvaSubject is true, we assume ingredient prices in DB are HT (because business recovers VAT).
   // If false, ingredient prices are TTC (final cost for artisan).
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
-  const unitMaterialCost = batchMaterialCost / (recipe.batchYield || 1);
+  const unitMaterialCost = batchMaterialCost / recipe.batchYield;
 
   // 2. Labor Cost per Unit
   const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
 
   // 3. Allocated Fixed Costs
-  const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
+  const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + p.estimatedMonthlySales, 0);
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
   
   const allocatedFixedCost = totalEstimatedVolume > 0 
@@ -52,15 +55,11 @@ export const calculateProductMetrics = (
     : 0;
 
   // 4. Manufacturing Loss (Waste during creation)
-  let safeLossRate = product.lossRate;
-  if (safeLossRate >= 100) safeLossRate = 99.9;
-  if (safeLossRate < 0) safeLossRate = 0;
-  
-  const manufacturingLossMultiplier = 1 / (1 - (safeLossRate / 100));
+  const manufacturingLossMultiplier = getLossMultiplier(product.lossRate);
 
   // 5. Unsold Items Impact (Finished goods thrown away)
-  const sales = product.estimatedMonthlySales || 1;
-  const unsold = product.unsoldEstimate || 0;
+  const sales = product.estimatedMonthlySales;
+  const unsold = product.unsoldEstimate;
   
   // Ratios for cost attribution
   const materialProductionRatio = (sales + unsold) / sales;
@@ -85,7 +84,7 @@ export const calculateProductMetrics = (
   // - If !isTvaSubject: Contributions are on CA Total.
   
   const socialRateDecimal = settings.taxRate / 100;
-  const divisor = 1 - socialRateDecimal > 0 ? 1 - socialRateDecimal : 1;
+  const divisor = 1 - socialRateDecimal;
   
   // Price required to cover Full Cost after paying social charges
   const minPriceBreakevenHT = fullCost / divisor;
@@ -96,6 +95,21 @@ export const calculateProductMetrics = (
   // 9. TTC Conversions
   const minPriceBreakevenTTC = isTvaSubject ? minPriceBreakevenHT * (1 + tvaRate / 100) : minPriceBreakevenHT;
   const priceWithMarginTTC = isTvaSubject ? priceWithMarginHT * (1 + tvaRate / 100) : priceWithMarginHT;
+
+  if (!isPositiveNumber(recipe.batchYield) || !isPositiveNumber(sales) || !isPercentage(product.lossRate) || !isPercentage(settings.taxRate) || (isTvaSubject && !isPercentage(tvaRate)) || !Number.isFinite(manufacturingLossMultiplier) || !Number.isFinite(divisor) || divisor <= 0) {
+    return {
+      unitMaterialCost: Number.NaN,
+      laborCost: Number.NaN,
+      allocatedFixedCost: Number.NaN,
+      fullCost: Number.NaN,
+      minPriceBreakeven: Number.NaN,
+      minPriceBreakevenTTC: Number.NaN,
+      priceWithMargin: Number.NaN,
+      priceWithMarginTTC: Number.NaN,
+      totalVariableCosts: Number.NaN,
+      tvaRate: Number.NaN
+    };
+  }
 
   return {
     unitMaterialCost,

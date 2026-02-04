@@ -38,7 +38,7 @@ export const ShoppingList: React.FC<Props> = ({ orders, products, recipes, ingre
 
         // Ratio: Needed items / Recipe Batch Yield
         // Example: Need 50 cookies, Batch is 12. Ratio = 4.16
-        const ratio = item.quantity / (recipe.batchYield || 1);
+        const ratio = item.quantity / recipe.batchYield;
 
         recipe.ingredients.forEach(ri => {
           // Add to total needed (in recipe units, usually grams)

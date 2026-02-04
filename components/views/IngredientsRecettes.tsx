@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { calculateRecipeMaterialCost } from '../../utils';
+import { isPercentage, isPositiveNumber } from '../../validation';
 import { Button, Card, Input } from '../ui/Common';
 
 interface Props {
@@ -22,7 +23,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
 
   const handleAddIngToRecipe = () => {
     const qty = parseFloat(selectedIngQty);
-    if (!selectedIngId || isNaN(qty) || qty <= 0) return;
+    if (!selectedIngId || !isPositiveNumber(qty)) return;
     
     // Check if already added
     const exists = currentRecipeIngs.find(i => i.ingredientId === selectedIngId);
@@ -37,13 +38,15 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   };
 
   const handleSaveRecipe = () => {
-    if (!newRecipe.name || currentRecipeIngs.length === 0) return;
+    const batchYield = Number(newRecipe.batchYield);
+    const lossPercentage = Number(newRecipe.lossPercentage);
+    if (!newRecipe.name || currentRecipeIngs.length === 0 || !isPositiveNumber(batchYield) || !isPercentage(lossPercentage)) return;
     setRecipes([...recipes, {
       id: Date.now().toString(),
       name: newRecipe.name!,
       ingredients: currentRecipeIngs,
-      batchYield: Number(newRecipe.batchYield) || 1,
-      lossPercentage: Number(newRecipe.lossPercentage) || 0
+      batchYield,
+      lossPercentage
     }]);
     setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
     setCurrentRecipeIngs([]);
@@ -67,15 +70,20 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   };
 
   // Calculate provisional cost of new recipe
+  const formatNumber = (value: number, digits = 2) => (Number.isFinite(value) ? value.toFixed(digits) : '-');
+  const batchYieldValue = Number(newRecipe.batchYield);
+  const lossPercentageValue = Number(newRecipe.lossPercentage);
   const tempRecipe: Recipe = {
     id: 'temp',
     name: 'temp',
     ingredients: currentRecipeIngs,
-    batchYield: newRecipe.batchYield || 1,
-    lossPercentage: newRecipe.lossPercentage || 0
+    batchYield: batchYieldValue,
+    lossPercentage: lossPercentageValue
   };
   const tempBatchCost = calculateRecipeMaterialCost(tempRecipe, ingredients);
-  const tempUnitCost = tempBatchCost / (newRecipe.batchYield || 1);
+  const tempUnitCost = tempBatchCost / batchYieldValue;
+  const isBatchYieldValid = isPositiveNumber(batchYieldValue);
+  const isLossPercentageValid = isPercentage(lossPercentageValue);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -99,6 +107,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 value={newRecipe.batchYield} 
                 onChange={e => setNewRecipe({...newRecipe, batchYield: parseFloat(e.target.value)})} 
                 helperText="Nb. de portions/unités obtenues avec ce batch"
+                error={!isBatchYieldValid ? "> 0" : undefined}
               />
               <Input 
                 label="Pertes mat. (%)" 
@@ -106,6 +115,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 value={newRecipe.lossPercentage} 
                 onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseFloat(e.target.value)})} 
                 helperText="Pâte restée dans le bol..."
+                error={!isLossPercentageValid ? "< 100%" : undefined}
               />
             </div>
           </div>
@@ -150,15 +160,15 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
           <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg mb-4 border border-emerald-100 dark:border-emerald-800">
             <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300 mb-1">
               <span>Coût Matières Batch:</span>
-              <span className="font-bold">{tempBatchCost.toFixed(2)} €</span>
+              <span className="font-bold">{formatNumber(tempBatchCost)} €</span>
             </div>
             <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300">
               <span>Coût Matières / Unité:</span>
-              <span className="font-bold">{tempUnitCost.toFixed(2)} €</span>
+              <span className="font-bold">{formatNumber(tempUnitCost)} €</span>
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleSaveRecipe} disabled={!newRecipe.name || currentRecipeIngs.length === 0}>
+          <Button className="w-full" onClick={handleSaveRecipe} disabled={!newRecipe.name || currentRecipeIngs.length === 0 || !isBatchYieldValid || !isLossPercentageValid}>
             Enregistrer la recette
           </Button>
         </Card>
@@ -170,12 +180,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recipes.map(recipe => {
               const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
-              const unitCost = batchCost / (recipe.batchYield || 1);
+              const unitCost = batchCost / recipe.batchYield;
               
               const isScaling = scalerTargets.hasOwnProperty(recipe.id);
               const targetQtyStr = scalerTargets[recipe.id] || '';
               const targetQty = parseFloat(targetQtyStr);
-              const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / (recipe.batchYield || 1) : 1;
+              const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / recipe.batchYield : 1;
 
               return (
                 <Card key={recipe.id} className="relative hover:shadow-md transition-shadow">
@@ -228,7 +238,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                             return (
                               <div key={ri.ingredientId} className="flex justify-between text-xs text-indigo-900 dark:text-indigo-200">
                                 <span>{ing.name}</span>
-                                <span className="font-bold">{scaledQty.toFixed(1)} {displayUnit}</span>
+                                <span className="font-bold">{formatNumber(scaledQty, 1)} {displayUnit}</span>
                               </div>
                             )
                           })}
@@ -239,11 +249,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                   <div className="pt-3 border-t border-stone-100 dark:border-stone-700 flex justify-between items-end">
                     <div>
                       <p className="text-xs text-stone-400 dark:text-stone-500">Coût unitaire mat.</p>
-                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{unitCost.toFixed(2)} €</p>
+                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{formatNumber(unitCost)} €</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-stone-400 dark:text-stone-500">Coût batch</p>
-                      <p className="font-medium text-stone-600 dark:text-stone-300">{batchCost.toFixed(2)} €</p>
+                      <p className="font-medium text-stone-600 dark:text-stone-300">{formatNumber(batchCost)} €</p>
                     </div>
                   </div>
                 </Card>

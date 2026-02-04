@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product } from '../../types';
 import { convertToCostPerBaseUnit, formatCurrency } from '../../utils';
-import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
+import { getLossMultiplier, isNonNegativeNumber, isPositiveNumber } from '../../validation';
+import { Button, Card, Input, Select } from '../ui/Common';
 
 interface Props {
   ingredients: Ingredient[];
@@ -25,9 +26,12 @@ export const StockManagement: React.FC<Props> = ({
     quantity: 0,
     price: 0
   });
+  const isPurchaseQuantityValid = isPositiveNumber(Number(newPurchase.quantity));
+  const isPurchasePriceValid = isPositiveNumber(Number(newPurchase.price));
+  const isPurchaseValid = Boolean(newPurchase.ingredientId) && isPurchaseQuantityValid && isPurchasePriceValid;
 
   const handleAddPurchase = () => {
-    if (!newPurchase.ingredientId || !newPurchase.quantity || !newPurchase.price) return;
+    if (!isPurchaseValid) return;
     setPurchases([...purchases, {
       id: Date.now().toString(),
       date: newPurchase.date || new Date().toISOString().split('T')[0],
@@ -45,17 +49,19 @@ export const StockManagement: React.FC<Props> = ({
   // --- Ingredient Definition Logic ---
   const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, price: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const isIngredientPriceValid = isNonNegativeNumber(Number(newIng.price));
+  const isIngredientValid = Boolean(newIng.name) && isIngredientPriceValid;
   
   const handleAddOrUpdateIngredient = () => {
-    if (!newIng.name) return;
-    const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price || 0), 1, newIng.unit as Unit); 
+    if (!isIngredientValid) return;
+    const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price), 1, newIng.unit as Unit); 
     
     if (editingId) {
         setIngredients(prev => prev.map(i => i.id === editingId ? {
             ...i,
             name: newIng.name!,
             unit: newIng.unit as Unit,
-            price: Number(newIng.price || 0),
+            price: Number(newIng.price),
             costPerBaseUnit
         } : i));
         setEditingId(null);
@@ -64,7 +70,7 @@ export const StockManagement: React.FC<Props> = ({
             id: Date.now().toString(),
             name: newIng.name,
             unit: newIng.unit as Unit,
-            price: Number(newIng.price || 0),
+            price: Number(newIng.price),
             quantity: 0, // Starts with 0 stock
             costPerBaseUnit
         }]);
@@ -122,13 +128,15 @@ export const StockManagement: React.FC<Props> = ({
         if(!recipeIng) return;
 
         // Qty used per product unit
-        let qtyPerUnit = recipeIng.quantity / (recipe.batchYield || 1);
+        let qtyPerUnit = recipeIng.quantity / recipe.batchYield;
         
         // Apply Manufacturing Loss Rate from Product (the "real" consumption)
         // If loss rate is 10%, we consume 1/(1-0.10) times more to get the final unit
-        let safeLoss = product.lossRate || 0;
-        if(safeLoss >= 100) safeLoss = 99.9;
-        const lossMultiplier = 1 / (1 - (safeLoss/100));
+        const lossMultiplier = getLossMultiplier(product.lossRate);
+        if (!Number.isFinite(lossMultiplier)) {
+          totalConsumed = Number.NaN;
+          return;
+        }
 
         qtyPerUnit = qtyPerUnit * lossMultiplier;
 
@@ -214,10 +222,11 @@ export const StockManagement: React.FC<Props> = ({
                  value={newIng.price} 
                  onChange={e => setNewIng({...newIng, price: parseFloat(e.target.value)})}
                  helperText="Prix pour 1 unité de stock (ex: pour 1kg)" 
+                 error={!isIngredientPriceValid ? "≥ 0" : undefined}
                />
                <div className="flex gap-2">
                  {editingId && <Button variant="secondary" onClick={cancelEdit} className="w-1/3">Annuler</Button>}
-                 <Button onClick={handleAddOrUpdateIngredient} disabled={!newIng.name} className="flex-1">
+                 <Button onClick={handleAddOrUpdateIngredient} disabled={!isIngredientValid} className="flex-1">
                      {editingId ? 'Mettre à jour' : 'Créer Fiche'}
                  </Button>
                </div>
@@ -283,6 +292,7 @@ export const StockManagement: React.FC<Props> = ({
                   step="0.01"
                   value={newPurchase.quantity} 
                   onChange={e => setNewPurchase({...newPurchase, quantity: parseFloat(e.target.value)})} 
+                  error={!isPurchaseQuantityValid ? "> 0" : undefined}
                 />
                 <Input 
                   label="Prix Payé (Total)" 
@@ -291,9 +301,10 @@ export const StockManagement: React.FC<Props> = ({
                   suffix="€"
                   value={newPurchase.price} 
                   onChange={e => setNewPurchase({...newPurchase, price: parseFloat(e.target.value)})} 
+                  error={!isPurchasePriceValid ? "> 0" : undefined}
                 />
               </div>
-              <Button onClick={handleAddPurchase} disabled={!newPurchase.ingredientId || !newPurchase.quantity} className="w-full">
+              <Button onClick={handleAddPurchase} disabled={!isPurchaseValid} className="w-full">
                 Ajouter au Journal
               </Button>
             </div>
@@ -366,7 +377,7 @@ export const StockManagement: React.FC<Props> = ({
                       <span className="block text-xs text-stone-400 font-normal">Unité: {row.ingredient.unit}</span>
                     </td>
                     <td className={`p-3 text-right font-bold ${row.currentStock < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {row.currentStock.toFixed(2)}
+                      {Number.isFinite(row.currentStock) ? row.currentStock.toFixed(2) : '-'}
                     </td>
                     <td className="p-3 text-right font-bold bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400">
                       {formatCurrency(row.ingredient.price)}

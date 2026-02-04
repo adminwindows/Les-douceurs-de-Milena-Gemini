@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { Order, Product, OrderItem, ProductionBatch } from '../../types';
-import { Card, Button, Input, Select, InfoTooltip } from '../ui/Common';
+import { Card, Button, Input, InfoTooltip } from '../ui/Common';
+import { isPositiveNumber } from '../../validation';
 
 interface Props {
   orders: Order[];
@@ -14,9 +15,11 @@ interface Props {
 export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
   const [newOrder, setNewOrder] = useState<Partial<Order>>({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
   const [currentItem, setCurrentItem] = useState<{ productId: string, quantity: number }>({ productId: '', quantity: 1 });
+  const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
+  const isCurrentItemValid = Boolean(currentItem.productId) && isCurrentItemQuantityValid;
 
   const addItemToOrder = () => {
-    if (!currentItem.productId || currentItem.quantity <= 0) return;
+    if (!isCurrentItemValid) return;
     const existing = (newOrder.items || []).find(i => i.productId === currentItem.productId);
     
     let updatedItems;
@@ -146,7 +149,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                   value={currentItem.quantity}
                   onChange={e => setCurrentItem({...currentItem, quantity: parseFloat(e.target.value)})}
                 />
-                <Button size="sm" onClick={addItemToOrder}>+</Button>
+                <Button size="sm" onClick={addItemToOrder} disabled={!isCurrentItemValid}>+</Button>
               </div>
 
               <div className="space-y-1 mt-3">

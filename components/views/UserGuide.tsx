@@ -60,7 +60,7 @@ export const UserGuide: React.FC = () => {
                 Définissez vos matières et recettes.
             </p>
             <ul className="text-sm text-stone-600 dark:text-stone-400 list-disc pl-5 space-y-2">
-                <li><strong>Stocks & Achats > Référentiel</strong> : Créez vos ingrédients.</li>
+                <li><strong>Stocks &amp; Achats &gt; Référentiel</strong> : Créez vos ingrédients.</li>
                 <li><strong>Recettes</strong> : Assemblez ces ingrédients pour créer des pâtes ou bases.</li>
                 <li><strong>Produits</strong> : Créez le produit final (avec emballage et temps de travail) pour obtenir votre prix de revient.</li>
             </ul>
@@ -124,7 +124,7 @@ export const UserGuide: React.FC = () => {
                      </p>
                      <div className="bg-stone-50 dark:bg-stone-900 p-4 rounded-lg text-sm border border-stone-200 dark:border-stone-700">
                         <ol className="list-decimal pl-4 space-y-2 text-stone-600 dark:text-stone-300">
-                           <li><strong>Onglet Stocks & Achats > Référentiel</strong> : Créez tous vos ingrédients (Farine, Sucre...). Mettez le prix standard de votre fournisseur.</li>
+                           <li><strong>Onglet Stocks &amp; Achats &gt; Référentiel</strong> : Créez tous vos ingrédients (Farine, Sucre...). Mettez le prix standard de votre fournisseur.</li>
                            <li><strong>Onglet Recettes</strong> : Créez vos bases (Pâte sablée, Ganache...). Ne créez pas le produit fini tout de suite, juste la recette technique.</li>
                            <li><strong>Onglet Produits</strong> : C'est ici que vous créez ce que le client achète (ex: "Tarte au Citron 6 pers"). Vous liez la recette, ajoutez le temps de main d'œuvre, l'emballage et votre marge souhaitée.</li>
                         </ol>
@@ -148,7 +148,7 @@ export const UserGuide: React.FC = () => {
                          <Card className="!p-4">
                             <h5 className="font-bold text-[#D45D79] mb-2">B. Achats & Production</h5>
                             <p className="text-xs text-stone-500">
-                                Quand vous revenez du magasin, entrez vos tickets dans <strong>Stocks & Achats > Journal</strong>.
+                                Quand vous revenez du magasin, entrez vos tickets dans <strong>Stocks &amp; Achats &gt; Journal</strong>.
                                 Quand vous cuisinez, cliquez sur "👩‍🍳 Produire" depuis la commande ou l'onglet <strong>Production</strong>. Cela déduit les ingrédients de votre stock.
                             </p>
                          </Card>
