@@ -92,6 +92,9 @@ export const UserGuide: React.FC = () => {
             <div className="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-lg border border-rose-100 dark:border-rose-800 text-sm text-rose-800 dark:text-rose-200 mt-2">
                 <strong>Attention :</strong> Pensez à cliquer sur "Sauvegardes / Données" en haut à droite régulièrement pour télécharger votre fichier de sauvegarde sur votre ordinateur.
             </div>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
+              Cette application est pensée pour une utilisation personnelle (un utilisateur, un appareil). Chaque utilisateur garde ses propres données sur son appareil.
+            </p>
             </Card>
         </div>
       )}
@@ -168,6 +171,19 @@ export const UserGuide: React.FC = () => {
                         <li>Cliquez sur <strong>Sauvegarder ce Bilan</strong> pour figer les résultats.</li>
                      </ul>
                   </div>
+
+                  <div className="relative pl-12">
+                     <div className="absolute left-0 top-0 bg-stone-200 dark:bg-stone-600 text-stone-600 dark:text-stone-200 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md z-10">5</div>
+                     <h4 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-2">Sauvegarde & Récupération</h4>
+                     <p className="text-stone-600 dark:text-stone-400 text-sm mb-2">
+                        Pour éviter toute perte, exportez un fichier de sauvegarde régulièrement.
+                     </p>
+                     <ul className="list-disc pl-5 text-sm text-stone-500 space-y-1">
+                        <li>Ouvrez <strong>Sauvegardes / Données</strong> (en haut à droite).</li>
+                        <li>Choisissez les sections à sauvegarder puis téléchargez le fichier.</li>
+                        <li>En cas de problème, importez ce fichier pour restaurer vos données.</li>
+                     </ul>
+                  </div>
                </div>
             </div>
          </div>
@@ -223,6 +239,32 @@ export const UserGuide: React.FC = () => {
                               <br/><em className="text-xs text-stone-500">Impact : Augmente la consommation de stock théorique. Pour faire 100 cookies vendables avec 10% de perte, il faut consommer les ingrédients pour 111 cookies.</em>
                           </li>
                       </ol>
+                  </div>
+              </Card>
+
+              <Card>
+                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">Sécurité & Fiabilité des Données</h3>
+                  <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
+                      <p>
+                        L'application fonctionne dans votre navigateur et n'envoie pas vos données à un serveur externe.
+                        Vos données sont stockées localement (sur l'appareil).
+                      </p>
+                      <ul className="list-disc pl-5 space-y-2">
+                          <li><strong>Pas d'accès réseau :</strong> aucune synchronisation automatique, tout reste local.</li>
+                          <li><strong>Risque de perte :</strong> si le navigateur efface les données, vous devez restaurer depuis une sauvegarde.</li>
+                          <li><strong>Bon réflexe :</strong> exportez un fichier de sauvegarde régulièrement (hebdo conseillé).</li>
+                      </ul>
+                  </div>
+              </Card>
+
+              <Card>
+                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">Dépannage Rapide (FAQ)</h3>
+                  <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
+                      <ul className="list-disc pl-5 space-y-2">
+                          <li><strong>Mes stocks semblent faux :</strong> vérifiez vos achats, puis enregistrez correctement la production (sorties).</li>
+                          <li><strong>Des coûts explosent :</strong> contrôlez les pertes et les prix de vos ingrédients.</li>
+                          <li><strong>J'ai perdu mes données :</strong> importez votre dernière sauvegarde via “Sauvegardes / Données”.</li>
+                      </ul>
                   </div>
               </Card>
           </div>

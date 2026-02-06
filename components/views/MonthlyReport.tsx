@@ -240,6 +240,7 @@ export const MonthlyReport: React.FC<Props> = ({
   const isFixedCostsValid = actualFixedItems.every(item => isNonNegativeNumber(item.amount));
   const isIngredientSpendValid = isNonNegativeNumber(actualIngredientSpend);
   const canSaveReport = isSalesValid && isInventoryValid && isFixedCostsValid && isIngredientSpendValid;
+  const invalidLossProducts = products.filter(product => product.lossRate < 0 || product.lossRate >= 100);
 
   const saveReport = () => {
     if (!canSaveReport) return;
@@ -473,6 +474,14 @@ export const MonthlyReport: React.FC<Props> = ({
 
       {/* Report Output */}
       <div className="lg:col-span-7">
+        {invalidLossProducts.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+            <p className="font-semibold">Attention : taux de pertes invalides détectés.</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Ajustez les produits suivants (taux entre 0 et 99,99%) : {invalidLossProducts.map(product => product.name).join(', ')}.
+            </p>
+          </div>
+        )}
         <Card className="h-full border-rose-100 dark:border-stone-700 shadow-xl bg-white dark:bg-stone-800 print:border-none print:shadow-none">
           <div className="flex justify-between items-start mb-6 border-b border-stone-100 dark:border-stone-700 pb-4">
             <div>

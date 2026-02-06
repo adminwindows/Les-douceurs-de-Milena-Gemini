@@ -21,3 +21,8 @@ This contains everything you need to run your app locally.
 * Run unit tests: `npm run test`
 * Run a typecheck: `npm run typecheck`
 * Build for production: `npm run build`
+
+## Data Persistence
+
+* The app auto-saves data to your browser's local storage.
+* Use the “Sauvegardes / Données” modal to export or import a JSON backup.
