@@ -11,12 +11,14 @@ import { ShoppingList } from './components/views/ShoppingList';
 import { StockManagement } from './components/views/StockManagement';
 import { Production } from './components/views/Production';
 import { Button } from './components/ui/Common';
-import { 
-  INITIAL_INGREDIENTS, 
-  INITIAL_RECIPES, 
-  INITIAL_PRODUCTS, 
-  INITIAL_SETTINGS 
+import {
+  INITIAL_INGREDIENTS,
+  INITIAL_RECIPES,
+  INITIAL_PRODUCTS,
+  INITIAL_SETTINGS
 } from './utils';
+import { importDataSchema } from './dataSchema';
+import { loadAppState, saveAppState } from './storage';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
 
 // --- Data Manager Modal Component ---
@@ -77,23 +79,30 @@ const DataManagerModal = ({
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
+        const parsed = importDataSchema.safeParse(json);
+        if (!parsed.success) {
+          alert("Erreur: Fichier invalide.");
+          return;
+        }
+
+        const dataToImport = parsed.data;
         let msg = "Données chargées :\n";
         
-        if (json.settings && selection.settings) { setData('settings', json.settings); msg += "- Paramètres\n"; }
+        if (dataToImport.settings && selection.settings) { setData('settings', dataToImport.settings); msg += "- Paramètres\n"; }
         
         if (selection.catalog) {
-           if (json.ingredients) { setData('ingredients', json.ingredients); msg += "- Ingrédients\n"; }
-           if (json.recipes) { setData('recipes', json.recipes); msg += "- Recettes\n"; }
-           if (json.products) { setData('products', json.products); msg += "- Produits\n"; }
+           if (dataToImport.ingredients) { setData('ingredients', dataToImport.ingredients); msg += "- Ingrédients\n"; }
+           if (dataToImport.recipes) { setData('recipes', dataToImport.recipes); msg += "- Recettes\n"; }
+           if (dataToImport.products) { setData('products', dataToImport.products); msg += "- Produits\n"; }
         }
         
         if (selection.operations) {
-           if (json.orders) { setData('orders', json.orders); msg += "- Commandes\n"; }
-           if (json.purchases) { setData('purchases', json.purchases); msg += "- Achats\n"; }
-           if (json.productionBatches) { setData('productionBatches', json.productionBatches); msg += "- Production\n"; }
+           if (dataToImport.orders) { setData('orders', dataToImport.orders); msg += "- Commandes\n"; }
+           if (dataToImport.purchases) { setData('purchases', dataToImport.purchases); msg += "- Achats\n"; }
+           if (dataToImport.productionBatches) { setData('productionBatches', dataToImport.productionBatches); msg += "- Production\n"; }
         }
         
-        if (json.savedReports && selection.reports) { setData('savedReports', json.savedReports); msg += "- Bilans archivés\n"; }
+        if (dataToImport.savedReports && selection.reports) { setData('savedReports', dataToImport.savedReports); msg += "- Bilans archivés\n"; }
         
         alert(msg);
         onClose();
@@ -183,14 +192,28 @@ const App = () => {
   };
   
   // State
-  const [ingredients, setIngredients] = useState<Ingredient[]>(INITIAL_INGREDIENTS);
-  const [recipes, setRecipes] = useState<Recipe[]>(INITIAL_RECIPES);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [settings, setSettings] = useState<GlobalSettings>(INITIAL_SETTINGS);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [savedReports, setSavedReports] = useState<MonthlyReportData[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>([]);
+  const savedState = loadAppState();
+  const [ingredients, setIngredients] = useState<Ingredient[]>(savedState?.ingredients ?? INITIAL_INGREDIENTS);
+  const [recipes, setRecipes] = useState<Recipe[]>(savedState?.recipes ?? INITIAL_RECIPES);
+  const [products, setProducts] = useState<Product[]>(savedState?.products ?? INITIAL_PRODUCTS);
+  const [settings, setSettings] = useState<GlobalSettings>(savedState?.settings ?? INITIAL_SETTINGS);
+  const [orders, setOrders] = useState<Order[]>(savedState?.orders ?? []);
+  const [savedReports, setSavedReports] = useState<MonthlyReportData[]>(savedState?.savedReports ?? []);
+  const [purchases, setPurchases] = useState<Purchase[]>(savedState?.purchases ?? []);
+  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(savedState?.productionBatches ?? []);
+
+  useEffect(() => {
+    saveAppState({
+      ingredients,
+      recipes,
+      products,
+      settings,
+      orders,
+      savedReports,
+      purchases,
+      productionBatches
+    });
+  }, [ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches]);
 
   // Generic Setter for Modal
   const setData = (key: string, val: any) => {

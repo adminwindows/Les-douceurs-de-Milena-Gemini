@@ -122,6 +122,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
               placeholder="Ex: Cookie Géant Pépites"
               value={newProduct.name || ''} 
               onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
+              data-testid="product-name-input"
             />
             
             <div className="flex flex-col gap-1.5">
@@ -130,6 +131,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 className="px-3 py-2.5 rounded-lg border border-stone-300 dark:border-stone-600 text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900 focus:border-[#D45D79] shadow-sm"
                 value={newProduct.recipeId || ''}
                 onChange={e => setNewProduct({...newProduct, recipeId: e.target.value})}
+                data-testid="product-recipe-select"
               >
                 <option value="">Sélectionner une recette...</option>
                 {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -170,13 +172,14 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
 
             <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700 grid grid-cols-2 gap-4">
                <Input 
-                label="Ventes / mois" 
+               label="Ventes / mois" 
                 type="number"
                 suffix="u"
                 value={newProduct.estimatedMonthlySales ?? ''} 
                 onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: parseOptionalNumber(e.target.value)})} 
                 helperText="Prévision"
                 error={isEstimatedSalesValid ? undefined : '> 0'}
+                data-testid="product-sales-input"
               />
                <Input 
                 label="Invendus est." 
@@ -233,6 +236,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                   value={newProduct.lossRate ?? ''} 
                   onChange={e => setNewProduct({...newProduct, lossRate: parseOptionalNumber(e.target.value)})} 
                   error={!isLossRateValid ? "< 100%" : undefined}
+                  data-testid="product-loss-input"
                 />
                 <div className="text-[10px] text-stone-400 dark:text-stone-500 leading-tight">
                   % pâte/gâteaux ratés (fabrication).
