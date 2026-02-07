@@ -26,3 +26,15 @@ This contains everything you need to run your app locally.
 
 * The app auto-saves data to your browser's local storage.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
+
+
+## Current Functional Scope
+
+The application currently includes:
+
+* **Catalog management**: ingredients, recipes, and sellable products with validation.
+* **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing, and alternate purchase-price analysis modes.
+* **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
+* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options.
+* **Data safety**: local autosave, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
+* **Quality tooling**: Vitest test suite, typecheck script, and CI workflow for automated checks.
