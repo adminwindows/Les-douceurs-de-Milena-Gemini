@@ -91,6 +91,8 @@ export const UserGuide: React.FC = () => {
             </p>
             <div className="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-lg border border-rose-100 dark:border-rose-800 text-sm text-rose-800 dark:text-rose-200 mt-2">
                 <strong>Attention :</strong> Pensez à cliquer sur "Sauvegardes / Données" en haut à droite régulièrement pour télécharger votre fichier de sauvegarde sur votre ordinateur.
+                <br />
+                <strong>Nouveau :</strong> un <em>Mode Démo</em> est disponible dans l'onglet Paramètres. Il charge des exemples réalistes sans perdre vos vraies données (restauration automatique en quittant la démo).
             </div>
             <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
               Cette application est pensée pour une utilisation personnelle (un utilisateur, un appareil). Chaque utilisateur garde ses propres données sur son appareil.
@@ -264,6 +266,7 @@ export const UserGuide: React.FC = () => {
                           <li><strong>Mes stocks semblent faux :</strong> vérifiez vos achats, puis enregistrez correctement la production (sorties).</li>
                           <li><strong>Des coûts explosent :</strong> contrôlez les pertes et les prix de vos ingrédients.</li>
                           <li><strong>J'ai perdu mes données :</strong> importez votre dernière sauvegarde via “Sauvegardes / Données”.</li>
+                          <li><strong>Je veux montrer l'app sans risque :</strong> activez un scénario dans <strong>Paramètres → Mode Démo</strong>, puis quittez la démo pour restaurer vos données.</li>
                       </ul>
                   </div>
               </Card>
