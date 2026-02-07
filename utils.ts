@@ -41,7 +41,8 @@ export const calculateProductMetrics = (
   const unitMaterialCost = batchMaterialCost / (recipe.batchYield ?? 1);
 
   // 2. Labor Cost per Unit
-  const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const calculatedLaborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const laborCost = settings.includeLaborInCost ? calculatedLaborCost : 0;
 
   // 3. Allocated Fixed Costs
   const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
@@ -111,6 +112,7 @@ export const calculateProductMetrics = (
 export const INITIAL_SETTINGS: GlobalSettings = {
   currency: 'EUR',
   hourlyRate: 15,
+  includeLaborInCost: true,
   fixedCostItems: [
     { id: 'fc1', name: 'Electricité / Eau (quote-part)', amount: 40 },
     { id: 'fc2', name: 'Assurance', amount: 30 },

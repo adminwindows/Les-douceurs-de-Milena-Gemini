@@ -65,6 +65,7 @@ const fixedCostItemSchema = z.object({
 const globalSettingsSchema = z.object({
   currency: z.string(),
   hourlyRate: z.number(),
+  includeLaborInCost: z.boolean().default(true),
   fixedCostItems: z.array(fixedCostItemSchema),
   taxRate: z.number(),
   isTvaSubject: z.boolean(),
@@ -183,6 +184,7 @@ const legacyFixedCostSchema = z.object({
 const legacySettingsSchema = z.object({
   currency: asString.catch('EUR'),
   hourlyRate: asNumber.catch(0),
+  includeLaborInCost: z.coerce.boolean().catch(true),
   fixedCostItems: z.array(legacyFixedCostSchema).default([]),
   taxRate: asNumber.catch(0),
   isTvaSubject: z.coerce.boolean().catch(false),

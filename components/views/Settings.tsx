@@ -123,9 +123,34 @@ export const Settings: React.FC<Props> = ({ settings, setSettings }) => {
               suffix="€/h"
               value={settings.hourlyRate}
               onChange={e => handleNumberChange('hourlyRate', e.target.value)}
-              helperText="Pour estimer le coût de votre temps de travail."
+              helperText={settings.includeLaborInCost ? "Utilisé pour calculer le coût." : "Utilisé uniquement à titre indicatif."}
               error={isHourlyRateValid ? undefined : '≥ 0'}
             />
+
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Inclure la Main d'Oeuvre dans les Coûts ?</label>
+                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                  <input
+                    type="checkbox"
+                    id="toggle-labor"
+                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-stone-300 border-4 appearance-none cursor-pointer"
+                    checked={settings.includeLaborInCost}
+                    onChange={e => handleChange('includeLaborInCost', e.target.checked)}
+                    style={{ right: settings.includeLaborInCost ? '0' : 'auto', left: settings.includeLaborInCost ? 'auto' : '0', borderColor: settings.includeLaborInCost ? '#4f46e5' : '#ccc' }}
+                  />
+                  <label
+                    htmlFor="toggle-labor"
+                    className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.includeLaborInCost ? 'bg-indigo-600' : 'bg-stone-300 dark:bg-stone-600'}`}
+                  ></label>
+                </div>
+              </div>
+              <p className="text-sm text-indigo-900 dark:text-indigo-200">
+                {settings.includeLaborInCost
+                  ? "La MO est comptée comme un coût. Votre marge est un profit pur."
+                  : "La MO est ignorée dans le coût de revient. Votre marge doit donc couvrir votre salaire."}
+              </p>
+            </div>
           </div>
         </Card>
 
