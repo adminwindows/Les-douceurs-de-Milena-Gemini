@@ -41,4 +41,47 @@ describe('Products form behavior', () => {
 
     expect(submitButton).toBeEnabled();
   });
+
+  it('switches form to edit mode from product card', async () => {
+    const user = userEvent.setup();
+    const recipes: Recipe[] = [
+      { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
+    ];
+    const products: Product[] = [{
+      id: 'p1',
+      name: 'Cookie existant',
+      recipeId: 'r1',
+      laborTimeMinutes: 10,
+      packagingCost: 0.2,
+      variableDeliveryCost: 0,
+      lossRate: 2,
+      unsoldEstimate: 0,
+      packagingUsedOnUnsold: true,
+      targetMargin: 1,
+      estimatedMonthlySales: 20,
+      category: 'Biscuit',
+      tvaRate: 5.5
+    }];
+    const settings: GlobalSettings = {
+      currency: 'EUR',
+      hourlyRate: 10,
+      fixedCostItems: [],
+      taxRate: 0,
+      isTvaSubject: false,
+      defaultTvaRate: 5.5
+    };
+
+    render(
+      <ProductsContent
+        products={products}
+        setProducts={() => {}}
+        recipes={recipes}
+        settings={settings}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: '✏️' }));
+    expect(screen.getByText(/modifier le produit/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enregistrer/i })).toBeInTheDocument();
+  });
 });

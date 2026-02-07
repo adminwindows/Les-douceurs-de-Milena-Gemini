@@ -38,6 +38,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   });
 
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
   const lossRate = newProduct.lossRate;
   const isLossRateValid = isPercentage(lossRate);
@@ -101,6 +102,57 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     setProducts(products.filter(p => p.id !== id));
   };
 
+  const handleStartEditProduct = (product: Product) => {
+    setEditingProductId(product.id);
+    setNewProduct({ ...product });
+    setIsCustomCategory(!DEFAULT_CATEGORIES.includes(product.category));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProductId(null);
+    setNewProduct({
+      name: '',
+      laborTimeMinutes: 15,
+      packagingCost: 0.10,
+      variableDeliveryCost: 0,
+      lossRate: 0,
+      unsoldEstimate: 0,
+      packagingUsedOnUnsold: true,
+      targetMargin: 0,
+      estimatedMonthlySales: 0,
+      category: 'Gâteau',
+      recipeId: '',
+      tvaRate: defaultTva
+    });
+    setIsCustomCategory(false);
+  };
+
+  const handleSaveEditedProduct = () => {
+    if (!editingProductId || !isProductFormValid) return;
+
+    setProducts(products.map(product =>
+      product.id === editingProductId
+        ? {
+            ...product,
+            name: newProduct.name!,
+            recipeId: newProduct.recipeId!,
+            laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
+            packagingCost: Number(newProduct.packagingCost ?? 0),
+            variableDeliveryCost: Number(newProduct.variableDeliveryCost ?? 0),
+            lossRate: Number(newProduct.lossRate ?? 0),
+            unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
+            packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
+            targetMargin: Number(newProduct.targetMargin ?? 0),
+            estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
+            category: newProduct.category || 'Autre',
+            tvaRate: Number(newProduct.tvaRate ?? defaultTva)
+          }
+        : product
+    ));
+
+    handleCancelEdit();
+  };
+
   const categoryOptions = [
     ...DEFAULT_CATEGORIES.map(c => ({ value: c, label: c })),
     { value: 'custom__', label: '+ Autre / Nouveau...' }
@@ -112,7 +164,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       <div className="lg:col-span-4">
         <Card className="sticky top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-6 flex items-center gap-2">
-            Nouveau Produit
+            {editingProductId ? 'Modifier le Produit' : 'Nouveau Produit'}
             <InfoTooltip text="Un produit est ce que vous vendez au client. Il est basé sur une recette." />
           </h3>
           
@@ -267,13 +319,32 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
               />
             )}
 
-            <Button 
-              className="w-full mt-4 py-3 shadow-md" 
-              onClick={handleAddProduct} 
-              disabled={!isProductFormValid}
-            >
-              Ajouter au Catalogue
-            </Button>
+            {editingProductId ? (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                <Button
+                  variant="secondary"
+                  className="py-3"
+                  onClick={handleCancelEdit}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  className="py-3 shadow-md"
+                  onClick={handleSaveEditedProduct}
+                  disabled={!isProductFormValid}
+                >
+                  Enregistrer
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                className="w-full mt-4 py-3 shadow-md" 
+                onClick={handleAddProduct} 
+                disabled={!isProductFormValid}
+              >
+                Ajouter au Catalogue
+              </Button>
+            )}
           </div>
         </Card>
       </div>
@@ -304,11 +375,20 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                         {product.name}
                       </h4>
                     </div>
-                    <button onClick={() => handleDeleteProduct(product.id)} className="text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleStartEditProduct(product)}
+                        className="text-stone-400 dark:text-stone-500 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors p-1 text-xs font-semibold"
+                        title="Modifier le produit"
+                      >
+                        ✏️
+                      </button>
+                      <button onClick={() => handleDeleteProduct(product.id)} className="text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-y-2 text-sm text-stone-600 dark:text-stone-400 mb-4 flex-1">
