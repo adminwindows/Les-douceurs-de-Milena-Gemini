@@ -122,6 +122,136 @@ export const appDataSchema = z.object({
   productionBatches: z.array(productionBatchSchema)
 });
 
-export const importDataSchema = appDataSchema.partial();
+const asNumber = z.coerce.number().refine(Number.isFinite);
+const asString = z.coerce.string();
+
+const legacyUnitSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const normalized = value.toLowerCase();
+  if (normalized === 'kg') return Unit.KG;
+  if (normalized === 'g' || normalized === 'gr') return Unit.G;
+  if (normalized === 'ml') return Unit.ML;
+  if (normalized === 'l' || normalized === 'lt') return Unit.L;
+  if (normalized === 'piece' || normalized === 'pieces' || normalized === 'pièce' || normalized === 'pcs') return Unit.PIECE;
+  return value;
+}, unitSchema).catch(Unit.G);
+
+const legacyIngredientSchema = z.object({
+  id: asString,
+  name: asString,
+  unit: legacyUnitSchema.default(Unit.G),
+  price: asNumber.catch(0),
+  quantity: asNumber.catch(0),
+  costPerBaseUnit: asNumber.catch(0)
+}).passthrough();
+
+const legacyRecipeIngredientSchema = z.object({
+  ingredientId: asString,
+  quantity: asNumber.catch(0)
+}).passthrough();
+
+const legacyRecipeSchema = z.object({
+  id: asString,
+  name: asString,
+  ingredients: z.array(legacyRecipeIngredientSchema).default([]),
+  batchYield: asNumber.catch(1),
+  lossPercentage: asNumber.catch(0)
+}).passthrough();
+
+const legacyProductSchema = z.object({
+  id: asString,
+  name: asString,
+  recipeId: asString,
+  laborTimeMinutes: asNumber.catch(0),
+  packagingCost: asNumber.catch(0),
+  variableDeliveryCost: asNumber.catch(0),
+  lossRate: asNumber.catch(0),
+  unsoldEstimate: asNumber.catch(0),
+  packagingUsedOnUnsold: z.coerce.boolean().catch(true),
+  targetMargin: asNumber.catch(0),
+  estimatedMonthlySales: asNumber.catch(0),
+  category: asString.catch('Autre'),
+  tvaRate: asNumber.optional()
+}).passthrough();
+
+const legacyFixedCostSchema = z.object({
+  id: asString,
+  name: asString,
+  amount: asNumber.catch(0)
+}).passthrough();
+
+const legacySettingsSchema = z.object({
+  currency: asString.catch('EUR'),
+  hourlyRate: asNumber.catch(0),
+  fixedCostItems: z.array(legacyFixedCostSchema).default([]),
+  taxRate: asNumber.catch(0),
+  isTvaSubject: z.coerce.boolean().catch(false),
+  defaultTvaRate: asNumber.catch(5.5)
+}).passthrough();
+
+const legacyOrderStatusSchema = z.preprocess((value) => {
+  if (value === 'pending' || value === 'completed' || value === 'cancelled') return value;
+  return 'pending';
+}, z.enum(['pending', 'completed', 'cancelled']));
+
+const legacyOrderSchema = z.object({
+  id: asString,
+  customerName: asString.catch('Client'),
+  date: asString,
+  items: z.array(z.object({
+    productId: asString,
+    quantity: asNumber.catch(0)
+  }).passthrough()).default([]),
+  status: legacyOrderStatusSchema,
+  notes: asString.optional()
+}).passthrough();
+
+const legacyPurchaseSchema = z.object({
+  id: asString,
+  date: asString,
+  ingredientId: asString,
+  quantity: asNumber.catch(0),
+  price: asNumber.catch(0)
+}).passthrough();
+
+const legacyProductionBatchSchema = z.object({
+  id: asString,
+  date: asString,
+  productId: asString,
+  quantity: asNumber.catch(0)
+}).passthrough();
+
+const legacyReportSchema = z.object({
+  id: asString,
+  monthStr: asString,
+  sales: z.array(z.object({
+    productId: asString,
+    quantitySold: asNumber.catch(0),
+    quantityUnsold: asNumber.catch(0),
+    actualPrice: asNumber.catch(0)
+  }).passthrough()).default([]),
+  actualFixedCostItems: z.array(legacyFixedCostSchema).default([]),
+  actualIngredientSpend: asNumber.catch(0),
+  inventory: z.array(z.object({
+    ingredientId: asString,
+    startStock: asNumber.catch(0),
+    purchasedQuantity: asNumber.catch(0),
+    endStock: asNumber.catch(0)
+  }).passthrough()).default([]),
+  totalRevenue: asNumber.catch(0),
+  netResult: asNumber.catch(0),
+  isLocked: z.coerce.boolean().catch(false)
+}).passthrough();
+
+export const importDataSchema = z.object({
+  ingredients: z.array(legacyIngredientSchema).optional(),
+  recipes: z.array(legacyRecipeSchema).optional(),
+  products: z.array(legacyProductSchema).optional(),
+  settings: legacySettingsSchema.optional(),
+  orders: z.array(legacyOrderSchema).optional(),
+  savedReports: z.array(legacyReportSchema).optional(),
+  purchases: z.array(legacyPurchaseSchema).optional(),
+  productionBatches: z.array(legacyProductionBatchSchema).optional()
+}).passthrough();
 
 export type AppData = z.infer<typeof appDataSchema>;
