@@ -72,13 +72,29 @@ const DataManagerModal = ({
     a.click();
   };
 
+  const parseImportPayload = (rawValue: string) => {
+    const cleaned = rawValue.replace(/^﻿/, '').trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      }
+      throw new Error('Invalid JSON');
+    }
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const json = JSON.parse(event.target?.result as string);
+        const rawContent = event.target?.result as string;
+        const json = parseImportPayload(rawContent);
         const parsed = importDataSchema.safeParse(json);
         if (!parsed.success) {
           alert("Erreur: Fichier invalide.");
