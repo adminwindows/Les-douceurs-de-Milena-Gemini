@@ -38,10 +38,11 @@ export const calculateProductMetrics = (
   // NOTE: If isTvaSubject is true, we assume ingredient prices in DB are HT (because business recovers VAT).
   // If false, ingredient prices are TTC (final cost for artisan).
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
-  const unitMaterialCost = batchMaterialCost / (recipe.batchYield || 1);
+  const unitMaterialCost = batchMaterialCost / (recipe.batchYield ?? 1);
 
   // 2. Labor Cost per Unit
-  const laborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const calculatedLaborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
+  const laborCost = settings.includeLaborInCost ? calculatedLaborCost : 0;
 
   // 3. Allocated Fixed Costs
   const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
@@ -52,14 +53,10 @@ export const calculateProductMetrics = (
     : 0;
 
   // 4. Manufacturing Loss (Waste during creation)
-  let safeLossRate = product.lossRate;
-  if (safeLossRate >= 100) safeLossRate = 99.9;
-  if (safeLossRate < 0) safeLossRate = 0;
-  
-  const manufacturingLossMultiplier = 1 / (1 - (safeLossRate / 100));
+  const manufacturingLossMultiplier = 1 / (1 - (product.lossRate / 100));
 
   // 5. Unsold Items Impact (Finished goods thrown away)
-  const sales = product.estimatedMonthlySales || 1;
+  const sales = product.estimatedMonthlySales ?? 1;
   const unsold = product.unsoldEstimate || 0;
   
   // Ratios for cost attribution
@@ -85,7 +82,7 @@ export const calculateProductMetrics = (
   // - If !isTvaSubject: Contributions are on CA Total.
   
   const socialRateDecimal = settings.taxRate / 100;
-  const divisor = 1 - socialRateDecimal > 0 ? 1 - socialRateDecimal : 1;
+  const divisor = 1 - socialRateDecimal;
   
   // Price required to cover Full Cost after paying social charges
   const minPriceBreakevenHT = fullCost / divisor;
@@ -115,6 +112,7 @@ export const calculateProductMetrics = (
 export const INITIAL_SETTINGS: GlobalSettings = {
   currency: 'EUR',
   hourlyRate: 15,
+  includeLaborInCost: true,
   fixedCostItems: [
     { id: 'fc1', name: 'Electricité / Eau (quote-part)', amount: 40 },
     { id: 'fc2', name: 'Assurance', amount: 30 },

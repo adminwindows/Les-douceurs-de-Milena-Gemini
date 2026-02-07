@@ -71,6 +71,7 @@ export interface FixedCostItem {
 export interface GlobalSettings {
   currency: string;
   hourlyRate: number;
+  includeLaborInCost: boolean;
   fixedCostItems: FixedCostItem[]; 
   taxRate: number; // Cotisations sociales
   isTvaSubject: boolean; // Nouveau: Assujetti à la TVA ?
