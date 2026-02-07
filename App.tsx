@@ -11,9 +11,6 @@ import { StockManagement } from './components/views/StockManagement';
 import { Production } from './components/views/Production';
 import { Button } from './components/ui/Common';
 import {
-  INITIAL_INGREDIENTS,
-  INITIAL_RECIPES,
-  INITIAL_PRODUCTS,
   INITIAL_SETTINGS
 } from './utils';
 import { importDataSchema, AppData } from './dataSchema';
@@ -195,12 +192,16 @@ const App = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production'>('guide');
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const firstLaunchSettings: GlobalSettings = {
+    ...INITIAL_SETTINGS,
+    fixedCostItems: []
+  };
 
   const savedState = loadAppState();
-  const [ingredients, setIngredients] = useState<Ingredient[]>(savedState?.ingredients ?? INITIAL_INGREDIENTS);
-  const [recipes, setRecipes] = useState<Recipe[]>(savedState?.recipes ?? INITIAL_RECIPES);
-  const [products, setProducts] = useState<Product[]>(savedState?.products ?? INITIAL_PRODUCTS);
-  const [settings, setSettings] = useState<GlobalSettings>(savedState?.settings ?? INITIAL_SETTINGS);
+  const [ingredients, setIngredients] = useState<Ingredient[]>(savedState?.ingredients ?? []);
+  const [recipes, setRecipes] = useState<Recipe[]>(savedState?.recipes ?? []);
+  const [products, setProducts] = useState<Product[]>(savedState?.products ?? []);
+  const [settings, setSettings] = useState<GlobalSettings>(savedState?.settings ?? firstLaunchSettings);
   const [orders, setOrders] = useState<Order[]>(savedState?.orders ?? []);
   const [savedReports, setSavedReports] = useState<MonthlyReportData[]>(savedState?.savedReports ?? []);
   const [purchases, setPurchases] = useState<Purchase[]>(savedState?.purchases ?? []);
