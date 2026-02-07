@@ -46,6 +46,7 @@ describe('utils calculations', () => {
     const settings: GlobalSettings = {
       currency: 'EUR',
       hourlyRate: 0,
+      includeLaborInCost: true,
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,

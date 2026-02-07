@@ -14,6 +14,7 @@ describe('Products form behavior', () => {
     const settings: GlobalSettings = {
       currency: 'EUR',
       hourlyRate: 10,
+      includeLaborInCost: true,
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,
@@ -65,6 +66,7 @@ describe('Products form behavior', () => {
     const settings: GlobalSettings = {
       currency: 'EUR',
       hourlyRate: 10,
+      includeLaborInCost: true,
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,
