@@ -73,9 +73,21 @@ If you use bash (Linux/macOS, or Git Bash/WSL on Windows), you can run:
   * `npm run mobile:apk:script:debug`
   * `npm run mobile:apk:script:release`
 
+If you are on native Windows PowerShell (no Git Bash/WSL), use:
+
+* First-time bootstrap + debug APK build:
+  `npm run mobile:bootstrap:android:win`
+* Scripted build (debug by default):
+  `npm run mobile:apk:win`
+* Scripted explicit modes:
+  * `npm run mobile:apk:script:debug:win`
+  * `npm run mobile:apk:script:release:win`
+
 The scripts live in:
 * `scripts/bootstrap-android-apk.sh`
 * `scripts/build-android-apk.sh`
+* `scripts/bootstrap-android-apk.ps1`
+* `scripts/build-android-apk.ps1`
 
 ## Data Persistence
 
