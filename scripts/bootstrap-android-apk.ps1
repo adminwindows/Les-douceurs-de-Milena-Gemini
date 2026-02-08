@@ -123,5 +123,14 @@ Write-Host "5) Building debug APK"
 Invoke-NpmStep "npm run mobile:apk:debug:win"
 
 Write-Host ""
-Write-Host "Done. Your APK should be at:"
-Write-Host "android/app/build/outputs/apk/debug/app-debug.apk"
+$apkCandidates = Get-ChildItem -Path "android/app/build/outputs/apk" -Filter "*.apk" -Recurse -ErrorAction SilentlyContinue
+if (-not $apkCandidates -or $apkCandidates.Count -eq 0) {
+  throw "Build reported success but no APK was found under android/app/build/outputs/apk"
+}
+
+$latestApk = $apkCandidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$fullPath = $latestApk.FullName
+$relativePath = Resolve-Path -Path $fullPath -Relative
+Write-Host "Done. APK created:"
+Write-Host "- Relative: $relativePath"
+Write-Host "- Absolute: $fullPath"

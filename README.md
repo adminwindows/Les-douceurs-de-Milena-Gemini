@@ -54,8 +54,10 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 7. Build a debug APK:
    * Linux/macOS: `npm run mobile:apk:debug`
    * Windows: `npm run mobile:apk:debug:win`
-8. Retrieve APK at:
-   `android/app/build/outputs/apk/debug/app-debug.apk`
+8. Retrieve APK:
+   * Default expected path: `android/app/build/outputs/apk/debug/app-debug.apk`
+   * If unsure, run from repo root: `dir /s /b android\app\build\outputs\apk\*.apk` (Windows)
+   * The bootstrap scripts now print both relative and absolute APK paths at the end.
 
 ### iOS equivalent
 
