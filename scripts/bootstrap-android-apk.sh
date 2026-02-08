@@ -9,7 +9,7 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 if ! command -v java >/dev/null 2>&1; then
-  echo "❌ Java not found. Install JDK 17 and retry."
+  echo "❌ Java not found. Install JDK 21 and retry."
   exit 1
 fi
 
@@ -20,6 +20,11 @@ if [[ "$node_major" -lt 22 ]]; then
   exit 1
 fi
 echo "✅ Java: $(java -version 2>&1 | head -n 1)"
+java_major=$(java -XshowSettings:properties -version 2>&1 | awk -F= '/java.specification.version/ {gsub(/ /, "", $2); print $2; exit}')
+if [[ -z "$java_major" || "$java_major" -lt 21 ]]; then
+  echo "❌ JDK 21+ is required (current major: ${java_major:-unknown})"
+  exit 1
+fi
 
 is_android_valid() {
   [[ -f "android/gradlew" && -f "android/app/src/main/AndroidManifest.xml" ]]

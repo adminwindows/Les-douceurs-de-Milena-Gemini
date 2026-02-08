@@ -36,10 +36,11 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 > If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
+> If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
 
 1. Install prerequisites locally:
    * Node.js 22+ (required by Capacitor CLI 8)
-   * Java JDK 17
+   * Java JDK 21+ (required by Android Gradle plugin used by Capacitor 8)
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
    `npm install`
