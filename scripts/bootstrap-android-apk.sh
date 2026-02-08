@@ -39,6 +39,33 @@ ensure_android_project() {
   fi
 }
 
+resolve_android_sdk() {
+  if [[ -n "${ANDROID_HOME:-}" && -d "$ANDROID_HOME" ]]; then
+    echo "$ANDROID_HOME"
+    return
+  fi
+  if [[ -n "${ANDROID_SDK_ROOT:-}" && -d "$ANDROID_SDK_ROOT" ]]; then
+    echo "$ANDROID_SDK_ROOT"
+    return
+  fi
+  if [[ -d "$HOME/Android/Sdk" ]]; then
+    echo "$HOME/Android/Sdk"
+    return
+  fi
+  echo ""
+}
+
+ensure_android_local_properties() {
+  local sdk
+  sdk=$(resolve_android_sdk)
+  if [[ -z "$sdk" ]]; then
+    echo "❌ Android SDK not found. Set ANDROID_HOME/ANDROID_SDK_ROOT or create android/local.properties with sdk.dir=..."
+    exit 1
+  fi
+  printf 'sdk.dir=%s\n' "$sdk" > android/local.properties
+  echo "✅ Configured android/local.properties with sdk.dir=$sdk"
+}
+
 echo
 echo "1) Ensuring Android platform exists"
 ensure_android_project
@@ -71,7 +98,11 @@ if ! is_android_valid; then
 fi
 
 echo
-echo "4) Building debug APK"
+echo "4) Configuring Android SDK path"
+ensure_android_local_properties
+
+echo
+echo "5) Building debug APK"
 npm run mobile:apk:debug
 
 echo

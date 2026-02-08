@@ -35,6 +35,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 > If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
+> If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 
 1. Install prerequisites locally:
    * Node.js 22+ (required by Capacitor CLI 8)
@@ -42,16 +43,17 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
    `npm install`
-3. Create Android native project (first time only):
+3. On Windows, ensure `ANDROID_HOME` or `ANDROID_SDK_ROOT` points to your SDK (or let the helper script auto-write `android/local.properties` when SDK is found).
+4. Create Android native project (first time only):
    `npm run mobile:add:android`
-4. Check Capacitor environment:
+5. Check Capacitor environment:
    `npm run mobile:doctor`
-5. Build web app and sync into native shell:
+6. Build web app and sync into native shell:
    `npm run mobile:sync`
-6. Build a debug APK:
+7. Build a debug APK:
    * Linux/macOS: `npm run mobile:apk:debug`
    * Windows: `npm run mobile:apk:debug:win`
-7. Retrieve APK at:
+8. Retrieve APK at:
    `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ### iOS equivalent

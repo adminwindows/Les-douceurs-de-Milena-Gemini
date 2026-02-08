@@ -30,6 +30,40 @@ function Ensure-AndroidProject {
   Write-Host "android/ already exists and looks valid"
 }
 
+function Resolve-AndroidSdkPath {
+  if ($env:ANDROID_HOME -and (Test-Path $env:ANDROID_HOME)) {
+    return $env:ANDROID_HOME
+  }
+  if ($env:ANDROID_SDK_ROOT -and (Test-Path $env:ANDROID_SDK_ROOT)) {
+    return $env:ANDROID_SDK_ROOT
+  }
+
+  $candidates = @(
+    "$env:LOCALAPPDATA\Android\Sdk",
+    "$env:USERPROFILE\AppData\Local\Android\Sdk"
+  )
+
+  foreach ($candidate in $candidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+      return $candidate
+    }
+  }
+
+  return $null
+}
+
+function Ensure-AndroidLocalProperties {
+  $sdkPath = Resolve-AndroidSdkPath
+  if (-not $sdkPath) {
+    throw "Android SDK not found. Set ANDROID_HOME/ANDROID_SDK_ROOT or create android/local.properties with sdk.dir=..."
+  }
+
+  $escaped = $sdkPath.Replace('\', '\\')
+  $content = "sdk.dir=$escaped`n"
+  Set-Content -Path "android/local.properties" -Value $content -Encoding ASCII
+  Write-Host "Configured android/local.properties with sdk.dir=$sdkPath"
+}
+
 Write-Host "== Android first APK bootstrap (Windows) =="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -77,7 +111,11 @@ if (-not (Test-AndroidProjectValid)) {
 }
 
 Write-Host ""
-Write-Host "4) Building debug APK"
+Write-Host "4) Configuring Android SDK path"
+Ensure-AndroidLocalProperties
+
+Write-Host ""
+Write-Host "5) Building debug APK"
 Invoke-NpmStep "npm run mobile:apk:debug:win"
 
 Write-Host ""
