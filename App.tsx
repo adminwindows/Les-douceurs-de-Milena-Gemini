@@ -13,7 +13,7 @@ import { Button } from './components/ui/Common';
 import {
   INITIAL_SETTINGS
 } from './utils';
-import { importDataSchema, AppData } from './dataSchema';
+import { AppData } from './dataSchema';
 import {
   loadAppState,
   saveAppState,
@@ -26,6 +26,7 @@ import {
 } from './storage';
 import { DEMO_DATASETS, cloneAppData, getDemoDatasetById } from './demoData';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
+import { BackupSelection, exportBackupFile, getMobileBackupBridge, parseImportedAppData } from './backupIO';
 
 const DataManagerModal = ({
   isOpen, onClose,
@@ -39,7 +40,7 @@ const DataManagerModal = ({
   if (!isOpen) return null;
 
   const [mode, setMode] = useState<'export' | 'import'>('export');
-  const [selection, setSelection] = useState({
+  const [selection, setSelection] = useState<BackupSelection>({
     settings: true,
     catalog: true,
     operations: true,
@@ -47,44 +48,41 @@ const DataManagerModal = ({
   });
 
   const toggle = (key: keyof typeof selection) => setSelection(prev => ({ ...prev, [key]: !prev[key] }));
+  const supportsNativeBackupPicker = Boolean(getMobileBackupBridge());
 
-  const handleExport = () => {
-    const exportData: any = {};
-    if (selection.settings) exportData.settings = data.settings;
-    if (selection.catalog) {
-      exportData.ingredients = data.ingredients;
-      exportData.recipes = data.recipes;
-      exportData.products = data.products;
-    }
-    if (selection.operations) {
-      exportData.orders = data.orders;
-      exportData.purchases = data.purchases;
-      exportData.productionBatches = data.productionBatches;
-    }
-    if (selection.reports) exportData.savedReports = data.savedReports;
+  const applyImportedData = (rawContent: string) => {
+    try {
+      const dataToImport = parseImportedAppData(rawContent);
+      let msg = 'Données chargées :\n';
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const date = new Date().toISOString().slice(0, 10);
-    const parts = Object.keys(selection).filter(k => (selection as any)[k]).join('-');
-    a.download = `milena_backup_${parts}_${date}.json`;
-    a.click();
+      if (dataToImport.settings && selection.settings) { setData('settings', dataToImport.settings); msg += '- Paramètres\n'; }
+
+      if (selection.catalog) {
+        if (dataToImport.ingredients) { setData('ingredients', dataToImport.ingredients); msg += '- Ingrédients\n'; }
+        if (dataToImport.recipes) { setData('recipes', dataToImport.recipes); msg += '- Recettes\n'; }
+        if (dataToImport.products) { setData('products', dataToImport.products); msg += '- Produits\n'; }
+      }
+
+      if (selection.operations) {
+        if (dataToImport.orders) { setData('orders', dataToImport.orders); msg += '- Commandes\n'; }
+        if (dataToImport.purchases) { setData('purchases', dataToImport.purchases); msg += '- Achats\n'; }
+        if (dataToImport.productionBatches) { setData('productionBatches', dataToImport.productionBatches); msg += '- Production\n'; }
+      }
+
+      if (dataToImport.savedReports && selection.reports) { setData('savedReports', dataToImport.savedReports); msg += '- Bilans archivés\n'; }
+
+      alert(msg);
+      onClose();
+    } catch {
+      alert('Erreur: Fichier invalide.');
+    }
   };
 
-  const parseImportPayload = (rawValue: string) => {
-    const cleaned = rawValue.replace(/^﻿/, '').trim();
-
+  const handleExport = async () => {
     try {
-      return JSON.parse(cleaned);
+      await exportBackupFile(data, selection);
     } catch {
-      const start = cleaned.indexOf('{');
-      const end = cleaned.lastIndexOf('}');
-      if (start >= 0 && end > start) {
-        return JSON.parse(cleaned.slice(start, end + 1));
-      }
-      throw new Error('Invalid JSON');
+      alert("Impossible d'exporter la sauvegarde.");
     }
   };
 
@@ -93,41 +91,30 @@ const DataManagerModal = ({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-      try {
-        const rawContent = event.target?.result as string;
-        const json = parseImportPayload(rawContent);
-        const parsed = importDataSchema.safeParse(json);
-        if (!parsed.success) {
-          alert('Erreur: Fichier invalide.');
-          return;
-        }
-
-        const dataToImport = parsed.data;
-        let msg = 'Données chargées :\n';
-
-        if (dataToImport.settings && selection.settings) { setData('settings', dataToImport.settings); msg += '- Paramètres\n'; }
-
-        if (selection.catalog) {
-          if (dataToImport.ingredients) { setData('ingredients', dataToImport.ingredients); msg += '- Ingrédients\n'; }
-          if (dataToImport.recipes) { setData('recipes', dataToImport.recipes); msg += '- Recettes\n'; }
-          if (dataToImport.products) { setData('products', dataToImport.products); msg += '- Produits\n'; }
-        }
-
-        if (selection.operations) {
-          if (dataToImport.orders) { setData('orders', dataToImport.orders); msg += '- Commandes\n'; }
-          if (dataToImport.purchases) { setData('purchases', dataToImport.purchases); msg += '- Achats\n'; }
-          if (dataToImport.productionBatches) { setData('productionBatches', dataToImport.productionBatches); msg += '- Production\n'; }
-        }
-
-        if (dataToImport.savedReports && selection.reports) { setData('savedReports', dataToImport.savedReports); msg += '- Bilans archivés\n'; }
-
-        alert(msg);
-        onClose();
-      } catch {
-        alert('Erreur: Fichier invalide.');
-      }
+      const rawContent = event.target?.result as string;
+      applyImportedData(rawContent);
     };
     reader.readAsText(file);
+  };
+
+  const handleNativeImport = async () => {
+    try {
+      const bridge = getMobileBackupBridge();
+      if (!bridge) {
+        alert('Import natif indisponible sur cet appareil.');
+        return;
+      }
+
+      const content = await bridge.pickTextFile({
+        mimeTypes: ['application/json', 'text/json']
+      });
+
+      if (!content) return;
+
+      applyImportedData(content);
+    } catch {
+      alert('Erreur: Fichier invalide.');
+    }
   };
 
   return (
@@ -173,14 +160,20 @@ const DataManagerModal = ({
         <div className="flex gap-3">
           <Button variant="ghost" onClick={onClose} className="flex-1">Fermer</Button>
           {mode === 'export' ? (
-            <Button onClick={handleExport} className="flex-1">Télécharger le fichier</Button>
+            <Button onClick={() => void handleExport()} className="flex-1">Télécharger le fichier</Button>
           ) : (
-            <label className="flex-1">
-              <div className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm text-center cursor-pointer transition-colors shadow-sm">
-                Choisir un fichier...
-              </div>
-              <input type="file" onChange={handleImport} accept=".json" className="hidden" />
-            </label>
+            supportsNativeBackupPicker ? (
+              <Button onClick={() => void handleNativeImport()} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+                Choisir un fichier (appareil)
+              </Button>
+            ) : (
+              <label className="flex-1">
+                <div className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm text-center cursor-pointer transition-colors shadow-sm">
+                  Choisir un fichier...
+                </div>
+                <input type="file" onChange={handleImport} accept=".json" className="hidden" />
+              </label>
+            )
           )}
         </div>
       </div>
