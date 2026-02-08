@@ -11,7 +11,7 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "Node: $(node -v)"
-$javaVersion = (java -version 2>&1 | Select-Object -First 1)
+${javaVersion} = (cmd /c "java -version 2>&1" | Select-Object -First 1)
 Write-Host "Java: $javaVersion"
 
 Write-Host ""
