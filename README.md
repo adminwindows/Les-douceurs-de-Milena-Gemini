@@ -26,7 +26,9 @@ This contains everything you need to run your app locally.
 
 * The app auto-saves data to your browser's local storage.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
+* Backup import/export now supports a native mobile bridge when available (device picker/save flow), with browser file input/download fallback.
 * Storage is abstracted behind a storage engine interface (web localStorage default) with runtime bootstrap support for injecting native mobile adapters.
+* App-state persistence is versioned (`milena_app_state_v2`) with migration from legacy key format (`milena_app_state_v1`) for backward compatibility.
 
 
 ## Current Functional Scope

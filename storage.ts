@@ -1,9 +1,19 @@
+import { z } from 'zod';
 import { appDataSchema, AppData } from './dataSchema';
 import { StorageEngine, getStorageEngine, setStorageEngine } from './storageEngine';
 
-const STORAGE_KEY = 'milena_app_state_v1';
+export const APP_STATE_STORAGE_KEY = 'milena_app_state_v2';
+const LEGACY_APP_STATE_STORAGE_KEYS = ['milena_app_state_v1'] as const;
+const CURRENT_APP_STATE_SCHEMA_VERSION = 2;
+
 const DEMO_BACKUP_KEY = 'milena_demo_backup_v1';
 const DEMO_SESSION_KEY = 'milena_demo_session_v1';
+
+const versionedAppStateSchema = z.object({
+  version: z.number(),
+  savedAt: z.string(),
+  data: appDataSchema
+});
 
 export interface DemoSession {
   datasetId: string;
@@ -13,20 +23,50 @@ export const configureStorageEngine = (engine: StorageEngine): void => {
   setStorageEngine(engine);
 };
 
-export const loadAppState = (): AppData | undefined => {
-  const raw = getStorageEngine().getItem(STORAGE_KEY);
-  if (!raw) return undefined;
+const parseAppStateFromUnknown = (value: unknown): AppData | undefined => {
+  const versioned = versionedAppStateSchema.safeParse(value);
+  if (versioned.success && versioned.data.version === CURRENT_APP_STATE_SCHEMA_VERSION) {
+    return versioned.data.data;
+  }
 
-  try {
-    const parsed = JSON.parse(raw);
-    const result = appDataSchema.safeParse(parsed);
-    if (!result.success) {
+  const direct = appDataSchema.safeParse(value);
+  if (direct.success) {
+    return direct.data;
+  }
+
+  return undefined;
+};
+
+export const loadAppState = (): AppData | undefined => {
+  const engine = getStorageEngine();
+
+  const currentRaw = engine.getItem(APP_STATE_STORAGE_KEY);
+  if (currentRaw) {
+    try {
+      const parsed = parseAppStateFromUnknown(JSON.parse(currentRaw));
+      if (parsed) return parsed;
+    } catch {
       return undefined;
     }
-    return result.data;
-  } catch {
-    return undefined;
   }
+
+  for (const legacyKey of LEGACY_APP_STATE_STORAGE_KEYS) {
+    const legacyRaw = engine.getItem(legacyKey);
+    if (!legacyRaw) continue;
+
+    try {
+      const parsed = parseAppStateFromUnknown(JSON.parse(legacyRaw));
+      if (!parsed) continue;
+
+      saveAppState(parsed);
+      engine.removeItem(legacyKey);
+      return parsed;
+    } catch {
+      continue;
+    }
+  }
+
+  return undefined;
 };
 
 export const saveAppState = (data: AppData): void => {
@@ -34,7 +74,14 @@ export const saveAppState = (data: AppData): void => {
   if (!result.success) {
     return;
   }
-  getStorageEngine().setItem(STORAGE_KEY, JSON.stringify(result.data));
+
+  const envelope = {
+    version: CURRENT_APP_STATE_SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    data: result.data
+  };
+
+  getStorageEngine().setItem(APP_STATE_STORAGE_KEY, JSON.stringify(envelope));
 };
 
 export const loadDemoBackup = (): AppData | undefined => {

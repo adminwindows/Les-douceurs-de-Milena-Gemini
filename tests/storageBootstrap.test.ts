@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { configureStorageEngine, loadAppState, saveAppState } from '../storage';
+import { APP_STATE_STORAGE_KEY, configureStorageEngine, loadAppState, saveAppState } from '../storage';
 import { createDefaultStorageEngine } from '../storageEngine';
 import { configureStorageForCurrentRuntime } from '../storageBootstrap';
 import { INITIAL_SETTINGS } from '../utils';
@@ -34,7 +34,7 @@ describe('storage runtime bootstrap', () => {
 
     saveAppState(payload);
 
-    expect(localStorage.getItem('milena_app_state_v1')).toBeTruthy();
+    expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeTruthy();
     expect(loadAppState()).toEqual(payload);
   });
 
@@ -55,8 +55,8 @@ describe('storage runtime bootstrap', () => {
     configureStorageForCurrentRuntime();
     saveAppState(payload);
 
-    expect(memory.get('milena_app_state_v1')).toBeTruthy();
-    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
+    expect(memory.get(APP_STATE_STORAGE_KEY)).toBeTruthy();
+    expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeNull();
     expect(loadAppState()).toEqual(payload);
   });
 });

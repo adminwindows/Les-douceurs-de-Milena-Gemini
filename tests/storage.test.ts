@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
+  APP_STATE_STORAGE_KEY,
   clearDemoBackup,
   clearDemoSession,
   configureStorageEngine,
@@ -40,7 +41,29 @@ describe('storage helpers', () => {
   });
 
   it('returns undefined for invalid stored data', () => {
-    localStorage.setItem('milena_app_state_v1', JSON.stringify({ bad: 'data' }));
+    localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({ bad: 'data' }));
+    expect(loadAppState()).toBeUndefined();
+  });
+
+  it('migrates legacy v1 app-state key to versioned v2 envelope', () => {
+    localStorage.setItem('milena_app_state_v1', JSON.stringify(payload));
+
+    const loaded = loadAppState();
+
+    expect(loaded).toEqual(payload);
+    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
+
+    const currentRaw = localStorage.getItem(APP_STATE_STORAGE_KEY);
+    expect(currentRaw).toBeTruthy();
+    const current = JSON.parse(currentRaw!);
+    expect(current.version).toBe(2);
+    expect(current.data).toEqual(payload);
+    expect(typeof current.savedAt).toBe('string');
+  });
+
+  it('returns undefined for malformed versioned envelope', () => {
+    localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({ version: 2, data: { bad: true } }));
+
     expect(loadAppState()).toBeUndefined();
   });
 
@@ -70,6 +93,6 @@ describe('storage helpers', () => {
     saveAppState(payload);
 
     expect(loadAppState()).toEqual(payload);
-    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
+    expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeNull();
   });
 });
