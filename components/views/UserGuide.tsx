@@ -60,7 +60,7 @@ export const UserGuide: React.FC = () => {
                 Définissez vos matières et recettes.
             </p>
             <ul className="text-sm text-stone-600 dark:text-stone-400 list-disc pl-5 space-y-2">
-                <li><strong>Stocks & Achats > Référentiel</strong> : Créez vos ingrédients.</li>
+                <li><strong>Stocks & Achats &gt; Référentiel</strong> : Créez vos ingrédients.</li>
                 <li><strong>Recettes</strong> : Assemblez ces ingrédients pour créer des pâtes ou bases.</li>
                 <li><strong>Produits</strong> : Créez le produit final (avec emballage et temps de travail) pour obtenir votre prix de revient.</li>
             </ul>
@@ -91,7 +91,12 @@ export const UserGuide: React.FC = () => {
             </p>
             <div className="bg-rose-50 dark:bg-rose-900/30 p-3 rounded-lg border border-rose-100 dark:border-rose-800 text-sm text-rose-800 dark:text-rose-200 mt-2">
                 <strong>Attention :</strong> Pensez à cliquer sur "Sauvegardes / Données" en haut à droite régulièrement pour télécharger votre fichier de sauvegarde sur votre ordinateur.
+                <br />
+                <strong>Nouveau :</strong> un <em>Mode Démo</em> est disponible dans l'onglet Paramètres. Il charge des exemples réalistes sans perdre vos vraies données (restauration automatique en quittant la démo).
             </div>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
+              Cette application est pensée pour une utilisation personnelle (un utilisateur, un appareil). Chaque utilisateur garde ses propres données sur son appareil.
+            </p>
             </Card>
         </div>
       )}
@@ -124,7 +129,7 @@ export const UserGuide: React.FC = () => {
                      </p>
                      <div className="bg-stone-50 dark:bg-stone-900 p-4 rounded-lg text-sm border border-stone-200 dark:border-stone-700">
                         <ol className="list-decimal pl-4 space-y-2 text-stone-600 dark:text-stone-300">
-                           <li><strong>Onglet Stocks & Achats > Référentiel</strong> : Créez tous vos ingrédients (Farine, Sucre...). Mettez le prix standard de votre fournisseur.</li>
+                           <li><strong>Onglet Stocks & Achats &gt; Référentiel</strong> : Créez tous vos ingrédients (Farine, Sucre...). Mettez le prix standard de votre fournisseur.</li>
                            <li><strong>Onglet Recettes</strong> : Créez vos bases (Pâte sablée, Ganache...). Ne créez pas le produit fini tout de suite, juste la recette technique.</li>
                            <li><strong>Onglet Produits</strong> : C'est ici que vous créez ce que le client achète (ex: "Tarte au Citron 6 pers"). Vous liez la recette, ajoutez le temps de main d'œuvre, l'emballage et votre marge souhaitée.</li>
                         </ol>
@@ -148,7 +153,7 @@ export const UserGuide: React.FC = () => {
                          <Card className="!p-4">
                             <h5 className="font-bold text-[#D45D79] mb-2">B. Achats & Production</h5>
                             <p className="text-xs text-stone-500">
-                                Quand vous revenez du magasin, entrez vos tickets dans <strong>Stocks & Achats > Journal</strong>.
+                                Quand vous revenez du magasin, entrez vos tickets dans <strong>Stocks & Achats &gt; Journal</strong>.
                                 Quand vous cuisinez, cliquez sur "👩‍🍳 Produire" depuis la commande ou l'onglet <strong>Production</strong>. Cela déduit les ingrédients de votre stock.
                             </p>
                          </Card>
@@ -166,6 +171,19 @@ export const UserGuide: React.FC = () => {
                         <li>Vérifiez que les ventes correspondent à la réalité.</li>
                         <li>Choisissez votre méthode de coût (Théorique ou Réel via inventaire).</li>
                         <li>Cliquez sur <strong>Sauvegarder ce Bilan</strong> pour figer les résultats.</li>
+                     </ul>
+                  </div>
+
+                  <div className="relative pl-12">
+                     <div className="absolute left-0 top-0 bg-stone-200 dark:bg-stone-600 text-stone-600 dark:text-stone-200 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md z-10">5</div>
+                     <h4 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-2">Sauvegarde & Récupération</h4>
+                     <p className="text-stone-600 dark:text-stone-400 text-sm mb-2">
+                        Pour éviter toute perte, exportez un fichier de sauvegarde régulièrement.
+                     </p>
+                     <ul className="list-disc pl-5 text-sm text-stone-500 space-y-1">
+                        <li>Ouvrez <strong>Sauvegardes / Données</strong> (en haut à droite).</li>
+                        <li>Choisissez les sections à sauvegarder puis téléchargez le fichier.</li>
+                        <li>En cas de problème, importez ce fichier pour restaurer vos données.</li>
                      </ul>
                   </div>
                </div>
@@ -223,6 +241,33 @@ export const UserGuide: React.FC = () => {
                               <br/><em className="text-xs text-stone-500">Impact : Augmente la consommation de stock théorique. Pour faire 100 cookies vendables avec 10% de perte, il faut consommer les ingrédients pour 111 cookies.</em>
                           </li>
                       </ol>
+                  </div>
+              </Card>
+
+              <Card>
+                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">Sécurité & Fiabilité des Données</h3>
+                  <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
+                      <p>
+                        L'application fonctionne dans votre navigateur et n'envoie pas vos données à un serveur externe.
+                        Vos données sont stockées localement (sur l'appareil).
+                      </p>
+                      <ul className="list-disc pl-5 space-y-2">
+                          <li><strong>Pas d'accès réseau :</strong> aucune synchronisation automatique, tout reste local.</li>
+                          <li><strong>Risque de perte :</strong> si le navigateur efface les données, vous devez restaurer depuis une sauvegarde.</li>
+                          <li><strong>Bon réflexe :</strong> exportez un fichier de sauvegarde régulièrement (hebdo conseillé).</li>
+                      </ul>
+                  </div>
+              </Card>
+
+              <Card>
+                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">Dépannage Rapide (FAQ)</h3>
+                  <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
+                      <ul className="list-disc pl-5 space-y-2">
+                          <li><strong>Mes stocks semblent faux :</strong> vérifiez vos achats, puis enregistrez correctement la production (sorties).</li>
+                          <li><strong>Des coûts explosent :</strong> contrôlez les pertes et les prix de vos ingrédients.</li>
+                          <li><strong>J'ai perdu mes données :</strong> importez votre dernière sauvegarde via “Sauvegardes / Données”.</li>
+                          <li><strong>Je veux montrer l'app sans risque :</strong> activez un scénario dans <strong>Paramètres → Mode Démo</strong>, puis quittez la démo pour restaurer vos données.</li>
+                      </ul>
                   </div>
               </Card>
           </div>

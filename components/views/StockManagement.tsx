@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product } from '../../types';
 import { convertToCostPerBaseUnit, formatCurrency } from '../../utils';
-import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
+import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
+import { Button, Card, Input, Select } from '../ui/Common';
 
 interface Props {
   ingredients: Ingredient[];
@@ -26,8 +27,12 @@ export const StockManagement: React.FC<Props> = ({
     price: 0
   });
 
+  const isPurchaseQuantityValid = isPositiveNumber(newPurchase.quantity);
+  const isPurchasePriceValid = isPositiveNumber(newPurchase.price);
+  const isPurchaseFormValid = Boolean(newPurchase.ingredientId && isPurchaseQuantityValid && isPurchasePriceValid);
+
   const handleAddPurchase = () => {
-    if (!newPurchase.ingredientId || !newPurchase.quantity || !newPurchase.price) return;
+    if (!isPurchaseFormValid) return;
     setPurchases([...purchases, {
       id: Date.now().toString(),
       date: newPurchase.date || new Date().toISOString().split('T')[0],
@@ -45,9 +50,11 @@ export const StockManagement: React.FC<Props> = ({
   // --- Ingredient Definition Logic ---
   const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, price: 0 });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const isIngredientPriceValid = isNonNegativeNumber(newIng.price);
+  const isIngredientFormValid = Boolean(newIng.name && isIngredientPriceValid);
   
   const handleAddOrUpdateIngredient = () => {
-    if (!newIng.name) return;
+    if (!isIngredientFormValid) return;
     const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price || 0), 1, newIng.unit as Unit); 
     
     if (editingId) {
@@ -122,13 +129,11 @@ export const StockManagement: React.FC<Props> = ({
         if(!recipeIng) return;
 
         // Qty used per product unit
-        let qtyPerUnit = recipeIng.quantity / (recipe.batchYield || 1);
+        let qtyPerUnit = recipeIng.quantity / (recipe.batchYield ?? 1);
         
         // Apply Manufacturing Loss Rate from Product (the "real" consumption)
         // If loss rate is 10%, we consume 1/(1-0.10) times more to get the final unit
-        let safeLoss = product.lossRate || 0;
-        if(safeLoss >= 100) safeLoss = 99.9;
-        const lossMultiplier = 1 / (1 - (safeLoss/100));
+        const lossMultiplier = 1 / (1 - (product.lossRate / 100));
 
         qtyPerUnit = qtyPerUnit * lossMultiplier;
 
@@ -211,13 +216,14 @@ export const StockManagement: React.FC<Props> = ({
                  label="Prix Standard estimé (€)" 
                  type="number"
                  step="0.01"
-                 value={newIng.price} 
-                 onChange={e => setNewIng({...newIng, price: parseFloat(e.target.value)})}
+                 value={newIng.price ?? ''} 
+                 onChange={e => setNewIng({...newIng, price: parseOptionalNumber(e.target.value)})}
                  helperText="Prix pour 1 unité de stock (ex: pour 1kg)" 
+                 error={isIngredientPriceValid ? undefined : '≥ 0'}
                />
                <div className="flex gap-2">
                  {editingId && <Button variant="secondary" onClick={cancelEdit} className="w-1/3">Annuler</Button>}
-                 <Button onClick={handleAddOrUpdateIngredient} disabled={!newIng.name} className="flex-1">
+                 <Button onClick={handleAddOrUpdateIngredient} disabled={!isIngredientFormValid} className="flex-1">
                      {editingId ? 'Mettre à jour' : 'Créer Fiche'}
                  </Button>
                </div>
@@ -281,19 +287,21 @@ export const StockManagement: React.FC<Props> = ({
                   label="Quantité" 
                   type="number"
                   step="0.01"
-                  value={newPurchase.quantity} 
-                  onChange={e => setNewPurchase({...newPurchase, quantity: parseFloat(e.target.value)})} 
+                  value={newPurchase.quantity ?? ''} 
+                  onChange={e => setNewPurchase({...newPurchase, quantity: parseOptionalNumber(e.target.value)})} 
+                  error={isPurchaseQuantityValid ? undefined : '> 0'}
                 />
                 <Input 
                   label="Prix Payé (Total)" 
                   type="number"
                   step="0.01"
                   suffix="€"
-                  value={newPurchase.price} 
-                  onChange={e => setNewPurchase({...newPurchase, price: parseFloat(e.target.value)})} 
+                  value={newPurchase.price ?? ''} 
+                  onChange={e => setNewPurchase({...newPurchase, price: parseOptionalNumber(e.target.value)})} 
+                  error={isPurchasePriceValid ? undefined : '> 0'}
                 />
               </div>
-              <Button onClick={handleAddPurchase} disabled={!newPurchase.ingredientId || !newPurchase.quantity} className="w-full">
+              <Button onClick={handleAddPurchase} disabled={!isPurchaseFormValid} className="w-full">
                 Ajouter au Journal
               </Button>
             </div>
