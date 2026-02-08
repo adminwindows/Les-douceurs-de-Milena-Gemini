@@ -12,6 +12,24 @@ function Test-AndroidProjectValid {
   return (Test-Path "android/gradlew.bat") -and (Test-Path "android/app/src/main/AndroidManifest.xml")
 }
 
+function Ensure-AndroidProject {
+  if (-not (Test-Path "android")) {
+    Invoke-NpmStep "npm run mobile:add:android"
+    Write-Host "Android platform added"
+    return
+  }
+
+  if (-not (Test-AndroidProjectValid)) {
+    Write-Host "android/ exists but is incomplete. Recreating it..."
+    Remove-Item -Path "android" -Recurse -Force
+    Invoke-NpmStep "npm run mobile:add:android"
+    Write-Host "Android platform re-created"
+    return
+  }
+
+  Write-Host "android/ already exists and looks valid"
+}
+
 Write-Host "== Android first APK bootstrap (Windows) =="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -33,21 +51,22 @@ Write-Host "Java: $javaVersion"
 
 Write-Host ""
 Write-Host "1) Ensuring Android platform exists"
-if (-not (Test-Path "android")) {
-  Invoke-NpmStep "npm run mobile:add:android"
-  Write-Host "Android platform added"
-} elseif (-not (Test-AndroidProjectValid)) {
-  Write-Host "android/ exists but is incomplete. Recreating it..."
-  Remove-Item -Path "android" -Recurse -Force
-  Invoke-NpmStep "npm run mobile:add:android"
-  Write-Host "Android platform re-created"
-} else {
-  Write-Host "android/ already exists and looks valid"
-}
+Ensure-AndroidProject
 
 Write-Host ""
 Write-Host "2) Checking Capacitor environment"
-Invoke-NpmStep "npm run mobile:doctor"
+$doctorOutput = & cmd /c "npm run mobile:doctor 2>&1"
+$doctorOutput | ForEach-Object { Write-Host $_ }
+if ($LASTEXITCODE -ne 0) {
+  $doctorText = ($doctorOutput -join "`n")
+  if ($doctorText -match "gradlew file is missing" -or $doctorText -match "AndroidManifest.xml is missing") {
+    Write-Host "Detected incomplete Android project during doctor check. Recreating android/ and retrying..."
+    Ensure-AndroidProject
+    Invoke-NpmStep "npm run mobile:doctor"
+  } else {
+    throw "Command failed with exit code ${LASTEXITCODE}: npm run mobile:doctor"
+  }
+}
 
 Write-Host ""
 Write-Host "3) Building web app + syncing native project"
