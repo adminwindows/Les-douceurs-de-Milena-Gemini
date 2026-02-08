@@ -26,6 +26,7 @@ This contains everything you need to run your app locally.
 
 * The app auto-saves data to your browser's local storage.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
+* Storage is now abstracted behind a storage engine interface (web localStorage by default), ready for native mobile persistence adapters.
 
 
 ## Current Functional Scope
