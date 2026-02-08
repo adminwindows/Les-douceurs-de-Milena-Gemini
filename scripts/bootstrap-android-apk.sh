@@ -25,23 +25,41 @@ is_android_valid() {
   [[ -f "android/gradlew" && -f "android/app/src/main/AndroidManifest.xml" ]]
 }
 
+ensure_android_project() {
+  if [[ ! -d "android" ]]; then
+    npm run mobile:add:android
+    echo "✅ Android platform added"
+  elif ! is_android_valid; then
+    echo "⚠️ android/ exists but is incomplete. Recreating..."
+    rm -rf android
+    npm run mobile:add:android
+    echo "✅ Android platform re-created"
+  else
+    echo "✅ android/ already exists and looks valid"
+  fi
+}
+
 echo
 echo "1) Ensuring Android platform exists"
-if [[ ! -d "android" ]]; then
-  npm run mobile:add:android
-  echo "✅ Android platform added"
-elif ! is_android_valid; then
-  echo "⚠️ android/ exists but is incomplete. Recreating..."
-  rm -rf android
-  npm run mobile:add:android
-  echo "✅ Android platform re-created"
-else
-  echo "✅ android/ already exists and looks valid"
-fi
+ensure_android_project
 
 echo
 echo "2) Checking Capacitor environment"
-npm run mobile:doctor
+set +e
+doctor_output=$(npm run mobile:doctor 2>&1)
+doctor_code=$?
+set -e
+echo "$doctor_output"
+if [[ $doctor_code -ne 0 ]]; then
+  if [[ "$doctor_output" == *"gradlew file is missing"* || "$doctor_output" == *"AndroidManifest.xml is missing"* ]]; then
+    echo "⚠️ Detected incomplete Android project during doctor check. Recreating android/ and retrying..."
+    ensure_android_project
+    npm run mobile:doctor
+  else
+    echo "❌ npm run mobile:doctor failed"
+    exit $doctor_code
+  fi
+fi
 
 echo
 echo "3) Building web app + syncing native project"

@@ -34,6 +34,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > Tip (Windows): if you previously installed with older lockfiles/overrides and see `Cannot read properties of undefined (reading "extract")` from Capacitor, run a clean reinstall:
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
+> If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
 
 1. Install prerequisites locally:
    * Node.js 22+ (required by Capacitor CLI 8)
