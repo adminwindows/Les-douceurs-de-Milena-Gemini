@@ -111,5 +111,13 @@ echo "5) Building debug APK"
 npm run mobile:apk:debug
 
 echo
-echo "✅ Done. Your APK should be at:"
-echo "android/app/build/outputs/apk/debug/app-debug.apk"
+apk_candidates=$(find android/app/build/outputs/apk -type f -name "*.apk" 2>/dev/null || true)
+if [[ -z "$apk_candidates" ]]; then
+  echo "❌ Build reported success but no APK was found under android/app/build/outputs/apk"
+  exit 1
+fi
+latest_apk=$(printf '%s\n' "$apk_candidates" | head -n 1)
+abs_apk=$(cd "$(dirname "$latest_apk")" && pwd)/"$(basename "$latest_apk")"
+echo "✅ Done. APK created:"
+echo "- Relative: $latest_apk"
+echo "- Absolute: $abs_apk"
