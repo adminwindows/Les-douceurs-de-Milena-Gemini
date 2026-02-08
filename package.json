@@ -15,7 +15,18 @@
     "mobile:add:ios": "cap add ios",
     "mobile:sync": "npm run build && cap sync",
     "mobile:open:android": "cap open android",
-    "mobile:open:ios": "cap open ios"
+    "mobile:open:ios": "cap open ios",
+    "mobile:init:android": "npm run mobile:add:android && npm run mobile:sync",
+    "mobile:apk:debug": "cd android && ./gradlew assembleDebug",
+    "mobile:apk:debug:win": "cd android && gradlew.bat assembleDebug",
+    "mobile:apk:release": "cd android && ./gradlew assembleRelease",
+    "mobile:apk:release:win": "cd android && gradlew.bat assembleRelease",
+    "mobile:bootstrap:android": "bash ./scripts/bootstrap-android-apk.sh",
+    "mobile:apk": "bash ./scripts/build-android-apk.sh",
+    "mobile:apk:script:debug": "bash ./scripts/build-android-apk.sh debug",
+    "mobile:apk:script:release": "bash ./scripts/build-android-apk.sh release",
+    "android:apk:debug": "npm run mobile:apk:debug",
+    "android:apk:release": "npm run mobile:apk:release"
   },
   "dependencies": {
     "zod": "^3.24.3",

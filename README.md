@@ -24,20 +24,58 @@ This contains everything you need to run your app locally.
 
 ## Mobile (Capacitor Scaffold)
 
-This project now includes a Capacitor scaffold for Android/iOS packaging.
+This project includes a source-only Capacitor scaffold for Android/iOS packaging.
 
-1. Install dependencies:
+> Important: generated native folders (`android/`, `ios/`) and binaries (`.apk/.aab/.ipa`) are local artifacts and are intentionally not committed.
+
+### Android APK (no Play Store required)
+
+1. Install prerequisites locally:
+   * Node.js 20+
+   * Java JDK 17
+   * Android Studio (SDK + platform tools)
+2. Install dependencies:
    `npm install`
-2. Validate Capacitor setup:
+3. Check Capacitor environment:
    `npm run mobile:doctor`
-3. Build and sync web assets to native projects:
+4. Create Android native project (first time only):
+   `npm run mobile:add:android`
+5. Build web app and sync into native shell:
    `npm run mobile:sync`
-4. Add platforms (first time only):
-   * Android: `npm run mobile:add:android`
-   * iOS: `npm run mobile:add:ios`
-5. Open native projects:
-   * Android Studio: `npm run mobile:open:android`
-   * Xcode (macOS): `npm run mobile:open:ios`
+6. Build a debug APK:
+   * Linux/macOS: `npm run mobile:apk:debug`
+   * Windows: `npm run mobile:apk:debug:win`
+7. Retrieve APK at:
+   `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### iOS equivalent
+
+* You can generate the iOS native project with `npm run mobile:add:ios` and sync with `npm run mobile:sync`.
+* Building an installable iOS app (`.ipa`) still requires macOS + Xcode (local Mac or cloud macOS CI).
+
+### Useful helper commands
+
+* Open Android Studio: `npm run mobile:open:android`
+* Open Xcode (macOS): `npm run mobile:open:ios`
+* Release APK build:
+  * Linux/macOS: `npm run mobile:apk:release`
+  * Windows: `npm run mobile:apk:release:win`
+
+### One-command helper scripts
+
+If you use bash (Linux/macOS, or Git Bash/WSL on Windows), you can run:
+
+* First-time bootstrap + debug APK build:
+  `npm run mobile:bootstrap:android`
+* Scripted build (debug by default):
+  `npm run mobile:apk`
+* Scripted explicit modes:
+  * `npm run mobile:apk:script:debug`
+  * `npm run mobile:apk:script:release`
+
+The scripts live in:
+* `scripts/bootstrap-android-apk.sh`
+* `scripts/build-android-apk.sh`
 
 ## Data Persistence
 
