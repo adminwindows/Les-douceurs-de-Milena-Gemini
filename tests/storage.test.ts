@@ -1,7 +1,8 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
   clearDemoBackup,
   clearDemoSession,
+  configureStorageEngine,
   loadAppState,
   loadDemoBackup,
   loadDemoSession,
@@ -10,6 +11,7 @@ import {
   saveDemoSession
 } from '../storage';
 import { INITIAL_INGREDIENTS, INITIAL_PRODUCTS, INITIAL_RECIPES, INITIAL_SETTINGS } from '../utils';
+import { createDefaultStorageEngine, StorageEngine } from '../storageEngine';
 
 describe('storage helpers', () => {
   const payload = {
@@ -25,6 +27,11 @@ describe('storage helpers', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    configureStorageEngine(createDefaultStorageEngine());
+  });
+
+  afterEach(() => {
+    configureStorageEngine(createDefaultStorageEngine());
   });
 
   it('round-trips valid app state', () => {
@@ -49,5 +56,20 @@ describe('storage helpers', () => {
     expect(loadDemoSession()).toEqual({ datasetId: 'launch-week' });
     clearDemoSession();
     expect(loadDemoSession()).toBeUndefined();
+  });
+
+  it('supports injected storage engine for mobile adapters', () => {
+    const memory = new Map<string, string>();
+    const engine: StorageEngine = {
+      getItem: key => memory.get(key) ?? null,
+      setItem: (key, value) => memory.set(key, value),
+      removeItem: key => memory.delete(key)
+    };
+
+    configureStorageEngine(engine);
+    saveAppState(payload);
+
+    expect(loadAppState()).toEqual(payload);
+    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
   });
 });
