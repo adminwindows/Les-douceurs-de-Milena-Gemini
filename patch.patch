@@ -1910,13 +1910,13 @@ index 0000000000000000000000000000000000000000..92ff28ad5e2b4f0465804a58c1ab839e
 +++ b/package-lock.json
 @@ -0,0 +1,3189 @@
 +{
-+  "name": "copy-(marine)-of-les-douceurs-de-miléna",
++  "name": "les-douceurs-de-miléna",
 +  "version": "0.0.0",
 +  "lockfileVersion": 3,
 +  "requires": true,
 +  "packages": {
 +    "": {
-+      "name": "copy-(marine)-of-les-douceurs-de-miléna",
++      "name": "les-douceurs-de-miléna",
 +      "version": "0.0.0",
 +      "dependencies": {
 +        "react": "^19.2.4",
@@ -5104,7 +5104,7 @@ index ac31bd6a7d0816357df766ab8448e74fc47722f5..7a40646f00f8ada83e85e54cb6e68e16
 +++ b/package.json
 @@ -1,21 +1,25 @@
  {
-   "name": "copy-(marine)-of-les-douceurs-de-miléna",
+   "name": "les-douceurs-de-miléna",
    "private": true,
    "version": "0.0.0",
    "type": "module",
