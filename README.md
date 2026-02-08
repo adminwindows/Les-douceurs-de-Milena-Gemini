@@ -33,6 +33,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 
 > Tip (Windows): if you previously installed with older lockfiles/overrides and see `Cannot read properties of undefined (reading "extract")` from Capacitor, run a clean reinstall:
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
+> The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 
 1. Install prerequisites locally:
    * Node.js 22+ (required by Capacitor CLI 8)
@@ -40,10 +41,10 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
    `npm install`
-3. Check Capacitor environment:
-   `npm run mobile:doctor`
-4. Create Android native project (first time only):
+3. Create Android native project (first time only):
    `npm run mobile:add:android`
+4. Check Capacitor environment:
+   `npm run mobile:doctor`
 5. Build web app and sync into native shell:
    `npm run mobile:sync`
 6. Build a debug APK:

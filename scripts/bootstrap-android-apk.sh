@@ -21,22 +21,36 @@ if [[ "$node_major" -lt 22 ]]; then
 fi
 echo "✅ Java: $(java -version 2>&1 | head -n 1)"
 
-echo
-echo "1) Checking Capacitor environment"
-npm run mobile:doctor
+is_android_valid() {
+  [[ -f "android/gradlew" && -f "android/app/src/main/AndroidManifest.xml" ]]
+}
 
 echo
-echo "2) Ensuring Android platform exists"
+echo "1) Ensuring Android platform exists"
 if [[ ! -d "android" ]]; then
   npm run mobile:add:android
   echo "✅ Android platform added"
+elif ! is_android_valid; then
+  echo "⚠️ android/ exists but is incomplete. Recreating..."
+  rm -rf android
+  npm run mobile:add:android
+  echo "✅ Android platform re-created"
 else
-  echo "✅ android/ already exists"
+  echo "✅ android/ already exists and looks valid"
 fi
+
+echo
+echo "2) Checking Capacitor environment"
+npm run mobile:doctor
 
 echo
 echo "3) Building web app + syncing native project"
 npm run mobile:sync
+
+if ! is_android_valid; then
+  echo "❌ Android project is still incomplete after sync (missing gradlew or AndroidManifest.xml)."
+  exit 1
+fi
 
 echo
 echo "4) Building debug APK"

@@ -8,6 +8,10 @@ function Invoke-NpmStep {
   }
 }
 
+function Test-AndroidProjectValid {
+  return (Test-Path "android/gradlew.bat") -and (Test-Path "android/app/src/main/AndroidManifest.xml")
+}
+
 Write-Host "== Android first APK bootstrap (Windows) =="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -28,24 +32,29 @@ $javaVersion = (cmd /c "java -version 2>&1" | Select-Object -First 1)
 Write-Host "Java: $javaVersion"
 
 Write-Host ""
-Write-Host "1) Checking Capacitor environment"
-Invoke-NpmStep "npm run mobile:doctor"
-
-Write-Host ""
-Write-Host "2) Ensuring Android platform exists"
+Write-Host "1) Ensuring Android platform exists"
 if (-not (Test-Path "android")) {
   Invoke-NpmStep "npm run mobile:add:android"
   Write-Host "Android platform added"
+} elseif (-not (Test-AndroidProjectValid)) {
+  Write-Host "android/ exists but is incomplete. Recreating it..."
+  Remove-Item -Path "android" -Recurse -Force
+  Invoke-NpmStep "npm run mobile:add:android"
+  Write-Host "Android platform re-created"
 } else {
-  Write-Host "android/ already exists"
+  Write-Host "android/ already exists and looks valid"
 }
+
+Write-Host ""
+Write-Host "2) Checking Capacitor environment"
+Invoke-NpmStep "npm run mobile:doctor"
 
 Write-Host ""
 Write-Host "3) Building web app + syncing native project"
 Invoke-NpmStep "npm run mobile:sync"
 
-if (-not (Test-Path "android/gradlew.bat")) {
-  throw "Gradle wrapper missing at android/gradlew.bat after sync."
+if (-not (Test-AndroidProjectValid)) {
+  throw "Android project is still incomplete after sync (missing gradlew.bat or AndroidManifest.xml)."
 }
 
 Write-Host ""
