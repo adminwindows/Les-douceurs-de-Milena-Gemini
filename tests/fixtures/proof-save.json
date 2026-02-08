@@ -1,0 +1,59 @@
+{
+  "settings": {
+    "currency": "EUR",
+    "hourlyRate": 15,
+    "fixedCostItems": [
+      {"id":"fc1","name":"Assurance Camion & RC Pro","amount":85},
+      {"id":"fc2","name":"Carburant & Entretien Truck","amount":150},
+      {"id":"fc3","name":"Emplacements (Marchés/Events)","amount":200},
+      {"id":"fc4","name":"Remboursement Prêt Camion","amount":400},
+      {"id":"fc5","name":"Comptable & Banque","amount":80},
+      {"id":"fc6","name":"Site Web & Marketing","amount":30},
+      {"id":"fc7","name":"Électricité/Gaz","amount":50}
+    ],
+    "taxRate": 22,
+    "isTvaSubject": false,
+    "defaultTvaRate": 5.5,
+    "includeLaborInCost": false
+  },
+  "ingredients": [
+    {"id":"i_farine","name":"Farine T55","unit":"kg","price":1.1,"quantity":25,"costPerBaseUnit":0.0011},
+    {"id":"i_beurre","name":"Beurre Demi-Sel","unit":"kg","price":9.8,"quantity":10,"costPerBaseUnit":0.0098},
+    {"id":"i_oeufs","name":"Oeufs","unit":"pièce","price":0.3,"quantity":100,"costPerBaseUnit":0.3},
+    {"id":"i_sucre_b","name":"Sucre Blanc","unit":"kg","price":1.2,"quantity":10,"costPerBaseUnit":0.0012},
+    {"id":"i_sucre_c","name":"Sucre de Canne","unit":"kg","price":3.5,"quantity":5,"costPerBaseUnit":0.0035},
+    {"id":"i_levure","name":"Levure Chimique","unit":"kg","price":10,"quantity":1,"costPerBaseUnit":0.01},
+    {"id":"i_sel","name":"Sel / Fleur de Sel","unit":"kg","price":25,"quantity":0.5,"costPerBaseUnit":0.025},
+    {"id":"i_choc_milka","name":"Chocolat au Lait (Type Milka)","unit":"kg","price":14,"quantity":5,"costPerBaseUnit":0.014},
+    {"id":"i_choc_lait","name":"Chocolat au Lait (Standard)","unit":"kg","price":14.5,"quantity":5,"costPerBaseUnit":0.0145},
+    {"id":"i_choc_blanc","name":"Chocolat Blanc","unit":"kg","price":15,"quantity":3,"costPerBaseUnit":0.015},
+    {"id":"i_cacao","name":"Cacao non sucré","unit":"kg","price":20,"quantity":1,"costPerBaseUnit":0.02},
+    {"id":"i_poudre_amande","name":"Poudre d'Amandes","unit":"kg","price":13,"quantity":2,"costPerBaseUnit":0.013},
+    {"id":"i_amandes","name":"Amandes Entières","unit":"kg","price":16,"quantity":2,"costPerBaseUnit":0.016},
+    {"id":"i_noisettes","name":"Noisettes Torréfiées","unit":"kg","price":19,"quantity":2,"costPerBaseUnit":0.019},
+    {"id":"i_pecan","name":"Noix de Pécan","unit":"kg","price":26,"quantity":2,"costPerBaseUnit":0.026},
+    {"id":"i_pistaches","name":"Pistaches Torréfiées","unit":"kg","price":35,"quantity":1,"costPerBaseUnit":0.035},
+    {"id":"i_pate_pistache","name":"Pâte de Pistache","unit":"kg","price":65,"quantity":1,"costPerBaseUnit":0.065},
+    {"id":"i_pate_tartiner","name":"Pâte à Tartiner Noisette (Artisanale)","unit":"kg","price":18,"quantity":3,"costPerBaseUnit":0.018},
+    {"id":"i_vanille","name":"Vanille Liquide","unit":"L","price":120,"quantity":0.5,"costPerBaseUnit":0.12},
+    {"id":"i_arome_amande","name":"Arôme Amande Amère","unit":"L","price":40,"quantity":0.1,"costPerBaseUnit":0.04}
+  ],
+  "recipes": [
+    {"id":"r_fleur_cacao","name":"Base Fleur de Cacao (Milka)","batchYield":10,"lossPercentage":2,"ingredients":[{"ingredientId":"i_beurre","quantity":140},{"ingredientId":"i_sucre_b","quantity":100},{"ingredientId":"i_sucre_c","quantity":60},{"ingredientId":"i_oeufs","quantity":1},{"ingredientId":"i_farine","quantity":220},{"ingredientId":"i_levure","quantity":5},{"ingredientId":"i_choc_milka","quantity":150},{"ingredientId":"i_sel","quantity":2}]},
+    {"id":"r_rois","name":"Base Cookie des Rois (Frangipane)","batchYield":10,"lossPercentage":2,"ingredients":[{"ingredientId":"i_beurre","quantity":130},{"ingredientId":"i_sucre_b","quantity":80},{"ingredientId":"i_sucre_c","quantity":60},{"ingredientId":"i_oeufs","quantity":1},{"ingredientId":"i_farine","quantity":200},{"ingredientId":"i_poudre_amande","quantity":40},{"ingredientId":"i_vanille","quantity":5},{"ingredientId":"i_arome_amande","quantity":2},{"ingredientId":"i_levure","quantity":5},{"ingredientId":"i_beurre","quantity":50},{"ingredientId":"i_sucre_b","quantity":50},{"ingredientId":"i_poudre_amande","quantity":50},{"ingredientId":"i_amandes","quantity":10}]},
+    {"id":"r_nocciolato","name":"Base Nocciolato (Rocher)","batchYield":10,"lossPercentage":2,"ingredients":[{"ingredientId":"i_beurre","quantity":140},{"ingredientId":"i_sucre_b","quantity":100},{"ingredientId":"i_sucre_c","quantity":60},{"ingredientId":"i_oeufs","quantity":1},{"ingredientId":"i_farine","quantity":200},{"ingredientId":"i_cacao","quantity":20},{"ingredientId":"i_levure","quantity":5},{"ingredientId":"i_pate_tartiner","quantity":150},{"ingredientId":"i_choc_lait","quantity":50},{"ingredientId":"i_noisettes","quantity":40}]},
+    {"id":"r_madagascar","name":"Base Noix de Madagascar","batchYield":10,"lossPercentage":2,"ingredients":[{"ingredientId":"i_beurre","quantity":140},{"ingredientId":"i_sucre_b","quantity":100},{"ingredientId":"i_sucre_c","quantity":60},{"ingredientId":"i_oeufs","quantity":1},{"ingredientId":"i_farine","quantity":220},{"ingredientId":"i_vanille","quantity":10},{"ingredientId":"i_levure","quantity":5},{"ingredientId":"i_choc_blanc","quantity":60},{"ingredientId":"i_choc_lait","quantity":60},{"ingredientId":"i_pecan","quantity":60},{"ingredientId":"i_sel","quantity":2}]},
+    {"id":"r_pistache","name":"Base Vert Pistache","batchYield":10,"lossPercentage":2,"ingredients":[{"ingredientId":"i_beurre","quantity":130},{"ingredientId":"i_sucre_b","quantity":100},{"ingredientId":"i_sucre_c","quantity":60},{"ingredientId":"i_oeufs","quantity":1},{"ingredientId":"i_farine","quantity":210},{"ingredientId":"i_levure","quantity":5},{"ingredientId":"i_pate_pistache","quantity":30},{"ingredientId":"i_pate_pistache","quantity":100},{"ingredientId":"i_choc_blanc","quantity":60},{"ingredientId":"i_pistaches","quantity":40}]}
+  ],
+  "products": [
+    {"id":"p_fleur_cacao","name":"Fleur de Cacao","recipeId":"r_fleur_cacao","laborTimeMinutes":4,"packagingCost":0.25,"variableDeliveryCost":0,"lossRate":1,"unsoldEstimate":1,"packagingUsedOnUnsold":false,"targetMargin":1.27,"estimatedMonthlySales":250,"category":"Gourmand","tvaRate":0},
+    {"id":"p_rois","name":"Cookie des Rois","recipeId":"r_rois","laborTimeMinutes":6,"packagingCost":0.25,"variableDeliveryCost":0,"lossRate":1,"unsoldEstimate":1,"packagingUsedOnUnsold":false,"targetMargin":1.27,"estimatedMonthlySales":205,"category":"Saisonnier","tvaRate":0},
+    {"id":"p_nocciolato","name":"Nocciolato","recipeId":"r_nocciolato","laborTimeMinutes":5,"packagingCost":0.25,"variableDeliveryCost":0,"lossRate":1,"unsoldEstimate":1,"packagingUsedOnUnsold":false,"targetMargin":1.27,"estimatedMonthlySales":250,"category":"Signature","tvaRate":0},
+    {"id":"p_madagascar","name":"Noix de Madagascar","recipeId":"r_madagascar","laborTimeMinutes":4,"packagingCost":0.25,"variableDeliveryCost":0,"lossRate":1,"unsoldEstimate":1,"packagingUsedOnUnsold":false,"targetMargin":1.27,"estimatedMonthlySales":200,"category":"Gourmand","tvaRate":0},
+    {"id":"p_pistache","name":"Vert Pistache","recipeId":"r_pistache","laborTimeMinutes":5,"packagingCost":0.25,"variableDeliveryCost":0,"lossRate":1,"unsoldEstimate":1,"packagingUsedOnUnsold":false,"targetMargin":1.2,"estimatedMonthlySales":200,"category":"Signature","tvaRate":0}
+  ],
+  "orders": [],
+  "purchases": [],
+  "productionBatches": [],
+  "savedReports": []
+}
