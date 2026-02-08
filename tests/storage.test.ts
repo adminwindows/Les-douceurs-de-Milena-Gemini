@@ -27,7 +27,10 @@ describe('storage helpers', () => {
   };
 
   beforeEach(() => {
-    localStorage.clear();
+    localStorage.removeItem(APP_STATE_STORAGE_KEY);
+    localStorage.removeItem('milena_app_state_v1');
+    clearDemoBackup();
+    clearDemoSession();
     configureStorageEngine(createDefaultStorageEngine());
   });
 

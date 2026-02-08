@@ -17,7 +17,8 @@ const payload = {
 
 describe('storage runtime bootstrap', () => {
   beforeEach(() => {
-    localStorage.clear();
+    localStorage.removeItem(APP_STATE_STORAGE_KEY);
+    localStorage.removeItem('milena_app_state_v1');
     configureStorageEngine(createDefaultStorageEngine());
     delete window.Capacitor;
     delete window.__MILENA_MOBILE_STORAGE__;
