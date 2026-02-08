@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
 import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
+import { isNonNegativeNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -37,12 +38,10 @@ const calculateTheoreticalConsumption = (
     const qtyPerBatch = recIng.quantity;
     
     // Qty per unit
-    const qtyPerUnit = qtyPerBatch / (recipe.batchYield || 1);
+    const qtyPerUnit = qtyPerBatch / (recipe.batchYield ?? 1);
 
     // Apply Manufacturing Loss (product level)
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate/100);
+    const mfgLossMultiplier = 1 / (1 - product.lossRate/100);
 
     // Total used = (Sold + Unsold) * QtyPerUnit * MfgLoss
     const totalUnitsProduced = sale.quantitySold + (sale.quantityUnsold || 0);
@@ -106,9 +105,9 @@ export const MonthlyReport: React.FC<Props> = ({
         // Calculate theoretical price TTC for initialization
         const recipe = recipes.find(r => r.id === p.recipeId);
         const batchCost = recipe ? calculateRecipeMaterialCost(recipe, ingredients) : 0;
-        const unitMat = batchCost / (recipe?.batchYield || 1);
+        const unitMat = batchCost / (recipe?.batchYield ?? 1);
         const labor = (p.laborTimeMinutes/60) * settings.hourlyRate;
-        const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales||1),0));
+        const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales ?? 1),0));
         
         // Basic estimation without complex loss logic for default value
         const totalCostHT = unitMat + p.packagingCost + p.variableDeliveryCost + labor + fixed;
@@ -181,11 +180,9 @@ export const MonthlyReport: React.FC<Props> = ({
     if (!product || !recipe) return sum;
 
     const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
-    const unitCost = batchCost / (recipe.batchYield || 1);
+    const unitCost = batchCost / (recipe.batchYield ?? 1);
     
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate / 100);
+    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
 
     const totalUnits = s.quantitySold + (s.quantityUnsold || 0);
     return sum + (unitCost * mfgLossMultiplier * totalUnits);
@@ -212,9 +209,7 @@ export const MonthlyReport: React.FC<Props> = ({
   const totalPackagingCost = sales.reduce((sum, s) => {
     const product = products.find(p => p.id === s.productId);
     if (!product) return sum;
-    let safeLossRate = product.lossRate;
-    if (safeLossRate >= 100) safeLossRate = 99.9;
-    const mfgLossMultiplier = 1 / (1 - safeLossRate / 100);
+    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
     const totalPackagedUnits = s.quantitySold + (product.packagingUsedOnUnsold ? (s.quantityUnsold || 0) : 0);
     return sum + (product.packagingCost * totalPackagedUnits * mfgLossMultiplier);
   }, 0);
@@ -232,7 +227,23 @@ export const MonthlyReport: React.FC<Props> = ({
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
   const netResult = grossMargin - totalActualFixedCosts;
 
+  const isSalesValid = sales.every(s =>
+    isNonNegativeNumber(s.quantitySold) &&
+    isNonNegativeNumber(s.quantityUnsold) &&
+    isNonNegativeNumber(s.actualPrice)
+  );
+  const isInventoryValid = inventory.every(item =>
+    isNonNegativeNumber(item.startStock) &&
+    isNonNegativeNumber(item.purchasedQuantity) &&
+    isNonNegativeNumber(item.endStock)
+  );
+  const isFixedCostsValid = actualFixedItems.every(item => isNonNegativeNumber(item.amount));
+  const isIngredientSpendValid = isNonNegativeNumber(actualIngredientSpend);
+  const canSaveReport = isSalesValid && isInventoryValid && isFixedCostsValid && isIngredientSpendValid;
+  const invalidLossProducts = products.filter(product => product.lossRate < 0 || product.lossRate >= 100);
+
   const saveReport = () => {
+    if (!canSaveReport) return;
     const report: MonthlyReportData = {
       id: selectedMonth,
       monthStr: selectedMonth,
@@ -327,6 +338,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       label="Vendus" 
                       type="number" 
                       value={s.quantitySold}
+                      error={isNonNegativeNumber(s.quantitySold) ? undefined : '≥ 0'}
                       onChange={e => handleSaleChange(s.productId, 'quantitySold', parseFloat(e.target.value))}
                     />
                     <Input 
@@ -334,6 +346,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       label="Invendus" 
                       type="number" 
                       value={s.quantityUnsold}
+                      error={isNonNegativeNumber(s.quantityUnsold) ? undefined : '≥ 0'}
                       onChange={e => handleSaleChange(s.productId, 'quantityUnsold', parseFloat(e.target.value))}
                     />
                     <Input 
@@ -342,6 +355,7 @@ export const MonthlyReport: React.FC<Props> = ({
                       type="number" 
                       suffix="€"
                       value={s.actualPrice}
+                      error={isNonNegativeNumber(s.actualPrice) ? undefined : '≥ 0'}
                       onChange={e => handleSaleChange(s.productId, 'actualPrice', parseFloat(e.target.value))}
                     />
                   </div>
@@ -373,13 +387,28 @@ export const MonthlyReport: React.FC<Props> = ({
                      <tr key={item.ingredientId} className="dark:text-stone-300">
                        <td className="p-2 truncate max-w-[80px] font-medium">{ing.name} <span className="text-stone-400 dark:text-stone-500">({ing.unit})</span></td>
                        <td className="p-2">
-                         <input type="number" className="w-12 bg-transparent focus:outline-none" value={item.startStock} onChange={e => handleInventoryChange(item.ingredientId, 'startStock', parseFloat(e.target.value))} />
+                         <input
+                           type="number"
+                           className={`w-12 bg-transparent focus:outline-none ${isNonNegativeNumber(item.startStock) ? '' : 'border border-red-400 rounded'}`}
+                           value={item.startStock}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'startStock', parseFloat(e.target.value))}
+                         />
                        </td>
                        <td className="p-2">
-                         <input type="number" className="w-12 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded px-1 text-stone-800 dark:text-stone-200" value={item.purchasedQuantity} onChange={e => handleInventoryChange(item.ingredientId, 'purchasedQuantity', parseFloat(e.target.value))} />
+                         <input
+                           type="number"
+                           className={`w-12 bg-stone-50 dark:bg-stone-800 border rounded px-1 text-stone-800 dark:text-stone-200 ${isNonNegativeNumber(item.purchasedQuantity) ? 'border-stone-200 dark:border-stone-600' : 'border-red-400'}`}
+                           value={item.purchasedQuantity}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'purchasedQuantity', parseFloat(e.target.value))}
+                         />
                        </td>
                        <td className="p-2">
-                         <input type="number" className="w-12 bg-white dark:bg-stone-800 border border-rose-200 dark:border-rose-900 rounded px-1 font-bold text-rose-700 dark:text-rose-400" value={item.endStock} onChange={e => handleInventoryChange(item.ingredientId, 'endStock', parseFloat(e.target.value))} />
+                         <input
+                           type="number"
+                           className={`w-12 bg-white dark:bg-stone-800 border rounded px-1 font-bold text-rose-700 dark:text-rose-400 ${isNonNegativeNumber(item.endStock) ? 'border-rose-200 dark:border-rose-900' : 'border-red-400'}`}
+                           value={item.endStock}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'endStock', parseFloat(e.target.value))}
+                         />
                        </td>
                      </tr>
                    )
@@ -398,7 +427,7 @@ export const MonthlyReport: React.FC<Props> = ({
                 <span>{item.name}</span>
                 <input 
                   type="number" 
-                  className="w-20 text-right bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded px-1 py-0.5"
+                  className={`w-20 text-right bg-stone-50 dark:bg-stone-800 border rounded px-1 py-0.5 ${isNonNegativeNumber(item.amount) ? 'border-stone-200 dark:border-stone-700' : 'border-red-400'}`}
                   value={item.amount}
                   onChange={e => handleFixedItemChange(item.id, parseFloat(e.target.value))}
                 />
@@ -418,7 +447,13 @@ export const MonthlyReport: React.FC<Props> = ({
                <button onClick={() => setCostMode(1)} className={`text-left px-3 py-2 rounded text-sm border ${costMode === 1 ? 'bg-rose-50 dark:bg-rose-900/30 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 font-bold' : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300'}`}>
                  3. Total Dépenses (Factures)
                  {costMode === 1 ? (
-                   <input type="number" className="ml-2 w-20 text-right border-b border-rose-300 dark:border-rose-700 bg-transparent" value={actualIngredientSpend} onClick={e => e.stopPropagation()} onChange={e => setActualIngredientSpend(parseFloat(e.target.value))} />
+                   <input
+                     type="number"
+                     className={`ml-2 w-20 text-right border-b bg-transparent ${isNonNegativeNumber(actualIngredientSpend) ? 'border-rose-300 dark:border-rose-700' : 'border-red-400'}`}
+                     value={actualIngredientSpend}
+                     onClick={e => e.stopPropagation()}
+                     onChange={e => setActualIngredientSpend(parseFloat(e.target.value))}
+                   />
                  ) : (
                    <span className="float-right">{formatCurrency(actualIngredientSpend)}</span>
                  )}
@@ -427,11 +462,26 @@ export const MonthlyReport: React.FC<Props> = ({
           </div>
         </Card>
 
-        <Button className="w-full shadow-lg" onClick={saveReport}>Sauvegarder ce Bilan</Button>
+        <div className="space-y-2">
+          {!canSaveReport && (
+            <p className="text-xs text-red-500">Corrigez les valeurs négatives avant de sauvegarder.</p>
+          )}
+          <Button className="w-full shadow-lg" onClick={saveReport} disabled={!canSaveReport}>
+            Sauvegarder ce Bilan
+          </Button>
+        </div>
       </div>
 
       {/* Report Output */}
       <div className="lg:col-span-7">
+        {invalidLossProducts.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+            <p className="font-semibold">Attention : taux de pertes invalides détectés.</p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Ajustez les produits suivants (taux entre 0 et 99,99%) : {invalidLossProducts.map(product => product.name).join(', ')}.
+            </p>
+          </div>
+        )}
         <Card className="h-full border-rose-100 dark:border-stone-700 shadow-xl bg-white dark:bg-stone-800 print:border-none print:shadow-none">
           <div className="flex justify-between items-start mb-6 border-b border-stone-100 dark:border-stone-700 pb-4">
             <div>
