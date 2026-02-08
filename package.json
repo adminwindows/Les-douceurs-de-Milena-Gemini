@@ -43,9 +43,12 @@
     "jsdom": "^26.0.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^2.1.9",
+    "vitest": "^4.0.18",
     "@capacitor/android": "^7.4.3",
     "@capacitor/cli": "^7.4.3",
     "@capacitor/ios": "^7.4.3"
+  },
+  "overrides": {
+    "tar": "^7.5.7"
   }
 }
