@@ -22,6 +22,23 @@ This contains everything you need to run your app locally.
 * Run a typecheck: `npm run typecheck`
 * Build for production: `npm run build`
 
+## Mobile (Capacitor Scaffold)
+
+This project now includes a Capacitor scaffold for Android/iOS packaging.
+
+1. Install dependencies:
+   `npm install`
+2. Validate Capacitor setup:
+   `npm run mobile:doctor`
+3. Build and sync web assets to native projects:
+   `npm run mobile:sync`
+4. Add platforms (first time only):
+   * Android: `npm run mobile:add:android`
+   * iOS: `npm run mobile:add:ios`
+5. Open native projects:
+   * Android Studio: `npm run mobile:open:android`
+   * Xcode (macOS): `npm run mobile:open:ios`
+
 ## Data Persistence
 
 * The app auto-saves data to your browser's local storage.

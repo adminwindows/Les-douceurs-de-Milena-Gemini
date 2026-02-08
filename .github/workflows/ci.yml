@@ -24,3 +24,5 @@ jobs:
         run: npm run test
       - name: Build
         run: npm run build
+      - name: Mobile scaffold check (Capacitor)
+        run: npm run mobile:doctor
