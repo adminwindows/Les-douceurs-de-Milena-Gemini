@@ -15,7 +15,12 @@
     "mobile:add:ios": "cap add ios",
     "mobile:sync": "npm run build && cap sync",
     "mobile:open:android": "cap open android",
-    "mobile:open:ios": "cap open ios"
+    "mobile:open:ios": "cap open ios",
+    "mobile:init:android": "npm run mobile:add:android && npm run mobile:sync",
+    "mobile:apk:debug": "cd android && ./gradlew assembleDebug",
+    "mobile:apk:debug:win": "cd android && gradlew.bat assembleDebug",
+    "mobile:apk:release": "cd android && ./gradlew assembleRelease",
+    "mobile:apk:release:win": "cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
     "zod": "^3.24.3",
