@@ -26,7 +26,11 @@
     "mobile:apk:script:debug": "bash ./scripts/build-android-apk.sh debug",
     "mobile:apk:script:release": "bash ./scripts/build-android-apk.sh release",
     "android:apk:debug": "npm run mobile:apk:debug",
-    "android:apk:release": "npm run mobile:apk:release"
+    "android:apk:release": "npm run mobile:apk:release",
+    "mobile:bootstrap:android:win": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-android-apk.ps1",
+    "mobile:apk:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
+    "mobile:apk:script:debug:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode debug",
+    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release"
   },
   "dependencies": {
     "zod": "^3.24.3",
