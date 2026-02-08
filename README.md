@@ -39,39 +39,6 @@ This project now includes a Capacitor scaffold for Android/iOS packaging.
    * Android Studio: `npm run mobile:open:android`
    * Xcode (macOS): `npm run mobile:open:ios`
 
-
-## Android APK (without Play Store)
-
-If your goal is only an installable APK (no Play Store publication), follow these exact steps:
-
-1. Install prerequisites on your computer:
-   * Node.js 20+
-   * Java JDK 17
-   * Android Studio (with Android SDK + platform tools)
-2. Install dependencies:
-   `npm install`
-3. Check Capacitor tooling:
-   `npm run mobile:doctor`
-4. Generate and sync native Android project (first time):
-   `npm run mobile:init:android`
-5. Build a debug APK:
-   * Linux/macOS: `npm run mobile:apk:debug:linux`
-   * Windows: `npm run mobile:apk:debug:win`
-6. Find your APK at:
-   `android/app/build/outputs/apk/debug/app-debug.apk`
-
-Release APK (optional, signed configuration required in Gradle):
-* Linux/macOS: `npm run mobile:apk:release:linux`
-* Windows: `npm run mobile:apk:release:win`
-
-### iOS equivalent (without macOS)
-
-You can keep iOS support in source (`cap add ios`), but generating a runnable `.ipa` requires macOS + Xcode for signing/building. Without macOS, use a cloud macOS CI provider.
-
-### Important repository rule
-
-`android/` and `ios/` are generated locally and ignored in git to avoid binary/conflict issues in web PR tooling.
-
 ## Data Persistence
 
 * The app auto-saves data to your browser's local storage.
