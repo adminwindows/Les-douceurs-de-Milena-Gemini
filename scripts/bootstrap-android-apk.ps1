@@ -1,9 +1,17 @@
 $ErrorActionPreference = 'Stop'
 
+function Invoke-NpmStep {
+  param([string]$Command)
+  & cmd /c $Command
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code $LASTEXITCODE: $Command"
+  }
+}
+
 Write-Host "== Android first APK bootstrap (Windows) =="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  Write-Error "Node.js not found. Install Node.js 20+ and retry."
+  Write-Error "Node.js not found. Install Node.js 22+ and retry."
 }
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
@@ -11,17 +19,22 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "Node: $(node -v)"
-${javaVersion} = (cmd /c "java -version 2>&1" | Select-Object -First 1)
+$nodeMajor = [int](node -p "process.versions.node.split('.')[0]")
+if ($nodeMajor -lt 22) {
+  throw "Node.js 22+ is required (current: $(node -v))."
+}
+
+$javaVersion = (cmd /c "java -version 2>&1" | Select-Object -First 1)
 Write-Host "Java: $javaVersion"
 
 Write-Host ""
 Write-Host "1) Checking Capacitor environment"
-npm run mobile:doctor
+Invoke-NpmStep "npm run mobile:doctor"
 
 Write-Host ""
 Write-Host "2) Ensuring Android platform exists"
 if (-not (Test-Path "android")) {
-  npm run mobile:add:android
+  Invoke-NpmStep "npm run mobile:add:android"
   Write-Host "Android platform added"
 } else {
   Write-Host "android/ already exists"
@@ -29,11 +42,15 @@ if (-not (Test-Path "android")) {
 
 Write-Host ""
 Write-Host "3) Building web app + syncing native project"
-npm run mobile:sync
+Invoke-NpmStep "npm run mobile:sync"
+
+if (-not (Test-Path "android/gradlew.bat")) {
+  throw "Gradle wrapper missing at android/gradlew.bat after sync."
+}
 
 Write-Host ""
 Write-Host "4) Building debug APK"
-npm run mobile:apk:debug:win
+Invoke-NpmStep "npm run mobile:apk:debug:win"
 
 Write-Host ""
 Write-Host "Done. Your APK should be at:"

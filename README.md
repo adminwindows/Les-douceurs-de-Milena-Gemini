@@ -30,8 +30,12 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 
 ### Android APK (no Play Store required)
 
+
+> Tip (Windows): if you previously installed with older lockfiles/overrides and see `Cannot read properties of undefined (reading "extract")` from Capacitor, run a clean reinstall:
+> `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
+
 1. Install prerequisites locally:
-   * Node.js 20+
+   * Node.js 22+ (required by Capacitor CLI 8)
    * Java JDK 17
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
