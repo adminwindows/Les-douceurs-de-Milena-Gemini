@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../validation';
+
+describe('validation helpers', () => {
+  it('parses optional numbers safely', () => {
+    expect(parseOptionalNumber('')).toBeUndefined();
+    expect(parseOptionalNumber('   ')).toBeUndefined();
+    expect(parseOptionalNumber('12.5')).toBe(12.5);
+    expect(parseOptionalNumber('0')).toBe(0);
+    expect(parseOptionalNumber('nope')).toBeUndefined();
+  });
+
+  it('validates non-negative numbers', () => {
+    expect(isNonNegativeNumber(0)).toBe(true);
+    expect(isNonNegativeNumber(2.3)).toBe(true);
+    expect(isNonNegativeNumber(-1)).toBe(false);
+    expect(isNonNegativeNumber(Number.NaN)).toBe(false);
+    expect(isNonNegativeNumber(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+
+  it('validates positive numbers', () => {
+    expect(isPositiveNumber(1)).toBe(true);
+    expect(isPositiveNumber(0)).toBe(false);
+    expect(isPositiveNumber(-5)).toBe(false);
+  });
+
+  it('validates percentage ranges', () => {
+    expect(isPercentage(0)).toBe(true);
+    expect(isPercentage(99.99)).toBe(true);
+    expect(isPercentage(100)).toBe(false);
+    expect(isPercentage(-1)).toBe(false);
+  });
+});
