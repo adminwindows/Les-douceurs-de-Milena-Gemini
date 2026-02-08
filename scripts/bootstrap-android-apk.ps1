@@ -71,7 +71,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 }
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-  Write-Error "Java not found. Install JDK 17 and retry."
+  Write-Error "Java not found. Install JDK 21 and retry."
 }
 
 Write-Host "Node: $(node -v)"
@@ -82,6 +82,10 @@ if ($nodeMajor -lt 22) {
 
 $javaVersion = (cmd /c "java -version 2>&1" | Select-Object -First 1)
 Write-Host "Java: $javaVersion"
+$javaMajor = [int](cmd /c "java -XshowSettings:properties -version 2>&1" | Select-String "java.specification.version" | ForEach-Object { ($_ -split "=")[1].Trim() } | Select-Object -First 1)
+if ($javaMajor -lt 21) {
+  throw "JDK 21+ is required (current major: $javaMajor)."
+}
 
 Write-Host ""
 Write-Host "1) Ensuring Android platform exists"
