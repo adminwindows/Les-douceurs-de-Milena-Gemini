@@ -18,11 +18,9 @@ pushd android >/dev/null
 case "$MODE" in
   debug)
     ./gradlew assembleDebug
-    echo "✅ Debug APK: android/app/build/outputs/apk/debug/app-debug.apk"
     ;;
   release)
     ./gradlew assembleRelease
-    echo "✅ Release APK: android/app/build/outputs/apk/release/app-release.apk"
     ;;
   *)
     echo "❌ Unknown mode '$MODE'. Use: debug | release"
@@ -31,3 +29,19 @@ case "$MODE" in
 esac
 
 popd >/dev/null
+
+apk_output_dir="android/app/build/outputs/apk/$MODE"
+apk_candidates=$(find "$apk_output_dir" -type f -name "*.apk" 2>/dev/null || true)
+
+if [[ -z "$apk_candidates" ]]; then
+  echo "❌ Build finished but no APK was found under $apk_output_dir"
+  exit 1
+fi
+
+echo "✅ $MODE build APK(s):"
+while IFS= read -r apk; do
+  [[ -z "$apk" ]] && continue
+  abs_apk=$(cd "$(dirname "$apk")" && pwd)/"$(basename "$apk")"
+  echo "- Relative: $apk"
+  echo "  Absolute: $abs_apk"
+done <<< "$apk_candidates"
