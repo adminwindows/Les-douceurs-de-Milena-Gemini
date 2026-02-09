@@ -18,14 +18,28 @@ try {
   switch ($Mode) {
     'debug' {
       ./gradlew.bat assembleDebug
-      Write-Host "Debug APK: android/app/build/outputs/apk/debug/app-debug.apk"
     }
     'release' {
       ./gradlew.bat assembleRelease
-      Write-Host "Release APK: android/app/build/outputs/apk/release/app-release.apk"
     }
   }
 }
 finally {
   Pop-Location
 }
+
+$apkOutputDir = "android/app/build/outputs/apk/$Mode"
+$apkCandidates = Get-ChildItem -Path $apkOutputDir -Filter "*.apk" -Recurse -ErrorAction SilentlyContinue
+
+if (-not $apkCandidates -or $apkCandidates.Count -eq 0) {
+  throw "Build finished but no APK was found under $apkOutputDir"
+}
+
+Write-Host "$Mode build APK(s):"
+$apkCandidates |
+  Sort-Object FullName |
+  ForEach-Object {
+    $relative = Resolve-Path -Path $_.FullName -Relative
+    Write-Host "- Relative: $relative"
+    Write-Host "  Absolute: $($_.FullName)"
+  }
