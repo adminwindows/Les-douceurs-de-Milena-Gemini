@@ -337,3 +337,23 @@ Current behavior summary:
 
 User-facing implication:
 - Loading a save does not always do a full reset; it behaves like a partial overwrite according to selection + file contents.
+
+## 20) Latest Turn Update (release install fails: "Application non installée")
+
+User report:
+- On release APK install, Android shows "Application non installée".
+
+Actions taken:
+- Hardened `windows-sign-release-apk.cmd` signing pipeline:
+  - now auto-detects Android SDK build-tools,
+  - prefers `apksigner` (modern v1/v2/v3 signatures) instead of only `jarsigner`,
+  - runs `zipalign` before signing when available,
+  - verifies signature with `apksigner verify`.
+- Kept compatibility fallback:
+  - if SDK signer tools are unavailable, script falls back to `jarsigner` path.
+- Added explicit post-sign guidance in script output and README:
+  - if install still fails, uninstall previous/debug app first because different signing keys cannot upgrade each other.
+
+Validation:
+- `cmd.exe /c windows-sign-release-apk.cmd` (expected fail in container because Windows cmd/SDK tools unavailable)
+- `npm run typecheck`
