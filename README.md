@@ -47,6 +47,8 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 > If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
+> Security note: `package.json` pins `overrides.tar` to `^7.5.7` to mitigate transitive tar CVEs reported by `npm audit` in Capacitor CLI dependency paths.
+
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
 
@@ -98,8 +100,8 @@ These scripts are designed for double-click usage and keep the window open with 
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
 * Generate app icons/splash from the bakery logo (after `android/` exists):
-  * `npm run mobile:assets`
-  * `npm run mobile:assets:android` (Android only, recommended before each APK build)
+  * `npx @capacitor/assets generate --assetPath public/logo-milena.svg`
+  * `npx @capacitor/assets generate --android --assetPath public/logo-milena.svg` (Android only, optional before APK build)
 
 ### Debug vs Release signing (quick explanation)
 

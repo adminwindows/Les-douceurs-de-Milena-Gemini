@@ -93,8 +93,8 @@ Expected behavior:
 
 ## 6) User’s Latest New Requests (Current Turn)
 
-1. Fix the mobile scaffold failure shown in screenshot (`cap doctor` failing due Node >=22 requirement).
-2. Make the mobile helper flow work with the current environment and stop blocking on that version mismatch.
+1. Fix npm audit/deprecation issues shown in screenshots (tar/high vulnerabilities and noisy deprecated dependency chain).
+2. Keep mobile tooling usable while reducing security warnings.
 
 ## 7) Update Protocol For Future Agents
 
@@ -115,7 +115,6 @@ After each request:
 
 ## 9) Latest Update (Current Turn)
 
-- Downgraded Capacitor packages from v8 to v7.4.x in `package.json` so CLI no longer requires Node 22+ and works on Node 20 environment.
-- Updated bootstrap scripts and README prerequisites from Node 22+ to Node 20+ with Capacitor 7+ wording.
-- Regenerated `package-lock.json` via `npm install` and validated the fix with `npm run mobile:doctor` (now passes).
-- Re-ran `npm run typecheck` and `npm run test` successfully after dependency change.
+- Removed direct `@capacitor/assets` dev dependency (major source of deprecated transitive packages/noise) and switched README asset generation instructions to `npx @capacitor/assets ...` commands.
+- Added `overrides.tar: ^7.5.7` in `package.json` and regenerated lockfile so `npm audit` reports 0 vulnerabilities while keeping Capacitor 7.4.x mobile workflow intact.
+- Re-validated `npm run mobile:doctor`, `npm run typecheck`, and `npm run test` after dependency graph changes.
