@@ -112,3 +112,25 @@ Validation commands run:
 - `npm run typecheck`
 - `npm run test`
 - `npm run build`
+
+
+## 9) Latest Turn Update (tar vulnerability concern)
+
+User question:
+- "are you sure this tar version doesn't create vulnerabilities?"
+
+What was verified:
+- With `tar` forced to `^6.2.1`, `npm audit` reported high vulnerabilities in tar transitive path through `@capacitor/cli`.
+
+Resolution implemented:
+- Set `overrides.tar` back to patched `^7.5.7` (audit-clean).
+- Added `patch-package` + `postinstall` hook to apply a targeted compatibility patch to `@capacitor/cli@7.4.5` template extractor so it can resolve `tar.extract` from either tar module shape (v6/v7).
+- Added patch file: `patches/@capacitor+cli+7.4.5.patch`.
+- Updated README security note to explain this secure+compatible setup.
+
+Validation:
+- `npm audit --audit-level=high` => 0 vulnerabilities.
+- Removed local `android/` and re-ran `npm run mobile:add:android` => succeeds (no extract crash).
+
+Tradeoff note:
+- This keeps Node 20 compatibility for Capacitor 7 while avoiding vulnerable tar versions.
