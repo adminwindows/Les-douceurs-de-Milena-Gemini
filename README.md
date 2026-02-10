@@ -85,7 +85,7 @@ Use root-level one-click files:
 - `windows-next-release.cmd`
 - `windows-create-release-key.cmd`
 
-These scripts are designed for double-click usage, run `npm run build` explicitly before native sync, and keep the window open with `pause`.
+These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, then native sync, and keep the window open with `pause`.
 
 ### iOS equivalent
 

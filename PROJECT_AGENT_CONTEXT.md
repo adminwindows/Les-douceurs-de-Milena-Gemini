@@ -1,120 +1,93 @@
 # Project Agent Context (Persistent Handoff)
 
 > Purpose: give any new agent full continuity of this project and user expectations.
-> Update this file **after every user request** so context stays current.
+> Mandatory rule: update this file **after every user request** by appending new context, not deleting prior requests.
 
 ## 1) User Profile & Working Preferences
 
-- User is beginner-friendly and wants explanations in clear, practical steps.
-- User strongly prefers Windows-first operational guidance (CMD/PowerShell), then cross-platform notes.
-- User wants concrete, copy/paste commands and one-click flows over abstract advice.
-- User asks for robust proof/validation (tests, screenshots when relevant, exact outputs/paths).
-- User wants documentation updated whenever behavior/features change.
-- User does NOT want long answer dumps moved into repo docs/files when the answer should be in chat.
-- User prefers meaningful branch names and clean, practical workflows.
-- User is sensitive to regressions and stale branch states; explicit reset/sync steps are valued.
-- User requested root-level clickable `.cmd` helpers (not hidden in `scripts/`) and persistent CMD windows (`pause`).
+- User is beginner-friendly and wants detailed, practical, step-by-step explanations.
+- User prefers **Windows-first** guidance (CMD/PowerShell), then cross-platform notes.
+- User wants copy/paste commands and root-level one-click scripts over abstract instructions.
+- User expects proof (tests, checks, screenshots when UI changes are visible).
+- User wants README/build instructions and scripts synchronized.
+- User does not want long answer dumps moved into docs when the answer should be in chat.
+- User wants persistent context with **all prior requests retained** (no silent omissions).
+- User explicitly requested root `.cmd` files that do not auto-close (`pause` on success/failure).
+- User can use strong language when frustrated; agent should still execute precisely.
 
-## 2) Product Domain & Core App Goals
+## 2) Product Domain & Core Goals
 
-The app is a bakery management/costing tool (Les douceurs de Miléna) with:
-- ingredients/recipes/products,
-- orders/production/stocks/purchases,
-- pricing/analysis,
-- monthly reporting,
-- backups/import/export,
-- demo mode,
-- mobile packaging path (Capacitor).
+Bakery management/costing app (Les douceurs de Miléna): ingredients, recipes, products, orders, production, stock, monthly report, backup/import/export, demo mode, and mobile packaging via Capacitor.
 
-User’s long-term priorities:
-1. Data safety and reliability.
-2. Practical UX for real-world bakery workflows.
-3. Correct numerical outputs with testable evidence.
-4. Easy Android APK generation without store publication.
+Priorities:
+1. Reliability and data safety.
+2. Practical real-world UX for bakery workflows.
+3. Correct calculations and verification.
+4. Easy APK creation and sharing (without store publication complexity).
 
-## 3) Major Historical Requests Already Made
+## 3) Canonical Historical Request Log (No Omissions)
 
-### A) Reliability / validation / tests / CI
-- Strengthen input validation behavior.
-- Avoid silent clamping/overrides where not desired.
-- Expand tests and CI checks.
+1. Read saved HTML conversation context and summarize major goals.
+2. Mobile questions: debug/release signing, mobile fit issues, Oui/Non labels, report save/print behavior, and logo usage.
+3. Beginner-friendly detailed explanations requested.
+4. Full beginner setup/install/test/mobile guide requested.
+5. Windows-first commands for clean reinstall, first build, next iteration, debug/release, release key creation, and logo behavior clarification.
+6. Root-level clickable `.cmd` files requested (not inside `scripts/`) and persistent console windows requested.
+7. User reported still seeing scripts in `scripts/`; verification/fix flow requested.
+8. Requested persistent context file to transfer all context automatically to future agents, and line-by-line CMD explanation.
+9. User rejected storing line-by-line explanation in repo file; requested answers directly in chat and reduced README pollution.
+10. Feature requests: provided logo usage, persistent section drafts for all sections, cancel creation with confirmation everywhere, edit/delete capabilities across sections, unit shown while entering recipe ingredient quantity, decimal separator `.`.
+11. User said not all requests were tackled; follow-up fixes requested.
+12. User reiterated missing items: logo, units, decimal dot behavior.
+13. User reiterated exact logo file must be used and decimal dot input required.
+14. User asked again to use attached image directly.
+15. Asked why `package-lock.json` had many diffs.
+16. Requested fix (Capacitor/Node/toolchain path issues).
+17. Requested additional fix (audit/deprecation noise).
+18. Requested line-by-line explanation of `windows-first-time-debug.cmd` and why each line exists.
+19. Reported lingering issue; asked for fix.
+20. Asked how to get logo after asset-flow changes.
+21. Requested explicit `npm run build` in CMD flows.
+22. Requested build to run **immediately after typecheck** and complained that older requests were being removed from context; demanded complete persistent context.
 
-### B) Data compatibility and import robustness
-- Support older save formats and wrapped JSON/BOM edge cases.
-- Preserve schema validation while improving parser robustness.
-- Provide proof a specific user-provided dataset imports correctly.
+## 4) Implemented State Snapshot
 
-### C) Feature requests
-- Production recipe card with scaled ingredient quantities.
-- Product edit flow from product cards.
-- Include-labor-in-cost toggle behavior and UI.
-- Demo mode with reversible state restore and no unintended persistence.
-- First launch should start empty business data.
+- App branding/logo system exists (`BrandLogo`, fallback chain, custom `public/logo-user.*` support).
+- Monthly report includes PDF export.
+- Oui/Non delivery confirmation modal exists in Orders.
+- Persistent draft state and cancel/edit improvements were introduced across key views in prior work.
+- Root Windows helper files exist:
+  - `windows-first-time-debug.cmd`
+  - `windows-first-time-release.cmd`
+  - `windows-next-debug.cmd`
+  - `windows-next-release.cmd`
+  - `windows-create-release-key.cmd`
+- Scripts use fail-fast style and keep terminal open via `pause`.
 
-### D) QA/proof expectations
-- Explore app like a real user.
-- Cross-check pricing/monthly report calculations independently.
-- Provide screenshot evidence where possible.
+## 5) Current Request Status (Latest Turn)
 
-### E) Mobile path
-- Move toward Android/iOS app packaging via Capacitor.
-- Keep first launch empty and subsequent launches persistent.
-- Manual backup/import should remain user-controlled.
-- User mainly wants installable APK/IPA behavior (no immediate store publication).
+User request:
+1. Run `npm run build` immediately after `npm run typecheck` in CMD flows.
+2. Stop removing older requests from context; keep full history.
 
-### F) UX/content specifics requested previously
-- Improve mobile fit/layout.
-- Replace ambiguous confirmation labels with explicit Oui/Non semantics.
-- Improve monthly report actions when print does nothing on phone.
-- Add bakery branding/logo in relevant locations.
+Actions taken:
+- Reordered first-time scripts so `build` runs directly after `typecheck`:
+  - `windows-first-time-debug.cmd`
+  - `windows-first-time-release.cmd`
+- Confirmed next-iteration scripts already had build immediately after typecheck and left them consistent.
+- Updated README wording to match the exact order.
+- Reworked this context file to include a complete historical request log and explicit append/no-omission rule.
 
-## 4) Current Implemented State (as of this handoff)
+## 6) Update Protocol (Mandatory)
 
-- Bakery logo assets exist (`public/logo-milena.svg`, `public/favicon.svg`).
-- `BrandLogo` component exists and is used in app shell/report.
-- Monthly report includes PDF export flow (`pdf-lib`).
-- Orders delivery flow uses in-app Oui/Non modal (no browser confirm text ambiguity).
-- Windows helper `.cmd` files are intended to be in repo root and persistent via `pause`.
-- README includes Windows quick-start, first-time vs next-iteration flows, release key creation, and logo-generation rationale.
+After each user turn:
+1. Append/update this file with the new request and exact disposition.
+2. Never remove prior user requests from the historical log.
+3. Keep README + root CMD flows synchronized when workflow changes.
+4. Run relevant checks and report outcomes.
 
-## 5) Windows Build Helpers Expected at Repo Root
+## 7) Risks / Notes
 
-Expected root files:
-- `windows-first-time-debug.cmd`
-- `windows-first-time-release.cmd`
-- `windows-next-debug.cmd`
-- `windows-next-release.cmd`
-- `windows-create-release-key.cmd`
-
-Expected behavior:
-- double-clickable from root,
-- stop on errors,
-- keep window open at end (`pause` on success/failure).
-
-## 6) User’s Latest New Requests (Current Turn)
-
-1. Add explicit `npm run build` step in Windows helper CMD flows before sync/APK steps.
-2. Keep README and script behavior synchronized around that requirement.
-
-## 7) Update Protocol For Future Agents
-
-After each request:
-1. Update this file with:
-   - what user asked,
-   - what changed,
-   - what remains open,
-   - any preference adjustments.
-2. Keep Windows commands and script locations synchronized with README.
-3. Re-run relevant checks (`test`, `typecheck`, optionally `build`) and note results.
-
-## 8) Open Risks / Attention Points
-
-- Browser-container screenshot runs can intermittently fail (infra instability); retry may be needed.
-- Capacitor/Android toolchain depends on local machine env (`ANDROID_HOME`, JDK version, SDK presence).
-- Release APK signing still requires local keystore + Gradle signing config (not store credentials).
-
-## 9) Latest Update (Current Turn)
-
-- Added explicit `npm run build` stage to all root Windows helper CMD scripts (`first-time` and `next` debug/release) and renumbered step counters.
-- Updated README script note to state that Windows helpers now run `npm run build` explicitly before native sync.
-- Re-ran `npm run typecheck` and `npm run test` successfully after script/doc updates.
+- Mobile/Capacitor builds still depend on local Android SDK/JDK environment.
+- Browser screenshot tooling can fail intermittently in container environments.
+- Release signing requires local keystore + Gradle signing config but no Play Store credentials.
