@@ -51,8 +51,8 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
 
 1. Install prerequisites locally:
-   * Node.js 22+ (required by Capacitor CLI 8)
-   * Java JDK 21+ (required by Android Gradle plugin used by Capacitor 8)
+   * Node.js 20+ (required by Capacitor CLI 7+)
+   * Java JDK 21+ (required by Android Gradle plugin used by Capacitor 7+)
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
    `npm install`
