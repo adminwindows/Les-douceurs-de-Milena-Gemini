@@ -65,7 +65,9 @@ if defined APKSIGNER (
     set "INPUT_APK=%UNSIGNED_APK%"
   )
 
-  "%APKSIGNER%" sign --ks "%KEYSTORE_PATH%" --ks-key-alias "%KEY_ALIAS%" --ks-pass pass:%STOREPASS% --key-pass pass:%KEYPASS% --out "%SIGNED_APK%" "%INPUT_APK%"
+  set "JAVA_TOOL_OPTIONS=--enable-native-access=ALL-UNNAMED %JAVA_TOOL_OPTIONS%"
+
+  "%APKSIGNER%" sign --ks "%KEYSTORE_PATH%" --ks-key-alias "%KEY_ALIAS%" --ks-pass pass:%STOREPASS% --key-pass pass:%KEYPASS% --out "%SIGNED_APK%" "!INPUT_APK!"
   if errorlevel 1 goto :fail
 
   "%APKSIGNER%" verify --verbose "%SIGNED_APK%"

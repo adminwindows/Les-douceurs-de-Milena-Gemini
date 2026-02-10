@@ -388,3 +388,20 @@ Validation:
 - `npm run typecheck`
 - `npm run test`
 - Playwright screenshot captured for mobile viewport (`artifacts/dark-mode-default-mobile.png`).
+
+## 22) Latest Turn Update (apksigner FileNotFoundException on Windows)
+
+User report:
+- Release helper prints apksigner info/warnings, then fails with `java.io.FileNotFoundException` in `ApkSigner.sign(...)` and build stops.
+
+Root cause identified:
+- In `windows-sign-release-apk.cmd`, `INPUT_APK` was assigned inside a parenthesized block, but consumed as `%INPUT_APK%` in the same block.
+- In batch parsing semantics, `%...%` is expanded before runtime inside that block, so path could resolve empty at signing call, causing apksigner file-not-found.
+
+Actions taken:
+- Fixed variable expansion by passing `!INPUT_APK!` (delayed expansion) to apksigner sign command.
+- Added `JAVA_TOOL_OPTIONS=--enable-native-access=ALL-UNNAMED ...` before apksigner invocation to handle modern Java native-access warnings and future-proof execution.
+- Updated README troubleshooting note to clarify these warnings are informational and not the primary failure reason.
+
+Validation:
+- `npm run typecheck`
