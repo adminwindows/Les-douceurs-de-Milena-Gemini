@@ -43,7 +43,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 ### Android APK (no Play Store required)
 
 
-> Android launcher labels are controlled by the phone launcher and can be truncated by device width/grid settings. The app name is now shortened to `Les Douceurs Miléna` to reduce truncation risk, but some launchers may still ellipsize long names.
+> Android launcher labels are controlled by the phone launcher and can be truncated by device width/grid settings. The app name is now shortened to `Miléna` to reduce truncation risk, but some launchers may still ellipsize long names.
 
 > Tip (Windows): if you previously installed with older lockfiles/overrides and see `Cannot read properties of undefined (reading "extract")` from Capacitor, run a clean reinstall:
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
