@@ -47,7 +47,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 > If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
-> Security note: `package.json` pins `overrides.tar` to `^6.2.1` (Capacitor CLI-compatible) to keep the CLI template extractor working while avoiding vulnerable older tar releases in transitive paths.
+> Security note: `package.json` pins `overrides.tar` to `^7.5.7` (patched) and applies a small `patch-package` compatibility patch for `@capacitor/cli` 7.x template extraction so `cap add android` still works on Node 20 while `npm audit` stays clean.
 
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
