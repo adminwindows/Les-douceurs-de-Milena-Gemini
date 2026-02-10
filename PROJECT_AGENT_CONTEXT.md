@@ -238,3 +238,33 @@ Validation:
 - `npm run test`
 - `npm run build`
 - attempted Playwright screenshot capture; browser container crashed (SIGSEGV), so no fresh screenshot artifact from this turn.
+
+
+## 15) Latest Turn Update (logo fit/name + CLI error request)
+
+User request:
+- Improve launcher logo fit so full image is visible.
+- Ask if full app name can be displayed on launcher.
+- Fix CLI error shown in screenshot (`Capacitor CLI requires Node >=22`) without reintroducing prior vulnerability/build issues.
+
+Actions implemented:
+- Android logo fit:
+  - updated `scripts/apply-android-logo.mjs` to generate padded launcher icons (safe margin) so circular/squircle launcher masks are less likely to crop artwork.
+- App label visibility:
+  - shortened Capacitor app name to `Les Douceurs Miléna` to reduce truncation risk on launchers; documented limitation that Android launchers may still ellipsize labels depending on device grid/width.
+- CLI error fix (CI side):
+  - updated GitHub Actions CI Node version from 20 to 22 so `npm run mobile:doctor` no longer fails in CI due Capacitor 8 engine requirement.
+- Preserved security/baseline decisions:
+  - kept Capacitor 8 baseline and no local patch workaround reintroduced.
+
+Validation:
+- `node -c scripts/apply-android-logo.mjs`
+- `npm install`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `npm run mobile:doctor` (expected fail in current container because runtime node is still 20; CI config now set to Node 22 to avoid this there).
+- Playwright screenshot captured for current recipe input UI state.
+
+Important note for user expectation:
+- Showing the *entire* app name on home screen cannot be guaranteed from app code alone; launcher UI policy controls ellipsis. Shorter label improves odds but some launchers still truncate.
