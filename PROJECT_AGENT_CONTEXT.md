@@ -196,3 +196,21 @@ Validation:
 - `npm run build`
 - `npm run mobile:icons:android` (no-op warning when android resources folder missing, as designed)
 - Playwright mobile screenshot captured for recipe form updates.
+
+
+## 13) Latest Turn Update (preferred unit style and overflow)
+
+User request:
+- Keep unit near quantity as placeholder style (`Qté (ml)`) instead of a separate unit badge to save horizontal space.
+- Main motivation: avoid horizontal overflow seen in screenshot.
+
+Actions implemented:
+- Replaced the recipe ingredient entry row from badge-based unit display to placeholder-based unit display (`Qté (unit)` when ingredient selected).
+- Removed explicit separate unit badge from that row.
+- Refactored the row layout to a compact grid (`ingredient | qty | +`) with constrained widths and `min-w-0` behavior so small screens do not force horizontal scrolling for this control cluster.
+
+Validation:
+- `npm install`
+- `npm run typecheck`
+- `npm run test`
+- Tried Playwright screenshot capture for visual proof; browser container crashed with SIGSEGV in this run (not app logic failure).

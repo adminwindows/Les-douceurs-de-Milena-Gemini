@@ -167,9 +167,9 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
 
           <div className="bg-stone-50 dark:bg-stone-900 p-4 rounded-lg border border-stone-200 dark:border-stone-700 mb-6">
             <h4 className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-3">Composition du batch</h4>
-            <div className="flex gap-2 mb-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] gap-2 mb-2 items-center">
               <select 
-                className="flex-1 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
+                className="min-w-0 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                 value={selectedIngId}
                 onChange={e => setSelectedIngId(e.target.value)}
               >
@@ -178,18 +178,15 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               </select>
               <input 
                 type="number" 
-                placeholder="Qté" 
-                className="w-24 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
+                placeholder={selectedIngId ? `Qté (${getRecipeUnitLabel(selectedIngredient?.unit)})` : 'Qté'}
+                className="w-full min-w-0 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                 value={selectedIngQty}
                 onChange={e => setSelectedIngQty(e.target.value)}
                 lang="en"
                 inputMode="decimal"
                 step="0.01"
               />
-              <span className="text-xs px-2 py-1 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-200 min-w-14 text-center">
-                {selectedIngredient ? getRecipeUnitLabel(selectedIngredient.unit) : '-'}
-              </span>
-              <Button size="sm" onClick={handleAddIngToRecipe}>+</Button>
+              <Button size="sm" className="px-2" onClick={handleAddIngToRecipe}>+</Button>
             </div>
             <p className="text-[11px] text-stone-500 dark:text-stone-400">Utilisez le point pour les décimales (ex: 3.5).</p>
             {/* List of added ingredients */}
