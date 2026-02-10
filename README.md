@@ -99,9 +99,7 @@ These scripts are designed for double-click usage and keep the window open with 
 * Release APK build:
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
-* Generate app icons/splash from the bakery logo (after `android/` exists):
-  * `npx @capacitor/assets generate --assetPath public/logo-milena.svg`
-  * `npx @capacitor/assets generate --android --assetPath public/logo-milena.svg` (Android only, optional before APK build)
+* App icon/splash generation via `@capacitor/assets` was removed from default flow to avoid deprecated/vulnerable transitive dependency noise during normal installs.
 
 ### Debug vs Release signing (quick explanation)
 
