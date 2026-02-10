@@ -28,6 +28,8 @@ If none exists, the app automatically falls back to `logo-milena.svg`, then `fav
 2. Run the app:
    `npm run dev`
 
+By default, the app starts in **dark mode** (and remembers your theme choice).
+
 ## Tests & Checks
 
 * Run unit tests: `npm run test`
@@ -161,10 +163,11 @@ The scripts live in:
 
 ## Data Persistence
 
-* The app auto-saves data to your browser's local storage.
+* The app auto-saves data to your browser's local storage, with automatic cleanup of stale draft entries to avoid storage bloat on mobile.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
-* Backup import/export now supports a native mobile bridge when available (device picker/save flow), with browser file input/download fallback.
+* Backup import/export supports a native mobile bridge when available (device picker/save flow), with browser file input/download fallback.
 * Storage is abstracted behind a storage engine interface (web localStorage default) with runtime bootstrap support for injecting native mobile adapters.
+* Monthly report PDF export now prefers native share on mobile (so you can save/share to Drive, Files, WhatsApp, etc.), with download fallback.
 * App-state persistence is versioned (`milena_app_state_v2`) with migration from legacy key format (`milena_app_state_v1`) for backward compatibility.
 
 
