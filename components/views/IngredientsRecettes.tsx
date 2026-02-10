@@ -134,7 +134,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* New Recipe Form */}
       <div className="lg:col-span-5 space-y-6">
-        <Card className="sticky top-24 border-rose-200 dark:border-rose-800">
+        <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-4">Créer une Recette</h3>
           <p className="text-sm text-stone-500 mb-4">Pour gérer les ingrédients (prix, stock), allez dans l'onglet "Stocks & Achats".</p>
           
@@ -148,7 +148,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
             <div className="grid grid-cols-2 gap-4">
               <Input 
                 label="Rendement" 
-                type="number"
+                type="text"
                 value={newRecipe.batchYield ?? ''} 
                 onChange={e => setNewRecipe({...newRecipe, batchYield: parseOptionalNumber(e.target.value)})} 
                 helperText="Nb. de portions/unités obtenues avec ce batch"
@@ -156,7 +156,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               />
               <Input 
                 label="Pertes mat. (%)" 
-                type="number"
+                type="text"
                 value={newRecipe.lossPercentage ?? ''} 
                 onChange={e => setNewRecipe({...newRecipe, lossPercentage: parseOptionalNumber(e.target.value)})} 
                 helperText="Pâte restée dans le bol..."
@@ -177,7 +177,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 {ingredients.map(i => <option key={i.id} value={i.id}>{`${i.name} (${getRecipeUnitLabel(i.unit)})`}</option>)}
               </select>
               <input 
-                type="number" 
+                type="text" 
                 placeholder={selectedIngId ? `Qté (${getRecipeUnitLabel(selectedIngredient?.unit)})` : 'Qté'}
                 className="w-full min-w-0 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                 value={selectedIngQty}
@@ -199,7 +199,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                   <div key={idx} className="flex justify-between items-center gap-2 text-sm text-stone-600 dark:text-stone-300 bg-white dark:bg-stone-800 px-2 py-1 rounded border border-stone-100 dark:border-stone-700">
                     <span className="flex-1">{ing.name}</span>
                     <input
-                      type="number"
+                      type="text"
                       lang="en"
                       inputMode="decimal"
                       step="0.01"
@@ -246,7 +246,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               
               const isScaling = scalerTargets.hasOwnProperty(recipe.id);
               const targetQtyStr = scalerTargets[recipe.id] || '';
-              const targetQty = parseFloat(targetQtyStr);
+              const targetQty = parseOptionalNumber(targetQtyStr);
               const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / (recipe.batchYield ?? 1) : 1;
 
               return (
@@ -284,9 +284,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                          </button>
                        </div>
                        <input 
-                         type="number" 
+                         type="text" 
                          className="w-full mb-2 px-2 py-1 text-sm border border-indigo-200 dark:border-indigo-700 rounded focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:bg-stone-900 dark:text-white"
                          placeholder={recipe.batchYield.toString()}
+                         lang="en"
+                         inputMode="decimal"
                          value={targetQtyStr}
                          onChange={e => updateScalerTarget(recipe.id, e.target.value)}
                          autoFocus

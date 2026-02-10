@@ -211,7 +211,7 @@ export const StockManagement: React.FC<Props> = ({
 
       {activeTab === 'definitions' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-           <Card className="md:col-span-1 h-fit sticky top-24">
+           <Card className="md:col-span-1 h-fit lg:sticky lg:top-24">
              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">{editingId ? 'Modifier Ingrédient' : 'Nouvel Ingrédient'}</h3>
              <div className="space-y-4">
                <Input 
@@ -281,7 +281,7 @@ export const StockManagement: React.FC<Props> = ({
 
       {activeTab === 'purchases' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-1 h-fit sticky top-24">
+          <Card className="md:col-span-1 h-fit lg:sticky lg:top-24">
             <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Enregistrer un Achat</h3>
             <div className="space-y-4">
               <Input 
@@ -333,7 +333,7 @@ export const StockManagement: React.FC<Props> = ({
             <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Historique des Achats</h3>
             <div className="overflow-x-auto max-h-[600px]">
               <table className="w-full text-sm text-left text-stone-600 dark:text-stone-300">
-                <thead className="bg-stone-100 dark:bg-stone-900 font-bold uppercase text-xs sticky top-0">
+                <thead className="bg-stone-100 dark:bg-stone-900 font-bold uppercase text-xs">
                   <tr>
                     <th className="p-3">Date</th>
                     <th className="p-3">Ingrédient</th>

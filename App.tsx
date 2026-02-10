@@ -418,7 +418,7 @@ const App = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 text-stone-900 dark:text-stone-100">
+      <main className="flex-1 min-h-0 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 text-stone-900 dark:text-stone-100">
         {renderContent()}
       </main>
 

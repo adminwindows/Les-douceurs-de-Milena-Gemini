@@ -174,7 +174,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* Form */}
       <div className="lg:col-span-4">
-        <Card className="sticky top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
+        <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-6 flex items-center gap-2">
             {editingProductId ? 'Modifier le Produit' : 'Nouveau Produit'}
             <InfoTooltip text="Un produit est ce que vous vendez au client. Il est basé sur une recette." />
