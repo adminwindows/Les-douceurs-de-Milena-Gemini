@@ -86,8 +86,9 @@ Use root-level one-click files:
 - `windows-next-debug.cmd`
 - `windows-next-release.cmd`
 - `windows-create-release-key.cmd`
+- `windows-sign-release-apk.cmd`
 
-These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`.
+These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`. Release helpers also auto-call `windows-sign-release-apk.cmd` when they detect `app-release-unsigned.apk`.
 
 ### iOS equivalent
 
@@ -101,6 +102,7 @@ These scripts are designed for double-click usage, run `npm run build` immediate
 * Release APK build:
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
+* Sign an existing unsigned release APK (Windows): `windows-sign-release-apk.cmd`
 * Generate Android launcher icons from your logo: `npm run mobile:icons:android`
 * App icon/splash generation via `@capacitor/assets` remains out of default flow to avoid deprecated/vulnerable transitive dependency noise during normal installs.
 
@@ -153,6 +155,7 @@ The scripts live in:
 * `windows-next-debug.cmd`
 * `windows-next-release.cmd`
 * `windows-create-release-key.cmd`
+* `windows-sign-release-apk.cmd`
 
 ## Data Persistence
 
