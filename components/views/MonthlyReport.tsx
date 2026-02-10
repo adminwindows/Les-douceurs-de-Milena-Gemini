@@ -60,13 +60,34 @@ const exportMonthlyReportPdf = async (args: {
   drawLine('RÉSULTAT NET', formatCurrency(args.netResult), true);
 
   const bytes = await pdf.save();
+  const fileName = `bilan_milena_${args.monthLabel}.pdf`;
   const blob = new Blob([bytes], { type: 'application/pdf' });
+
+  const file = new File([blob], fileName, { type: 'application/pdf' });
+  const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator && 'canShare' in navigator;
+  if (canUseNativeShare) {
+    const shareNavigator = navigator as Navigator & {
+      canShare?: (data?: ShareData) => boolean;
+      share: (data?: ShareData) => Promise<void>;
+    };
+
+    if (shareNavigator.canShare?.({ files: [file] })) {
+      await shareNavigator.share({
+        title: `Bilan ${args.monthLabel}`,
+        files: [file]
+      });
+      return;
+    }
+  }
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `bilan_milena_${args.monthLabel}.pdf`;
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+
+  alert('PDF généré. Vérifiez votre dossier Téléchargements. Sur mobile, utilisez le partage natif si proposé.');
 };
 
 interface Props {
@@ -554,7 +575,8 @@ export const MonthlyReport: React.FC<Props> = ({
               {isTva && <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 font-bold uppercase tracking-wider">Mode Assujetti TVA</span>}
             </div>
             <div className="text-right no-print flex flex-col sm:flex-row gap-2">
-              <Button size="sm" variant="secondary" onClick={() => void exportMonthlyReportPdf({
+              <Button size="sm" variant="secondary" onClick={() => {
+                void exportMonthlyReportPdf({
                 monthLabel: selectedMonth,
                 isTva,
                 totalRevenueTTC,
@@ -566,7 +588,10 @@ export const MonthlyReport: React.FC<Props> = ({
                 grossMargin,
                 totalActualFixedCosts,
                 netResult
-              })}>📄 Exporter PDF</Button>
+                }).catch(() => {
+                  alert('Impossible de générer le PDF sur cet appareil.');
+                });
+              }}>📄 Exporter PDF</Button>
             </div>
           </div>
 

@@ -357,3 +357,34 @@ Actions taken:
 Validation:
 - `cmd.exe /c windows-sign-release-apk.cmd` (expected fail in container because Windows cmd/SDK tools unavailable)
 - `npm run typecheck`
+
+## 21) Latest Turn Update (mobile storage size + PDF export + default dark mode)
+
+User report/request:
+- App appears to consume too much data on Android app storage screen.
+- Monthly report PDF button appears to do nothing on phone.
+- Dark mode should be enabled by default.
+
+Actions taken:
+- Reduced draft-storage bloat risk in `usePersistentState.ts`:
+  - draft keys now store metadata (`savedAt`) and support automatic stale cleanup,
+  - stale draft entries older than 30 days are pruned automatically,
+  - non-draft persistence behavior remains unchanged.
+- Reduced duplicate app-data leftovers:
+  - in `App.tsx`, when no demo dataset is active, stale demo backup is automatically cleared.
+- Dark mode default:
+  - app now defaults to dark mode,
+  - theme preference is persisted in `localStorage` key `milena_theme`.
+- Improved PDF export behavior on mobile in `MonthlyReport.tsx`:
+  - prefers native share flow (`navigator.share` with file) when supported,
+  - falls back to browser download link,
+  - adds explicit alerts for success fallback and errors so action is visible to user.
+- Updated `README.md` to document:
+  - dark mode default,
+  - PDF native-share behavior,
+  - draft cleanup to limit mobile storage growth.
+
+Validation:
+- `npm run typecheck`
+- `npm run test`
+- Playwright screenshot captured for mobile viewport (`artifacts/dark-mode-default-mobile.png`).

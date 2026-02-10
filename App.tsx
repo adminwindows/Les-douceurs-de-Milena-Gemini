@@ -185,7 +185,12 @@ const DataManagerModal = ({
 const App = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production'>('guide');
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const savedTheme = window.localStorage.getItem('milena_theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    return 'dark';
+  });
   const firstLaunchSettings: GlobalSettings = {
     ...INITIAL_SETTINGS,
     fixedCostItems: []
@@ -205,6 +210,10 @@ const App = () => {
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('milena_theme', theme);
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -219,6 +228,13 @@ const App = () => {
       productionBatches
     });
   }, [ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches]);
+
+
+  useEffect(() => {
+    if (!activeDemoDatasetId) {
+      clearDemoBackup();
+    }
+  }, [activeDemoDatasetId]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
