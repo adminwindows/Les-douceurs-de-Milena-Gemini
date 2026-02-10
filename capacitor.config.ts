@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.adminwindows.lesdouceursdemilena',
-  appName: 'Les Douceurs Miléna',
+  appName: 'Miléna',
   webDir: 'dist',
   server: {
     androidScheme: 'https'

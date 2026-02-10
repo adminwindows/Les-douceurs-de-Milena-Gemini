@@ -268,3 +268,16 @@ Validation:
 
 Important note for user expectation:
 - Showing the *entire* app name on home screen cannot be guaranteed from app code alone; launcher UI policy controls ellipsis. Shorter label improves odds but some launchers still truncate.
+
+
+## 16) Latest Turn Update (app name shortened further)
+
+User request:
+- Shorten launcher app name to "Miléna".
+
+Actions taken:
+- Updated Capacitor app name to `Miléna` in `capacitor.config.ts`.
+- Updated README launcher-label note to reflect the new shorter app name.
+
+Validation:
+- `npm run typecheck`
