@@ -47,15 +47,14 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > `rmdir /s /q node_modules` + delete `package-lock.json`, then `npm install`.
 > The bootstrap scripts also auto-recreate an incomplete `android/` folder when key files are missing.
 > If your script output still starts with `1) Checking Capacitor environment`, pull latest changes first (`git pull`) to get the repaired script order.
-> Security note: `package.json` pins `overrides.tar` to `^7.5.7` (patched) and applies a small `patch-package` compatibility patch for `@capacitor/cli` 7.x template extraction so `cap add android` still works on Node 20 while `npm audit` stays clean.
-> No-patch alternative: yes, but it requires upgrading to Node.js 22+ and Capacitor 8 (upstream supports patched tar without local patch-package). This repo currently keeps Capacitor 7 + Node 20 compatibility for easier Windows onboarding, so patch-package is used for that compatibility window.
+> Security note: the project now uses Capacitor 8 on Node.js 22+ baseline (no local patch-package workaround), and `npm audit` stays clean with upstream dependency versions.
 
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
 
 1. Install prerequisites locally:
-   * Node.js 20+ (required by Capacitor CLI 7+)
-   * Java JDK 21+ (required by Android Gradle plugin used by Capacitor 7+)
+   * Node.js 22+ (required by Capacitor CLI 8+)
+   * Java JDK 21+ (required by Android Gradle plugin used by Capacitor 8+)
    * Android Studio (SDK + platform tools)
 2. Install dependencies:
    `npm install`

@@ -147,3 +147,24 @@ Clarification recorded:
 
 Actions taken:
 - Added explicit README note describing the no-patch alternative (Node 22 + Capacitor 8) versus current Node 20 + Capacitor 7 compatibility choice.
+
+
+## 11) Latest Turn Update (user approved Node 24 migration path)
+
+User input:
+- "go for it, I have node 24" (approve no-patch route).
+
+Actions taken:
+- Migrated project baseline to Capacitor 8 + Node 22+ expectation (compatible with user Node 24).
+- Updated dependencies to `@capacitor/*` `^8.0.2` in `package.json`.
+- Removed local workaround stack used for Capacitor 7 compatibility:
+  - removed `patch-package` dependency and `postinstall` script,
+  - removed `overrides.tar`,
+  - removed `patches/@capacitor+cli+7.4.5.patch`.
+- Updated README mobile/security guidance to reflect new no-patch baseline and Capacitor CLI 8 Node requirement.
+- Corrected bootstrap script node-major gate checks from `<20` to `<22` so runtime checks match the new documented Node 22+ baseline.
+
+Validation in current CI/container environment:
+- `npm install` (shows expected engine warning because container Node is 20, not 22+).
+- `npm run typecheck`, `npm run test`, `npm run build`, `npm audit --audit-level=high` all pass.
+- `npm run mobile:add:android` fails here with expected Node version gate (`NodeJS >=22.0.0`) due container limitation, consistent with new baseline and user's local Node 24 readiness.
