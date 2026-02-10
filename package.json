@@ -30,20 +30,19 @@
     "mobile:bootstrap:android:win": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-android-apk.ps1",
     "mobile:apk:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
     "mobile:apk:script:debug:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode debug",
-    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release",
-    "postinstall": "patch-package"
+    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release"
   },
   "dependencies": {
-    "@capacitor/core": "^7.4.2",
+    "@capacitor/core": "^8.0.2",
     "pdf-lib": "^1.17.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@capacitor/android": "^7.4.2",
-    "@capacitor/cli": "^7.4.2",
-    "@capacitor/ios": "^7.4.2",
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/ios": "^8.0.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
@@ -52,10 +51,6 @@
     "happy-dom": "^20.5.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.0.18",
-    "patch-package": "^8.0.0"
-  },
-  "overrides": {
-    "tar": "^7.5.7"
+    "vitest": "^4.0.18"
   }
 }
