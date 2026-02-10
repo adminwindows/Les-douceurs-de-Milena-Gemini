@@ -28,6 +28,13 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   const isRecipeFormValid = Boolean(newRecipe.name && currentRecipeIngs.length > 0 && isBatchYieldValid && isLossPercentageValid);
   const selectedIngredient = ingredients.find(i => i.id === selectedIngId);
 
+  const getRecipeUnitLabel = (unit?: Unit): string => {
+    if (!unit) return '';
+    if (unit === Unit.KG || unit === Unit.G) return Unit.G;
+    if (unit === Unit.L || unit === Unit.ML) return Unit.ML;
+    return Unit.PIECE;
+  };
+
   const handleAddIngToRecipe = () => {
     const qty = parseOptionalNumber(selectedIngQty);
     if (!selectedIngId || !isPositiveNumber(qty)) return;
@@ -167,11 +174,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 onChange={e => setSelectedIngId(e.target.value)}
               >
                 <option value="">Choisir ingrédient...</option>
-                {ingredients.map(i => <option key={i.id} value={i.id}>{`${i.name} (${i.unit})`}</option>)}
+                {ingredients.map(i => <option key={i.id} value={i.id}>{`${i.name} (${getRecipeUnitLabel(i.unit)})`}</option>)}
               </select>
               <input 
                 type="number" 
-                placeholder={selectedIngId ? `Qté (${selectedIngredient?.unit ?? ''})` : 'Qté'} 
+                placeholder="Qté" 
                 className="w-24 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                 value={selectedIngQty}
                 onChange={e => setSelectedIngQty(e.target.value)}
@@ -180,7 +187,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 step="0.01"
               />
               <span className="text-xs px-2 py-1 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-200 min-w-14 text-center">
-                {selectedIngredient?.unit ?? '-'}
+                {selectedIngredient ? getRecipeUnitLabel(selectedIngredient.unit) : '-'}
               </span>
               <Button size="sm" onClick={handleAddIngToRecipe}>+</Button>
             </div>
@@ -190,7 +197,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               {currentRecipeIngs.map((ri, idx) => {
                 const ing = ingredients.find(i => i.id === ri.ingredientId);
                 if(!ing) return null;
-                const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pièce';
+                const displayUnit = getRecipeUnitLabel(ing.unit);
                 return (
                   <div key={idx} className="flex justify-between items-center gap-2 text-sm text-stone-600 dark:text-stone-300 bg-white dark:bg-stone-800 px-2 py-1 rounded border border-stone-100 dark:border-stone-700">
                     <span className="flex-1">{ing.name}</span>
@@ -291,7 +298,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                           {recipe.ingredients.map(ri => {
                             const ing = ingredients.find(i => i.id === ri.ingredientId);
                             if (!ing) return null;
-                            const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pièce';
+                            const displayUnit = getRecipeUnitLabel(ing.unit);
                             const scaledQty = ri.quantity * scaleRatio;
                             
                             return (

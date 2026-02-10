@@ -346,7 +346,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <DataManagerModal
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}
@@ -354,11 +354,11 @@ const App = () => {
         setData={setData}
       />
 
-      <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 sticky top-0 z-20 shadow-sm no-print transition-colors duration-300">
+      <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 shrink-0 sticky top-0 z-30 shadow-sm no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-2 min-h-16">
             <div className="flex items-center gap-3 min-w-0">
-              <BrandLogo className="h-12 w-20 sm:h-14 sm:w-24" />
+              <BrandLogo className="h-12 w-16 sm:h-14 sm:w-20" />
               <div>
                 <h1 className="text-base sm:text-xl font-bold text-rose-950 dark:text-rose-100 font-serif tracking-tight leading-tight">Les douceurs de Miléna</h1>
                 <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400">Gestion Artisanale</p>
@@ -418,14 +418,14 @@ const App = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 text-stone-900 dark:text-stone-100">
+      <main className="flex-1 overflow-y-auto max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 text-stone-900 dark:text-stone-100">
         {renderContent()}
       </main>
 
-      <footer className="bg-white dark:bg-stone-900 border-t border-rose-100 dark:border-stone-800 py-6 mt-auto no-print transition-colors duration-300">
+      <footer className="bg-white dark:bg-stone-900 border-t border-rose-100 dark:border-stone-800 py-4 sm:py-6 shrink-0 no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 text-center text-stone-400 dark:text-stone-600 text-sm">
           <div className="flex items-center justify-center gap-2">
-            <BrandLogo className="h-8 w-12" rounded={false} />
+            <BrandLogo className="h-7 w-10 sm:h-8 sm:w-12" rounded={false} />
             <p className="font-serif">Les douceurs de Miléna © {new Date().getFullYear()}</p>
           </div>
         </div>

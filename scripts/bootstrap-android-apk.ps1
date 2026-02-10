@@ -107,7 +107,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "3) Building web app + syncing native project"
+Write-Host "3) Applying app logo to Android launcher icons"
+Invoke-NpmStep "npm run mobile:icons:android"
+
+Write-Host "4) Building web app + syncing native project"
 Invoke-NpmStep "npm run mobile:sync"
 
 if (-not (Test-AndroidProjectValid)) {
@@ -115,11 +118,11 @@ if (-not (Test-AndroidProjectValid)) {
 }
 
 Write-Host ""
-Write-Host "4) Configuring Android SDK path"
+Write-Host "5) Configuring Android SDK path"
 Ensure-AndroidLocalProperties
 
 Write-Host ""
-Write-Host "5) Building debug APK"
+Write-Host "6) Building debug APK"
 Invoke-NpmStep "npm run mobile:apk:debug:win"
 
 Write-Host ""

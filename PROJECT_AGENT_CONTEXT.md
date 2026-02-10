@@ -168,3 +168,31 @@ Validation in current CI/container environment:
 - `npm install` (shows expected engine warning because container Node is 20, not 22+).
 - `npm run typecheck`, `npm run test`, `npm run build`, `npm audit --audit-level=high` all pass.
 - `npm run mobile:add:android` fails here with expected Node version gate (`NodeJS >=22.0.0`) due container limitation, consistent with new baseline and user's local Node 24 readiness.
+
+
+## 12) Latest Turn Update (mobile UI/unit/icon issues from screenshots)
+
+User reports from screenshots:
+- Recipe ingredient row showed redundant unit hint (placeholder and unit badge duplicated).
+- Unit mismatch confusion (`kg` shown at entry, then `g` shown after add).
+- Mobile screen-fit still felt like overflow; requested locked top/bottom delimiters while content scrolls.
+- Android app icon looked wrong/default.
+
+Actions implemented:
+- Recipe creation unit UX:
+  - removed redundant unit in quantity placeholder (`Qté` only),
+  - normalized recipe unit display to base recipe units (`g`, `ml`, `pièce`) everywhere in that flow (selector label, quantity badge, added-ingredient list, scaler panel), keeping units consistent before/after add.
+- Mobile shell fit/structure:
+  - switched app shell to viewport-locked container (`100dvh`) with internal main scroll (`overflow-y-auto`) so header/footer remain fixed delimiters while page content scrolls.
+- Branding/logo:
+  - removed fallback to `favicon.svg` in in-app `BrandLogo` to avoid wrong emblem appearing in UI fallback chain.
+  - added Android launcher icon generation script (`npm run mobile:icons:android`) using the same logo candidate chain (`logo-user.*` first), and wired it into Windows first-time/next-iteration helper flows and bootstrap scripts so APK icons are rebuilt from logo automatically.
+- Docs sync:
+  - updated README notes to mention launcher icon generation in default helper flow and command list.
+
+Validation:
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `npm run mobile:icons:android` (no-op warning when android resources folder missing, as designed)
+- Playwright mobile screenshot captured for recipe form updates.
