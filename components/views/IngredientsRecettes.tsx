@@ -4,6 +4,7 @@ import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { calculateRecipeMaterialCost } from '../../utils';
 import { isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input } from '../ui/Common';
+import { usePersistentState } from '../../usePersistentState';
 
 interface Props {
   ingredients: Ingredient[];
@@ -16,14 +17,16 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   const [scalerTargets, setScalerTargets] = useState<Record<string, string>>({});
 
   // --- Recipe State ---
-  const [newRecipe, setNewRecipe] = useState<Partial<Recipe>>({ name: '', batchYield: 1, lossPercentage: 0 });
-  const [currentRecipeIngs, setCurrentRecipeIngs] = useState<RecipeIngredient[]>([]);
-  const [selectedIngId, setSelectedIngId] = useState<string>('');
-  const [selectedIngQty, setSelectedIngQty] = useState<string>('');
+  const [newRecipe, setNewRecipe, resetNewRecipe] = usePersistentState<Partial<Recipe>>('draft:recipe:newRecipe', { name: '', batchYield: 1, lossPercentage: 0 });
+  const [currentRecipeIngs, setCurrentRecipeIngs, resetCurrentRecipeIngs] = usePersistentState<RecipeIngredient[]>('draft:recipe:ingredients', []);
+  const [selectedIngId, setSelectedIngId, resetSelectedIngId] = usePersistentState<string>('draft:recipe:selectedIngId', '');
+  const [selectedIngQty, setSelectedIngQty, resetSelectedIngQty] = usePersistentState<string>('draft:recipe:selectedIngQty', '');
+  const [editingRecipeId, setEditingRecipeId, resetEditingRecipeId] = usePersistentState<string | null>('draft:recipe:editingId', null);
 
   const isBatchYieldValid = isPositiveNumber(newRecipe.batchYield);
   const isLossPercentageValid = isPercentage(newRecipe.lossPercentage);
   const isRecipeFormValid = Boolean(newRecipe.name && currentRecipeIngs.length > 0 && isBatchYieldValid && isLossPercentageValid);
+  const selectedIngredient = ingredients.find(i => i.id === selectedIngId);
 
   const handleAddIngToRecipe = () => {
     const qty = parseOptionalNumber(selectedIngQty);
@@ -41,21 +44,59 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
     setSelectedIngQty('');
   };
 
+  const resetRecipeDraft = () => {
+    resetNewRecipe();
+    resetCurrentRecipeIngs();
+    resetSelectedIngId();
+    resetSelectedIngQty();
+    resetEditingRecipeId();
+  };
+
+  const confirmCancelRecipeDraft = () => {
+    if (!newRecipe.name && currentRecipeIngs.length === 0 && !selectedIngId && !selectedIngQty) return;
+    if (window.confirm('Annuler la création/modification de recette ? Les saisies en cours seront perdues.')) {
+      resetRecipeDraft();
+    }
+  };
+
   const handleSaveRecipe = () => {
     if (!isRecipeFormValid) return;
-    setRecipes([...recipes, {
-      id: Date.now().toString(),
+    const recipeToSave: Recipe = {
+      id: editingRecipeId ?? Date.now().toString(),
       name: newRecipe.name!,
       ingredients: currentRecipeIngs,
       batchYield: Number(newRecipe.batchYield ?? 1),
       lossPercentage: Number(newRecipe.lossPercentage ?? 0)
-    }]);
-    setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
-    setCurrentRecipeIngs([]);
+    };
+
+    if (editingRecipeId) {
+      setRecipes(recipes.map(r => r.id === editingRecipeId ? recipeToSave : r));
+    } else {
+      setRecipes([...recipes, recipeToSave]);
+    }
+    resetRecipeDraft();
   };
 
   const handleDeleteRecipe = (id: string) => {
     setRecipes(recipes.filter(r => r.id !== id));
+  };
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditingRecipeId(recipe.id);
+    setNewRecipe({ name: recipe.name, batchYield: recipe.batchYield, lossPercentage: recipe.lossPercentage });
+    setCurrentRecipeIngs(recipe.ingredients);
+    setSelectedIngId('');
+    setSelectedIngQty('');
+  };
+
+  const handleRemoveRecipeIngredient = (ingredientId: string) => {
+    setCurrentRecipeIngs(currentRecipeIngs.filter(i => i.ingredientId !== ingredientId));
+  };
+
+  const handleUpdateRecipeIngredientQuantity = (ingredientId: string, value: string) => {
+    const qty = parseOptionalNumber(value);
+    if (!isPositiveNumber(qty)) return;
+    setCurrentRecipeIngs(currentRecipeIngs.map(i => i.ingredientId === ingredientId ? { ...i, quantity: qty } : i));
   };
 
   const toggleScaler = (recipeId: string) => {
@@ -126,27 +167,44 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                 onChange={e => setSelectedIngId(e.target.value)}
               >
                 <option value="">Choisir ingrédient...</option>
-                {ingredients.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                {ingredients.map(i => <option key={i.id} value={i.id}>{`${i.name} (${i.unit})`}</option>)}
               </select>
               <input 
                 type="number" 
-                placeholder="Qté" 
-                className="w-20 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
+                placeholder={selectedIngId ? `Qté (${selectedIngredient?.unit ?? ''})` : 'Qté'} 
+                className="w-24 text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 rounded-md focus:ring-2 focus:ring-rose-200 focus:outline-none"
                 value={selectedIngQty}
                 onChange={e => setSelectedIngQty(e.target.value)}
+                lang="en"
+                inputMode="decimal"
+                step="0.01"
               />
+              <span className="text-xs px-2 py-1 rounded bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-200 min-w-14 text-center">
+                {selectedIngredient?.unit ?? '-'}
+              </span>
               <Button size="sm" onClick={handleAddIngToRecipe}>+</Button>
             </div>
+            <p className="text-[11px] text-stone-500 dark:text-stone-400">Utilisez le point pour les décimales (ex: 3.5).</p>
             {/* List of added ingredients */}
             <div className="space-y-1 max-h-40 overflow-y-auto">
               {currentRecipeIngs.map((ri, idx) => {
                 const ing = ingredients.find(i => i.id === ri.ingredientId);
                 if(!ing) return null;
-                const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pcs';
+                const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pièce';
                 return (
-                  <div key={idx} className="flex justify-between text-sm text-stone-600 dark:text-stone-300 bg-white dark:bg-stone-800 px-2 py-1 rounded border border-stone-100 dark:border-stone-700">
-                    <span>{ing.name}</span>
-                    <span>{ri.quantity} {displayUnit}</span>
+                  <div key={idx} className="flex justify-between items-center gap-2 text-sm text-stone-600 dark:text-stone-300 bg-white dark:bg-stone-800 px-2 py-1 rounded border border-stone-100 dark:border-stone-700">
+                    <span className="flex-1">{ing.name}</span>
+                    <input
+                      type="number"
+                      lang="en"
+                      inputMode="decimal"
+                      step="0.01"
+                      className="w-20 px-1 py-0.5 border rounded border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-900 dark:text-stone-100"
+                      value={ri.quantity}
+                      onChange={e => handleUpdateRecipeIngredientQuantity(ri.ingredientId, e.target.value)}
+                    />
+                    <span>{displayUnit}</span>
+                    <button className="text-red-500 hover:text-red-700" onClick={() => handleRemoveRecipeIngredient(ri.ingredientId)}>×</button>
                   </div>
                 );
               })}
@@ -165,9 +223,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
             </div>
           </div>
 
-          <Button className="w-full" onClick={handleSaveRecipe} disabled={!isRecipeFormValid}>
-            Enregistrer la recette
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="w-1/3" onClick={confirmCancelRecipeDraft}>Annuler</Button>
+            <Button className="flex-1" onClick={handleSaveRecipe} disabled={!isRecipeFormValid}>
+              {editingRecipeId ? 'Mettre à jour la recette' : 'Enregistrer la recette'}
+            </Button>
+          </div>
         </Card>
       </div>
 
@@ -196,6 +257,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                       >
                         ⚖️
                       </button>
+                      <button onClick={() => handleEditRecipe(recipe)} className="text-xs text-indigo-500 hover:text-indigo-700">✏️</button>
                       <button onClick={() => handleDeleteRecipe(recipe.id)} className="text-xs text-red-400 hover:text-red-600">X</button>
                     </div>
                   </div>
@@ -229,7 +291,7 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
                           {recipe.ingredients.map(ri => {
                             const ing = ingredients.find(i => i.id === ri.ingredientId);
                             if (!ing) return null;
-                            const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pcs';
+                            const displayUnit = (ing.unit === Unit.KG || ing.unit === Unit.G) ? 'g' : (ing.unit === Unit.L || ing.unit === Unit.ML) ? 'ml' : 'pièce';
                             const scaledQty = ri.quantity * scaleRatio;
                             
                             return (

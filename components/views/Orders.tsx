@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Order, Product, ProductionBatch } from '../../types';
 import { Card, Button, Input, InfoTooltip } from '../ui/Common';
+import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber } from '../../validation';
 
 interface Props {
@@ -13,9 +14,10 @@ interface Props {
 }
 
 export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
-  const [newOrder, setNewOrder] = useState<Partial<Order>>({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
-  const [currentItem, setCurrentItem] = useState<{ productId: string, quantity?: number }>({ productId: '', quantity: 1 });
+  const [newOrder, setNewOrder, resetNewOrder] = usePersistentState<Partial<Order>>('draft:order:newOrder', { customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
+  const [currentItem, setCurrentItem, resetCurrentItem] = usePersistentState<{ productId: string, quantity?: number }>('draft:order:currentItem', { productId: '', quantity: 1 });
   const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
+  const [orderPendingProductionConfirm, setOrderPendingProductionConfirm] = useState<Order | null>(null);
 
   const addItemToOrder = () => {
     if (!currentItem.productId || !isCurrentItemQuantityValid) return;
@@ -44,7 +46,8 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
       notes: newOrder.notes
     }]);
     
-    setNewOrder({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending', notes: '' });
+    resetNewOrder();
+    resetCurrentItem();
   };
 
   const deleteOrder = (id: string) => {
@@ -64,24 +67,43 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
 
   const toggleStatus = (order: Order) => {
     const nextStatus = order.status === 'pending' ? 'completed' : 'pending';
-    
-    // Logic: If marking as completed, ask to add to production
+
     if (nextStatus === 'completed') {
-       const confirmProd = window.confirm("Commande livrée ! \n\nAvez-vous déjà enregistré la production ? \nSi NON, cliquez sur OK pour le faire maintenant.\nSi OUI, cliquez sur Annuler pour juste marquer la commande comme livrée.");
-       
-       if (confirmProd) {
-           const newBatches: ProductionBatch[] = order.items.map(item => ({
-               id: Date.now().toString() + Math.random().toString(),
-               date: order.date,
-               productId: item.productId,
-               quantity: item.quantity
-           }));
-           setProductionBatches(prev => [...prev, ...newBatches]);
-           alert("Production enregistrée avec succès.");
-       }
+      setOrderPendingProductionConfirm(order);
+      return;
     }
 
     setOrders(orders.map(o => o.id === order.id ? { ...o, status: nextStatus } : o));
+  };
+
+  const markCompleted = (order: Order, createProduction: boolean) => {
+    if (createProduction) {
+      const newBatches: ProductionBatch[] = order.items.map(item => ({
+        id: Date.now().toString() + Math.random().toString(),
+        date: order.date,
+        productId: item.productId,
+        quantity: item.quantity
+      }));
+      setProductionBatches(prev => [...prev, ...newBatches]);
+      alert('Production enregistrée avec succès.');
+    }
+
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'completed' } : o));
+    setOrderPendingProductionConfirm(null);
+  };
+
+
+  const confirmCancelOrderDraft = () => {
+    const hasDraft = Boolean(newOrder.customerName || (newOrder.items && newOrder.items.length) || newOrder.notes);
+    if (!hasDraft) return;
+    if (window.confirm('Annuler la création de commande ? Les saisies en cours seront perdues.')) {
+      resetNewOrder();
+      resetCurrentItem();
+    }
+  };
+
+  const handleDeleteOrderItem = (productId: string) => {
+    setNewOrder({ ...newOrder, items: (newOrder.items || []).filter(i => i.productId !== productId) });
   };
 
   // Warning System: Check if Total Delivered > Total Produced
@@ -111,6 +133,26 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
   };
 
   return (
+    <>
+      {orderPendingProductionConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md border-rose-200 dark:border-stone-700">
+            <h4 className="text-lg font-bold mb-2">Commande livrée ✅</h4>
+            <p className="text-sm text-stone-600 dark:text-stone-300 mb-4">
+              Avez-vous déjà enregistré la production ?
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button variant="secondary" onClick={() => markCompleted(orderPendingProductionConfirm, false)}>
+                Non
+              </Button>
+              <Button onClick={() => markCompleted(orderPendingProductionConfirm, true)}>
+                Oui
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* Order Form */}
       <div className="lg:col-span-5 space-y-6">
@@ -157,7 +199,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                   return (
                     <div key={idx} className="flex justify-between text-sm bg-white dark:bg-stone-800 p-2 rounded border border-stone-100 dark:border-stone-700">
                       <span className="dark:text-stone-300">{p?.name}</span>
-                      <span className="font-bold dark:text-stone-200">x {item.quantity}</span>
+                      <div className="flex items-center gap-2"><span className="font-bold dark:text-stone-200">x {item.quantity}</span><button className="text-red-500" onClick={() => handleDeleteOrderItem(item.productId)}>×</button></div>
                     </div>
                   );
                 })}
@@ -171,9 +213,12 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
               onChange={e => setNewOrder({...newOrder, notes: e.target.value})} 
             />
 
-            <Button className="w-full mt-2" onClick={saveOrder} disabled={!newOrder.items?.length || !newOrder.customerName}>
-              Enregistrer la commande
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" className="w-1/3 mt-2" onClick={confirmCancelOrderDraft}>Annuler</Button>
+              <Button className="flex-1 mt-2" onClick={saveOrder} disabled={!newOrder.items?.length || !newOrder.customerName}>
+                Enregistrer la commande
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
@@ -238,5 +283,6 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
         </div>
       </div>
     </div>
+    </>
   );
 };

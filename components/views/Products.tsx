@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Product, Recipe, GlobalSettings } from '../../types';
 import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
+import { usePersistentState } from '../../usePersistentState';
 
 interface Props {
   products: Product[];
@@ -24,7 +25,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   const isTvaEnabled = settings?.isTvaSubject || false;
   const defaultTva = settings?.defaultTvaRate || 5.5;
 
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+  const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', {
     laborTimeMinutes: 15,
     packagingCost: 0.10,
     variableDeliveryCost: 0,
@@ -37,8 +38,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     tvaRate: defaultTva
   });
 
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [isCustomCategory, setIsCustomCategory, resetIsCustomCategory] = usePersistentState<boolean>('draft:product:isCustomCategory', false);
+  const [editingProductId, setEditingProductId, resetEditingProductId] = usePersistentState<string | null>('draft:product:editingId', null);
 
   const lossRate = newProduct.lossRate;
   const isLossRateValid = isPercentage(lossRate);
@@ -151,6 +152,17 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     ));
 
     handleCancelEdit();
+  };
+
+
+  const confirmCancelProductDraft = () => {
+    const hasDraft = Boolean(newProduct.name || newProduct.recipeId || (newProduct.category && newProduct.category !== 'Gâteau'));
+    if (!hasDraft && !editingProductId) return;
+    if (window.confirm('Annuler la création/modification du produit ? Les saisies en cours seront perdues.')) {
+      resetEditingProductId();
+      resetIsCustomCategory();
+      resetNewProduct();
+    }
   };
 
   const categoryOptions = [
@@ -337,13 +349,16 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 </Button>
               </div>
             ) : (
-              <Button 
-                className="w-full mt-4 py-3 shadow-md" 
-                onClick={handleAddProduct} 
-                disabled={!isProductFormValid}
-              >
-                Ajouter au Catalogue
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={confirmCancelProductDraft}>Annuler</Button>
+                <Button
+                  className="w-full mt-4 py-3 shadow-md"
+                  onClick={handleAddProduct}
+                  disabled={!isProductFormValid}
+                >
+                  Ajouter au Catalogue
+                </Button>
+              </div>
             )}
           </div>
         </Card>

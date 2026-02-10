@@ -30,26 +30,30 @@
     "mobile:bootstrap:android:win": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-android-apk.ps1",
     "mobile:apk:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
     "mobile:apk:script:debug:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode debug",
-    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release"
+    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release",
+    "mobile:assets": "capacitor-assets generate --assetPath public/logo-milena.svg",
+    "mobile:assets:android": "capacitor-assets generate --android --assetPath public/logo-milena.svg"
   },
   "dependencies": {
-    "zod": "^3.24.3",
-    "react-dom": "^19.2.4",
+    "@capacitor/core": "^8.0.2",
+    "pdf-lib": "^1.17.1",
     "react": "^19.2.4",
-    "@capacitor/core": "^8.0.2"
+    "react-dom": "^19.2.4",
+    "zod": "^3.24.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/ios": "^8.0.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "happy-dom": "^20.5.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.0.18",
-    "@capacitor/android": "^8.0.2",
-    "@capacitor/cli": "^8.0.2",
-    "@capacitor/ios": "^8.0.2",
-    "happy-dom": "^20.5.1"
+    "vitest": "^4.0.18"
   }
 }

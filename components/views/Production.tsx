@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ProductionBatch, Product, Order, Recipe, Ingredient, Unit } from '../../types';
 import { Card, Button, Input } from '../ui/Common';
+import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber } from '../../validation';
 
 interface Props {
@@ -15,11 +16,11 @@ interface Props {
 const getDisplayUnit = (unit: Unit) => {
   if (unit === Unit.KG || unit === Unit.G) return 'g';
   if (unit === Unit.L || unit === Unit.ML) return 'ml';
-  return 'pcs';
+  return 'pièce';
 };
 
 export const Production: React.FC<Props> = ({ productionBatches, setProductionBatches, products, recipes, ingredients, orders = [] }) => {
-  const [newBatch, setNewBatch] = useState<Partial<ProductionBatch>>({
+  const [newBatch, setNewBatch, resetNewBatch] = usePersistentState<Partial<ProductionBatch>>('draft:production:newBatch', {
     date: new Date().toISOString().split('T')[0],
     quantity: 0
   });
@@ -55,7 +56,16 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
       },
       ...productionBatches
     ]);
-    setNewBatch({ ...newBatch, quantity: 0 });
+resetNewBatch();
+  };
+
+
+  const confirmCancelBatchDraft = () => {
+    const hasDraft = Boolean(newBatch.productId || newBatch.quantity);
+    if (!hasDraft) return;
+    if (window.confirm('Annuler la saisie de production en cours ?')) {
+      resetNewBatch();
+    }
   };
 
   const handleDeleteBatch = (id: string) => {
@@ -149,9 +159,12 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
                 error={isBatchQuantityValid ? undefined : '> 0'}
               />
 
-              <Button onClick={handleAddBatch} disabled={!newBatch.productId || !isBatchQuantityValid} className="w-full shadow-md">
-                Valider la Production
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" className="w-1/3" onClick={confirmCancelBatchDraft}>Annuler</Button>
+                <Button onClick={handleAddBatch} disabled={!newBatch.productId || !isBatchQuantityValid} className="flex-1 shadow-md">
+                  Valider la Production
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

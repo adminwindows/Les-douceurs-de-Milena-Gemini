@@ -10,6 +10,7 @@ import { ShoppingList } from './components/views/ShoppingList';
 import { StockManagement } from './components/views/StockManagement';
 import { Production } from './components/views/Production';
 import { Button } from './components/ui/Common';
+import { BrandLogo } from './components/ui/BrandLogo';
 import {
   INITIAL_SETTINGS
 } from './utils';
@@ -345,7 +346,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-[#FDF8F6] dark:bg-stone-950 transition-colors duration-300" style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}>
       <DataManagerModal
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}
@@ -355,16 +356,16 @@ const App = () => {
 
       <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 sticky top-0 z-20 shadow-sm no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">🧁</span>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 py-2 min-h-16">
+            <div className="flex items-center gap-3 min-w-0">
+              <BrandLogo className="h-12 w-20 sm:h-14 sm:w-24" />
               <div>
-                <h1 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif tracking-tight">Les douceurs de Miléna</h1>
-                <p className="text-xs text-stone-500 dark:text-stone-400">Gestion Artisanale</p>
+                <h1 className="text-base sm:text-xl font-bold text-rose-950 dark:text-rose-100 font-serif tracking-tight leading-tight">Les douceurs de Miléna</h1>
+                <p className="text-[11px] sm:text-xs text-stone-500 dark:text-stone-400">Gestion Artisanale</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-end">
               {activeDemoDatasetId && (
                 <span className="hidden sm:inline text-xs font-bold px-2 py-1 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">
                   Mode démo actif
@@ -380,7 +381,7 @@ const App = () => {
 
               <button
                 onClick={() => setIsDataModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-xs font-bold transition-colors"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-[11px] sm:text-xs font-bold transition-colors"
               >
                 💾 Sauvegardes / Données
               </button>
@@ -404,7 +405,7 @@ const App = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`
-                   whitespace-nowrap pb-3 px-3 border-b-2 font-medium text-sm transition-colors
+                   whitespace-nowrap pb-3 px-2.5 sm:px-3 border-b-2 font-medium text-xs sm:text-sm transition-colors
                    ${activeTab === tab.id
                     ? 'border-[#D45D79] text-[#D45D79] font-bold'
                     : 'border-transparent text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:border-stone-300 dark:hover:border-stone-600'}
@@ -423,7 +424,10 @@ const App = () => {
 
       <footer className="bg-white dark:bg-stone-900 border-t border-rose-100 dark:border-stone-800 py-6 mt-auto no-print transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 text-center text-stone-400 dark:text-stone-600 text-sm">
-          <p className="font-serif">Les douceurs de Miléna © {new Date().getFullYear()}</p>
+          <div className="flex items-center justify-center gap-2">
+            <BrandLogo className="h-8 w-12" rounded={false} />
+            <p className="font-serif">Les douceurs de Miléna © {new Date().getFullYear()}</p>
+          </div>
         </div>
       </footer>
     </div>

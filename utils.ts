@@ -10,7 +10,7 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
 };
 
 export const formatCurrency = (amount: number, currency = '€') => {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
 // Core Calculation Logic

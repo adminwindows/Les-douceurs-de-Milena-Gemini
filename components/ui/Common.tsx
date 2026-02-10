@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from 'react';
 
 // --- Card ---
@@ -48,30 +47,35 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   suffix?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, className = '', ...props }) => (
-  <div className={`flex flex-col gap-1.5 ${className}`}>
-    <label className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center justify-between">
-      {label}
-      {error && <span className="text-xs text-red-500 dark:text-red-400">{error}</span>}
-    </label>
-    <div className="relative flex items-center">
-      <input
-        className={`w-full px-3 py-2.5 rounded-lg border text-sm text-stone-900 dark:text-stone-100 transition-shadow focus:outline-none focus:ring-2 bg-white dark:bg-stone-900 ${
-          error 
-            ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-200 dark:focus:ring-red-900' 
-            : 'border-stone-300 dark:border-stone-600 focus:border-[#D45D79] focus:ring-rose-100 dark:focus:ring-rose-900 shadow-sm'
-        } ${suffix ? 'pr-12' : ''} placeholder:text-stone-400 dark:placeholder:text-stone-600`}
-        {...props}
-      />
-      {suffix && (
-        <span className="absolute right-3 text-xs font-semibold text-stone-500 dark:text-stone-400 pointer-events-none bg-stone-100 dark:bg-stone-800 px-1.5 py-0.5 rounded border border-stone-200 dark:border-stone-700">
-          {suffix}
-        </span>
-      )}
+export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, className = '', ...props }) => {
+  const numericProps = props.type === 'number' ? { lang: 'en', inputMode: 'decimal' as const } : {};
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${className}`}>
+      <label className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center justify-between">
+        {label}
+        {error && <span className="text-xs text-red-500 dark:text-red-400">{error}</span>}
+      </label>
+      <div className="relative flex items-center">
+        <input
+          className={`w-full px-3 py-2.5 rounded-lg border text-sm text-stone-900 dark:text-stone-100 transition-shadow focus:outline-none focus:ring-2 bg-white dark:bg-stone-900 ${
+            error 
+              ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-200 dark:focus:ring-red-900' 
+              : 'border-stone-300 dark:border-stone-600 focus:border-[#D45D79] focus:ring-rose-100 dark:focus:ring-rose-900 shadow-sm'
+          } ${suffix ? 'pr-12' : ''} placeholder:text-stone-400 dark:placeholder:text-stone-600`}
+          {...numericProps}
+          {...props}
+        />
+        {suffix && (
+          <span className="absolute right-3 text-xs font-semibold text-stone-500 dark:text-stone-400 pointer-events-none bg-stone-100 dark:bg-stone-800 px-1.5 py-0.5 rounded border border-stone-200 dark:border-stone-700">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {helperText && <p className="text-xs text-stone-500 dark:text-stone-500 italic">{helperText}</p>}
     </div>
-    {helperText && <p className="text-xs text-stone-500 dark:text-stone-500 italic">{helperText}</p>}
-  </div>
-);
+  );
+};
 
 // --- Select Helper ---
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
