@@ -143,8 +143,9 @@ export const ShoppingList: React.FC<Props> = ({ orders, products, recipes, ingre
                     
                     // Display formatting
                     // If bulk (KG), display needed in g (row.neededRaw) but stock/buy in KG
+                    const baseUnit = stockUnit === Unit.L ? 'ml' : stockUnit === Unit.KG ? 'g' : stockUnit;
                     const displayNeeded = row.isBulkUnit 
-                        ? `${row.neededRaw.toFixed(0)} g/ml` 
+                        ? `${row.neededRaw.toFixed(0)} ${baseUnit}` 
                         : `${row.neededRaw.toFixed(1)} ${stockUnit}`;
                     
                     const displayStock = `${row.stock} ${stockUnit}`;

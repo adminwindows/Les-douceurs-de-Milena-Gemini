@@ -4,6 +4,7 @@ import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product } from '..
 import { convertToCostPerBaseUnit, formatCurrency } from '../../utils';
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
+import { usePersistentState } from '../../usePersistentState';
 
 interface Props {
   ingredients: Ingredient[];
@@ -18,10 +19,10 @@ interface Props {
 export const StockManagement: React.FC<Props> = ({ 
   ingredients, setIngredients, purchases, setPurchases, productionBatches, recipes, products 
 }) => {
-  const [activeTab, setActiveTab] = useState<'purchases' | 'analysis' | 'definitions'>('purchases');
+  const [activeTab, setActiveTab] = usePersistentState<'purchases' | 'analysis' | 'definitions'>('draft:stock:activeTab', 'purchases');
 
   // --- Purchase Logic ---
-  const [newPurchase, setNewPurchase] = useState<Partial<Purchase>>({ 
+  const [newPurchase, setNewPurchase, resetNewPurchase] = usePersistentState<Partial<Purchase>>('draft:stock:newPurchase', { 
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
     price: 0
@@ -40,7 +41,7 @@ export const StockManagement: React.FC<Props> = ({
       quantity: Number(newPurchase.quantity),
       price: Number(newPurchase.price)
     }]);
-    setNewPurchase({ ...newPurchase, quantity: 0, price: 0 });
+    resetNewPurchase();
   };
 
   const handleDeletePurchase = (id: string) => {
@@ -48,8 +49,8 @@ export const StockManagement: React.FC<Props> = ({
   };
 
   // --- Ingredient Definition Logic ---
-  const [newIng, setNewIng] = useState<Partial<Ingredient>>({ unit: Unit.KG, price: 0 });
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newIng, setNewIng, resetNewIng] = usePersistentState<Partial<Ingredient>>('draft:stock:newIng', { unit: Unit.KG, price: 0 });
+  const [editingId, setEditingId, resetEditingId] = usePersistentState<string | null>('draft:stock:editingId', null);
   const isIngredientPriceValid = isNonNegativeNumber(newIng.price);
   const isIngredientFormValid = Boolean(newIng.name && isIngredientPriceValid);
   
@@ -76,7 +77,7 @@ export const StockManagement: React.FC<Props> = ({
             costPerBaseUnit
         }]);
     }
-    setNewIng({ unit: Unit.KG, price: 0, name: '' });
+    resetNewIng();
   };
 
   const startEditIngredient = (ing: Ingredient) => {
@@ -90,13 +91,31 @@ export const StockManagement: React.FC<Props> = ({
 
   const cancelEdit = () => {
       setEditingId(null);
-      setNewIng({ unit: Unit.KG, price: 0, name: '' });
+      resetNewIng();
   };
 
   const handleDeleteIngredient = (id: string) => {
     if(confirm("Supprimer cet ingrédient ? Cela affectera les recettes qui l'utilisent.")) {
         setIngredients(ingredients.filter(i => i.id !== id));
         if (editingId === id) cancelEdit();
+    }
+  };
+
+
+  const confirmCancelIngredientDraft = () => {
+    const hasDraft = Boolean(newIng.name || newIng.price);
+    if (!hasDraft && !editingId) return;
+    if (window.confirm('Annuler la création/modification ingrédient ? Les saisies en cours seront perdues.')) {
+      resetEditingId();
+      resetNewIng();
+    }
+  };
+
+  const confirmCancelPurchaseDraft = () => {
+    const hasDraft = Boolean(newPurchase.ingredientId || newPurchase.quantity || newPurchase.price);
+    if (!hasDraft) return;
+    if (window.confirm('Annuler la saisie achat en cours ?')) {
+      resetNewPurchase();
     }
   };
 
@@ -222,7 +241,7 @@ export const StockManagement: React.FC<Props> = ({
                  error={isIngredientPriceValid ? undefined : '≥ 0'}
                />
                <div className="flex gap-2">
-                 {editingId && <Button variant="secondary" onClick={cancelEdit} className="w-1/3">Annuler</Button>}
+                 <Button variant="secondary" onClick={confirmCancelIngredientDraft} className="w-1/3">Annuler</Button>
                  <Button onClick={handleAddOrUpdateIngredient} disabled={!isIngredientFormValid} className="flex-1">
                      {editingId ? 'Mettre à jour' : 'Créer Fiche'}
                  </Button>
@@ -301,9 +320,12 @@ export const StockManagement: React.FC<Props> = ({
                   error={isPurchasePriceValid ? undefined : '> 0'}
                 />
               </div>
-              <Button onClick={handleAddPurchase} disabled={!isPurchaseFormValid} className="w-full">
-                Ajouter au Journal
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={confirmCancelPurchaseDraft} className="w-1/3">Annuler</Button>
+                <Button onClick={handleAddPurchase} disabled={!isPurchaseFormValid} className="flex-1">
+                  Ajouter au Journal
+                </Button>
+              </div>
             </div>
           </Card>
           

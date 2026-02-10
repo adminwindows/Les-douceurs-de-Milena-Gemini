@@ -1,9 +1,73 @@
 
 import React, { useState, useEffect } from 'react';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
 import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
 import { isNonNegativeNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
+import { BrandLogo } from '../ui/BrandLogo';
+
+
+
+const exportMonthlyReportPdf = async (args: {
+  monthLabel: string;
+  isTva: boolean;
+  totalRevenueTTC: number;
+  totalRevenueHT: number;
+  totalTvaCollected: number;
+  finalFoodCost: number;
+  totalPackagingCost: number;
+  totalSocialCharges: number;
+  grossMargin: number;
+  totalActualFixedCosts: number;
+  netResult: number;
+}) => {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595.28, 841.89]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  let y = 790;
+  const left = 50;
+
+  const drawLine = (label: string, value: string, boldLine = false) => {
+    const lineFont = boldLine ? bold : font;
+    const lineSize = boldLine ? 12 : 11;
+    page.drawText(label, { x: left, y, size: lineSize, font: lineFont, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(value, { x: 380, y, size: lineSize, font: lineFont, color: rgb(0.1, 0.1, 0.1) });
+    y -= 24;
+  };
+
+  page.drawText('Les douceurs de Miléna', { x: left, y, size: 20, font: bold, color: rgb(0.83, 0.36, 0.47) });
+  y -= 34;
+  page.drawText(`Bilan Mensuel - ${args.monthLabel}`, { x: left, y, size: 14, font: bold, color: rgb(0.2, 0.2, 0.2) });
+  y -= 34;
+
+  drawLine(`Chiffre d'affaires ${args.isTva ? '(TTC)' : ''}`, formatCurrency(args.totalRevenueTTC));
+  if (args.isTva) {
+    drawLine('CA Hors Taxe', formatCurrency(args.totalRevenueHT));
+    drawLine('TVA Collectée', formatCurrency(args.totalTvaCollected));
+  }
+
+  y -= 8;
+  drawLine('Matières Premières', formatCurrency(args.finalFoodCost));
+  drawLine('Emballages', formatCurrency(args.totalPackagingCost));
+  drawLine('Cotisations Sociales', formatCurrency(args.totalSocialCharges));
+  y -= 8;
+  drawLine('Marge sur Coûts Variables', formatCurrency(args.grossMargin), true);
+  drawLine('Charges Fixes', formatCurrency(args.totalActualFixedCosts));
+  y -= 8;
+  drawLine('RÉSULTAT NET', formatCurrency(args.netResult), true);
+
+  const bytes = await pdf.save();
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bilan_milena_${args.monthLabel}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 interface Props {
   settings: GlobalSettings;
@@ -243,7 +307,10 @@ export const MonthlyReport: React.FC<Props> = ({
   const invalidLossProducts = products.filter(product => product.lossRate < 0 || product.lossRate >= 100);
 
   const saveReport = () => {
-    if (!canSaveReport) return;
+    if (!canSaveReport) {
+      alert('Impossible de sauvegarder : corrigez les valeurs négatives dans les champs du bilan.');
+      return;
+    }
     const report: MonthlyReportData = {
       id: selectedMonth,
       monthStr: selectedMonth,
@@ -260,15 +327,7 @@ export const MonthlyReport: React.FC<Props> = ({
     const others = savedReports.filter(r => r.monthStr !== selectedMonth);
     setSavedReports([...others, report]);
     
-    // Trigger download
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bilan_milena_${selectedMonth}.json`;
-    a.click();
-
-    alert('Bilan sauvegardé et téléchargé !');
+    alert('Bilan sauvegardé ! (visible dans Historique)');
   };
 
   if (viewHistory) {
@@ -466,7 +525,7 @@ export const MonthlyReport: React.FC<Props> = ({
           {!canSaveReport && (
             <p className="text-xs text-red-500">Corrigez les valeurs négatives avant de sauvegarder.</p>
           )}
-          <Button className="w-full shadow-lg" onClick={saveReport} disabled={!canSaveReport}>
+          <Button className="w-full shadow-lg" onClick={saveReport}>
             Sauvegarder ce Bilan
           </Button>
         </div>
@@ -485,12 +544,27 @@ export const MonthlyReport: React.FC<Props> = ({
         <Card className="h-full border-rose-100 dark:border-stone-700 shadow-xl bg-white dark:bg-stone-800 print:border-none print:shadow-none">
           <div className="flex justify-between items-start mb-6 border-b border-stone-100 dark:border-stone-700 pb-4">
             <div>
-              <h2 className="text-3xl font-bold text-rose-950 dark:text-rose-100 font-serif">Bilan Mensuel</h2>
+              <div className="flex items-center gap-3">
+                <BrandLogo className="h-10 w-10" />
+                <h2 className="text-2xl sm:text-3xl font-bold text-rose-950 dark:text-rose-100 font-serif">Bilan Mensuel</h2>
+              </div>
               <p className="text-stone-500 dark:text-stone-400">{new Date(selectedMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</p>
               {isTva && <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-300 font-bold uppercase tracking-wider">Mode Assujetti TVA</span>}
             </div>
-            <div className="text-right no-print">
-              <Button size="sm" variant="secondary" onClick={() => window.print()}>🖨️ Imprimer</Button>
+            <div className="text-right no-print flex flex-col sm:flex-row gap-2">
+              <Button size="sm" variant="secondary" onClick={() => void exportMonthlyReportPdf({
+                monthLabel: selectedMonth,
+                isTva,
+                totalRevenueTTC,
+                totalRevenueHT,
+                totalTvaCollected,
+                finalFoodCost,
+                totalPackagingCost,
+                totalSocialCharges,
+                grossMargin,
+                totalActualFixedCosts,
+                netResult
+              })}>📄 Exporter PDF</Button>
             </div>
           </div>
 

@@ -6,6 +6,18 @@
 
 This contains everything you need to run your app locally.
 
+### Custom bakery logo (your image)
+
+To use **your own logo image** in the app shell/report, place your file in `public/` with one of these names (priority order):
+
+1. `logo-user.png`
+2. `logo-user.jpg`
+3. `logo-user.jpeg`
+4. `logo-user.webp`
+5. `logo-user.avif`
+
+If none exists, the app automatically falls back to `logo-milena.svg`, then `favicon.svg`.
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
@@ -60,6 +72,19 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
    * If unsure, run from repo root: `dir /s /b android\app\build\outputs\apk\*.apk` (Windows)
    * The bootstrap/build scripts now print discovered APK paths (relative + absolute).
 
+
+### Windows quick commands (concise)
+
+Use root-level one-click files:
+
+- `windows-first-time-debug.cmd`
+- `windows-first-time-release.cmd`
+- `windows-next-debug.cmd`
+- `windows-next-release.cmd`
+- `windows-create-release-key.cmd`
+
+These scripts are designed for double-click usage and keep the window open with `pause`.
+
 ### iOS equivalent
 
 * You can generate the iOS native project with `npm run mobile:add:ios` and sync with `npm run mobile:sync`.
@@ -72,6 +97,26 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 * Release APK build:
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
+* Generate app icons/splash from the bakery logo (after `android/` exists):
+  * `npm run mobile:assets`
+  * `npm run mobile:assets:android` (Android only, recommended before each APK build)
+
+### Debug vs Release signing (quick explanation)
+
+* **Why debug APK is signed automatically:** Android uses a default debug keystore (auto-managed by Gradle) so debug builds can be installed easily.
+* **Why release APK can be unsigned:** release builds require an explicit signing config.
+* **No store credentials required for sharing APK:** you can use a **throwaway local keystore** (not Google Play credentials).
+
+Example (local keystore only, for direct sharing):
+
+1. Create a local key once:
+   * `keytool -genkeypair -v -keystore milena-share.keystore -alias milena-share -keyalg RSA -keysize 2048 -validity 3650`
+2. Configure your local Android signing (in your local `android/` project) with that keystore.
+3. Build release APK:
+   * Linux/macOS: `npm run mobile:apk:release`
+   * Windows: `npm run mobile:apk:release:win`
+
+This signs the APK for install/share without publishing on stores.
 
 ### One-command helper scripts
 
@@ -100,6 +145,11 @@ The scripts live in:
 * `scripts/build-android-apk.sh`
 * `scripts/bootstrap-android-apk.ps1`
 * `scripts/build-android-apk.ps1`
+* `windows-first-time-debug.cmd`
+* `windows-first-time-release.cmd`
+* `windows-next-debug.cmd`
+* `windows-next-release.cmd`
+* `windows-create-release-key.cmd`
 
 ## Data Persistence
 
@@ -117,6 +167,7 @@ The application currently includes:
 * **Catalog management**: ingredients, recipes, and sellable products with validation.
 * **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing, and alternate purchase-price analysis modes.
 * **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
-* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options.
+* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options, plus PDF export for mobile-friendly sharing.
 * **Data safety**: local autosave, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
+* **Branding & UX**: bakery logo integrated in app shell/report visuals, improved mobile header fit, and explicit Oui/Non confirmation modal when validating delivered orders.
 * **Quality tooling**: Vitest test suite, typecheck script, and CI workflow for automated checks.
