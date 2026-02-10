@@ -93,8 +93,8 @@ Expected behavior:
 
 ## 6) User’s Latest New Requests (Current Turn)
 
-1. User asks how to get their own logo to appear in the app now that fallback logic exists.
-2. Provide direct, practical steps (Windows-first) to place and verify the logo file.
+1. Add explicit `npm run build` step in Windows helper CMD flows before sync/APK steps.
+2. Keep README and script behavior synchronized around that requirement.
 
 ## 7) Update Protocol For Future Agents
 
@@ -115,6 +115,6 @@ After each request:
 
 ## 9) Latest Update (Current Turn)
 
-- Verified current logo resolution order in `BrandLogo` and README instructions for user-provided logo filenames.
-- Prepared a concise Windows-first explanation for placing logo file under `public/` and validating it in app shell.
-- No runtime code changes required for this request; context log updated only.
+- Added explicit `npm run build` stage to all root Windows helper CMD scripts (`first-time` and `next` debug/release) and renumbered step counters.
+- Updated README script note to state that Windows helpers now run `npm run build` explicitly before native sync.
+- Re-ran `npm run typecheck` and `npm run test` successfully after script/doc updates.
