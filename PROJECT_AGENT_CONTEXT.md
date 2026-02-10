@@ -91,3 +91,24 @@ After each user turn:
 - Mobile/Capacitor builds still depend on local Android SDK/JDK environment.
 - Browser screenshot tooling can fail intermittently in container environments.
 - Release signing requires local keystore + Gradle signing config but no Play Store credentials.
+
+
+## 8) Latest Turn Update (Capacitor add android failure report)
+
+User report:
+- Running first-time Windows script now reaches step 6, but `cap add android` fails with `TypeError: Cannot read properties of undefined (reading 'extract')` from `@capacitor/cli/dist/util/template.js`.
+
+Diagnosis:
+- Root cause was `package.json` override forcing `tar` to v7, while Capacitor CLI 7 expects the v6 API shape used by `tar.extract(...)` in CommonJS default import form.
+
+Actions taken:
+- Changed `package.json` override from `tar: ^7.5.7` to `tar: ^6.2.1` to restore Capacitor CLI compatibility.
+- Regenerated lockfile with `npm install`.
+- Validated fix by deleting local `android/` and re-running `npm run mobile:add:android`; command now succeeds and creates native Android project.
+- Updated README note to reflect the compatible override rationale.
+
+Validation commands run:
+- `npm run mobile:add:android` (before fix: extract error; after fix: success)
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
