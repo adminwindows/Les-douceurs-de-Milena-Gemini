@@ -42,8 +42,21 @@ const generate = async () => {
     const outDir = path.join(androidResPath, dir);
     fs.mkdirSync(outDir, { recursive: true });
 
-    const logoBuffer = await sharp(sourceLogo)
-      .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+    // Keep a safety margin so Android launcher masks (circle/squircle) don't clip logo edges.
+    const innerSize = Math.max(1, Math.round(size * 0.84));
+
+    const logoBuffer = await sharp({
+      create: { width: size, height: size, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } }
+    })
+      .composite([
+        {
+          input: await sharp(sourceLogo)
+            .resize(innerSize, innerSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+            .png()
+            .toBuffer(),
+          gravity: 'center'
+        }
+      ])
       .png()
       .toBuffer();
 
@@ -52,7 +65,7 @@ const generate = async () => {
     }
   }
 
-  console.log(`✅ Android launcher icons generated from ${path.relative(cwd, sourceLogo)}`);
+  console.log(`✅ Android launcher icons generated from ${path.relative(cwd, sourceLogo)} with safe padding for launcher masks`);
 };
 
 generate().catch((err) => {
