@@ -54,6 +54,7 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > If cleanup fails with "file is used by another process" (e.g. classes.dex), close Android Studio/emulator/Gradle daemons and rerun; first-time Windows scripts now try `gradlew --stop` and one retry before failing with a clear message.
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
+> If release install shows `Application non installée`, run `windows-sign-release-apk.cmd` (now uses `apksigner` + `zipalign` when available) and install `app-release-signed.apk`. If an older/debug app is already installed, uninstall it first because APKs signed with different keys cannot update each other.
 
 1. Install prerequisites locally:
    * Node.js 22+ (required by Capacitor CLI 8+)
