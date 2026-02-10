@@ -6,7 +6,27 @@ REM Run from repository root.
 echo [1/10] Removing previous install artifacts...
 if exist node_modules rmdir /s /q node_modules
 if exist dist rmdir /s /q dist
-if exist android rmdir /s /q android
+
+if exist android (
+  if exist android\gradlew.bat (
+    pushd android
+    call gradlew.bat --stop >nul 2>&1
+    popd
+  )
+  rmdir /s /q android
+  if exist android (
+    timeout /t 2 /nobreak >nul
+    rmdir /s /q android
+  )
+  if exist android (
+    echo.
+    echo ERROR: Could not remove android\ because some files are locked by another process.
+    echo Close Android Studio/Gradle/Java processes and run again.
+    pause
+    exit /b 1
+  )
+)
+
 if exist ios rmdir /s /q ios
 if exist package-lock.json del /f /q package-lock.json
 

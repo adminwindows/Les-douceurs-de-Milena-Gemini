@@ -300,3 +300,22 @@ Validation:
 
 User outcome expectation:
 - After release build, if unsigned APK is produced and keystore exists, script prompts for passwords and creates `android\app\build\outputs\apk\release\app-release-signed.apk`.
+
+
+## 18) Latest Turn Update (android folder locked during first-time cleanup)
+
+User report:
+- First-time script shows cleanup error deleting `android\...\classes.dex` because file is used by another process.
+
+Actions taken:
+- Hardened first-time Windows cleanup in both scripts:
+  - `windows-first-time-debug.cmd`
+  - `windows-first-time-release.cmd`
+- New cleanup behavior for `android/`:
+  - attempt `gradlew.bat --stop` when available,
+  - attempt delete, wait 2 seconds, retry delete once,
+  - if still locked, fail early with explicit message to close Android Studio/Gradle/Java processes.
+- Updated README troubleshooting note to explain this lock scenario and script behavior.
+
+Validation:
+- `npm run typecheck`
