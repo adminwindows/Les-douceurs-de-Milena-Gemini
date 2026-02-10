@@ -134,3 +134,16 @@ Validation:
 
 Tradeoff note:
 - This keeps Node 20 compatibility for Capacitor 7 while avoiding vulnerable tar versions.
+
+
+## 10) Latest Turn Update (question about workaround without patches)
+
+User question:
+- "There is no workaround without patches?"
+
+Clarification recorded:
+- For the current compatibility target (Node 20 + Capacitor 7), a local compatibility patch is currently the practical way to keep both `cap add android` working and `npm audit` clean with patched tar versions.
+- A no-patch path does exist, but it requires moving to Node 22+ with Capacitor 8 (upstream alignment), which changes the project baseline.
+
+Actions taken:
+- Added explicit README note describing the no-patch alternative (Node 22 + Capacitor 8) versus current Node 20 + Capacitor 7 compatibility choice.
