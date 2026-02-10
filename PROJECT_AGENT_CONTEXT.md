@@ -281,3 +281,22 @@ Actions taken:
 
 Validation:
 - `npm run typecheck`
+
+
+## 17) Latest Turn Update (unsigned release APK)
+
+User report:
+- Release build result is `app-release-unsigned.apk`.
+
+Actions taken:
+- Added new root helper `windows-sign-release-apk.cmd` to sign `app-release-unsigned.apk` using local keystore (`android\keystores\milena-share.keystore`) and `jarsigner`.
+- Updated release one-click flows to auto-run signing helper when unsigned release APK is detected:
+  - `windows-first-time-release.cmd`
+  - `windows-next-release.cmd`
+- Updated README command lists and notes to include the new signing helper and explain automatic signing call in release helpers.
+
+Validation:
+- `npm run typecheck`
+
+User outcome expectation:
+- After release build, if unsigned APK is produced and keystore exists, script prompts for passwords and creates `android\app\build\outputs\apk\release\app-release-signed.apk`.
