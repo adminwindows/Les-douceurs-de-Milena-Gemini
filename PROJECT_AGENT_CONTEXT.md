@@ -93,8 +93,8 @@ Expected behavior:
 
 ## 6) User’s Latest New Requests (Current Turn)
 
-1. Explain each line of `windows-first-time-debug.cmd`.
-2. Explain why each command/step is present (purpose and behavior).
+1. Fix persistent npm deprecation/audit noise still seen by user (`tar`, `@capacitor/assets`, old transitive chain).
+2. Ensure Windows helper scripts no longer reference removed asset-generation npm scripts and keep docs/scripts synchronized.
 
 ## 7) Update Protocol For Future Agents
 
@@ -115,5 +115,6 @@ After each request:
 
 ## 9) Latest Update (Current Turn)
 
-- Reviewed `windows-first-time-debug.cmd` line-by-line and prepared a detailed explanation for each command, including control-flow/error-handling behavior.
-- No product/runtime code changes were requested; only explanation and context-log update performed.
+- Cleaned root Windows build helpers by removing `mobile:assets:android` calls and fixing progress-step numbering to match actual step counts.
+- Updated README to remove `@capacitor/assets` from default helper command flow (keeps routine installs free from that deprecated transitive chain noise).
+- Preserved security hardening (`overrides.tar`) and validated current state with `npm audit --audit-level=high`, `npm run typecheck`, and `npm run test` (all passing).
