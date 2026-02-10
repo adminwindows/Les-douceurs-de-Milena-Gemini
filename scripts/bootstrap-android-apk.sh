@@ -94,7 +94,10 @@ if [[ $doctor_code -ne 0 ]]; then
 fi
 
 echo
-echo "3) Building web app + syncing native project"
+echo "3) Applying app logo to Android launcher icons"
+npm run mobile:icons:android
+
+echo "4) Building web app + syncing native project"
 npm run mobile:sync
 
 if ! is_android_valid; then
@@ -103,11 +106,11 @@ if ! is_android_valid; then
 fi
 
 echo
-echo "4) Configuring Android SDK path"
+echo "5) Configuring Android SDK path"
 ensure_android_local_properties
 
 echo
-echo "5) Building debug APK"
+echo "6) Building debug APK"
 npm run mobile:apk:debug
 
 echo

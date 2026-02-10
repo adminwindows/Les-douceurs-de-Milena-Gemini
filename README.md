@@ -85,7 +85,7 @@ Use root-level one-click files:
 - `windows-next-release.cmd`
 - `windows-create-release-key.cmd`
 
-These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, then native sync, and keep the window open with `pause`.
+These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`.
 
 ### iOS equivalent
 
@@ -99,7 +99,8 @@ These scripts are designed for double-click usage, run `npm run build` immediate
 * Release APK build:
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
-* App icon/splash generation via `@capacitor/assets` was removed from default flow to avoid deprecated/vulnerable transitive dependency noise during normal installs.
+* Generate Android launcher icons from your logo: `npm run mobile:icons:android`
+* App icon/splash generation via `@capacitor/assets` remains out of default flow to avoid deprecated/vulnerable transitive dependency noise during normal installs.
 
 ### Debug vs Release signing (quick explanation)
 

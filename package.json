@@ -30,7 +30,8 @@
     "mobile:bootstrap:android:win": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-android-apk.ps1",
     "mobile:apk:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
     "mobile:apk:script:debug:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode debug",
-    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release"
+    "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release",
+    "mobile:icons:android": "node ./scripts/apply-android-logo.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.0.2",
@@ -51,6 +52,7 @@
     "happy-dom": "^20.5.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "sharp": "^0.34.4"
   }
 }

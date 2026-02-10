@@ -11,8 +11,7 @@ const logoCandidates = [
   '/logo-user.jpeg',
   '/logo-user.webp',
   '/logo-user.avif',
-  '/logo-milena.svg',
-  '/favicon.svg'
+  '/logo-milena.svg'
 ];
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({ className = 'h-10 w-10', rounded = false }) => {
