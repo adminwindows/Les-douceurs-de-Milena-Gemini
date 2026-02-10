@@ -214,3 +214,27 @@ Validation:
 - `npm run typecheck`
 - `npm run test`
 - Tried Playwright screenshot capture for visual proof; browser container crashed with SIGSEGV in this run (not app logic failure).
+
+
+## 14) Latest Turn Update (dot-decimal everywhere + scroll behavior)
+
+User reports:
+- Some places still show/use comma decimal delimiter instead of dot.
+- Some middle sections stayed visually immobile while scrolling, causing overlap; user wants only header/footer fixed and all content between to scroll naturally.
+
+Actions implemented:
+- Decimal normalization and dot enforcement:
+  - updated `parseOptionalNumber` to normalize commas to dots before numeric parsing (`"," -> "."`).
+  - updated shared `Input` component numeric mode to use text-based decimal input with dot normalization on change, `inputMode=decimal`, and decimal pattern so comma input is converted to dot immediately.
+  - converted remaining raw numeric fields in recipe/monthly-report flows to dot-friendly text decimal inputs and replaced direct `parseFloat` usage with normalized parser (`parseOptionalNumber(...) ?? 0`).
+- Scroll/overlap behavior:
+  - downgraded side-form stickiness from always-on to large-screen-only (`lg:sticky lg:top-24`) in Recipes, Orders, Products, Production, ShoppingList, StockManagement to prevent sticky middle blocks on mobile scroll.
+  - removed sticky table header inside purchases history in StockManagement to avoid mid-screen overlay during scroll.
+  - ensured main content container keeps proper scroll area sizing with `min-h-0` in app shell.
+
+Validation:
+- `npm install`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- attempted Playwright screenshot capture; browser container crashed (SIGSEGV), so no fresh screenshot artifact from this turn.

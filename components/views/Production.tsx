@@ -126,7 +126,7 @@ resetNewBatch();
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4">
-          <Card className="sticky top-24 border-rose-200 dark:border-rose-800">
+          <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800">
             <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-4">Enregistrer une Production</h3>
             <p className="text-sm text-stone-500 mb-4">Notez ici ce que vous sortez du four. Cela déduira automatiquement les ingrédients du stock.</p>
 

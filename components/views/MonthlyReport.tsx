@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
 import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
-import { isNonNegativeNumber } from '../../validation';
+import { isNonNegativeNumber, parseOptionalNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 import { BrandLogo } from '../ui/BrandLogo';
 
@@ -395,27 +395,27 @@ export const MonthlyReport: React.FC<Props> = ({
                     <Input 
                       className="flex-1"
                       label="Vendus" 
-                      type="number" 
+                      type="text" 
                       value={s.quantitySold}
                       error={isNonNegativeNumber(s.quantitySold) ? undefined : '≥ 0'}
-                      onChange={e => handleSaleChange(s.productId, 'quantitySold', parseFloat(e.target.value))}
+                      onChange={e => handleSaleChange(s.productId, 'quantitySold', parseOptionalNumber(e.target.value) ?? 0)}
                     />
                     <Input 
                       className="w-20"
                       label="Invendus" 
-                      type="number" 
+                      type="text" 
                       value={s.quantityUnsold}
                       error={isNonNegativeNumber(s.quantityUnsold) ? undefined : '≥ 0'}
-                      onChange={e => handleSaleChange(s.productId, 'quantityUnsold', parseFloat(e.target.value))}
+                      onChange={e => handleSaleChange(s.productId, 'quantityUnsold', parseOptionalNumber(e.target.value) ?? 0)}
                     />
                     <Input 
                       className="w-24"
                       label={`Prix ${isTva ? 'TTC' : ''}`} 
-                      type="number" 
+                      type="text" 
                       suffix="€"
                       value={s.actualPrice}
                       error={isNonNegativeNumber(s.actualPrice) ? undefined : '≥ 0'}
-                      onChange={e => handleSaleChange(s.productId, 'actualPrice', parseFloat(e.target.value))}
+                      onChange={e => handleSaleChange(s.productId, 'actualPrice', parseOptionalNumber(e.target.value) ?? 0)}
                     />
                   </div>
                 </div>
@@ -447,26 +447,26 @@ export const MonthlyReport: React.FC<Props> = ({
                        <td className="p-2 truncate max-w-[80px] font-medium">{ing.name} <span className="text-stone-400 dark:text-stone-500">({ing.unit})</span></td>
                        <td className="p-2">
                          <input
-                           type="number"
+                           type="text"
                            className={`w-12 bg-transparent focus:outline-none ${isNonNegativeNumber(item.startStock) ? '' : 'border border-red-400 rounded'}`}
                            value={item.startStock}
-                           onChange={e => handleInventoryChange(item.ingredientId, 'startStock', parseFloat(e.target.value))}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'startStock', parseOptionalNumber(e.target.value) ?? 0)}
                          />
                        </td>
                        <td className="p-2">
                          <input
-                           type="number"
+                           type="text"
                            className={`w-12 bg-stone-50 dark:bg-stone-800 border rounded px-1 text-stone-800 dark:text-stone-200 ${isNonNegativeNumber(item.purchasedQuantity) ? 'border-stone-200 dark:border-stone-600' : 'border-red-400'}`}
                            value={item.purchasedQuantity}
-                           onChange={e => handleInventoryChange(item.ingredientId, 'purchasedQuantity', parseFloat(e.target.value))}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'purchasedQuantity', parseOptionalNumber(e.target.value) ?? 0)}
                          />
                        </td>
                        <td className="p-2">
                          <input
-                           type="number"
+                           type="text"
                            className={`w-12 bg-white dark:bg-stone-800 border rounded px-1 font-bold text-rose-700 dark:text-rose-400 ${isNonNegativeNumber(item.endStock) ? 'border-rose-200 dark:border-rose-900' : 'border-red-400'}`}
                            value={item.endStock}
-                           onChange={e => handleInventoryChange(item.ingredientId, 'endStock', parseFloat(e.target.value))}
+                           onChange={e => handleInventoryChange(item.ingredientId, 'endStock', parseOptionalNumber(e.target.value) ?? 0)}
                          />
                        </td>
                      </tr>
@@ -485,10 +485,10 @@ export const MonthlyReport: React.FC<Props> = ({
               <div key={item.id} className="flex justify-between items-center text-sm text-stone-600 dark:text-stone-300">
                 <span>{item.name}</span>
                 <input 
-                  type="number" 
+                  type="text" 
                   className={`w-20 text-right bg-stone-50 dark:bg-stone-800 border rounded px-1 py-0.5 ${isNonNegativeNumber(item.amount) ? 'border-stone-200 dark:border-stone-700' : 'border-red-400'}`}
                   value={item.amount}
-                  onChange={e => handleFixedItemChange(item.id, parseFloat(e.target.value))}
+                  onChange={e => handleFixedItemChange(item.id, parseOptionalNumber(e.target.value) ?? 0)}
                 />
               </div>
             ))}
@@ -507,11 +507,13 @@ export const MonthlyReport: React.FC<Props> = ({
                  3. Total Dépenses (Factures)
                  {costMode === 1 ? (
                    <input
-                     type="number"
-                     className={`ml-2 w-20 text-right border-b bg-transparent ${isNonNegativeNumber(actualIngredientSpend) ? 'border-rose-300 dark:border-rose-700' : 'border-red-400'}`}
+                     type="text"
+                     lang="en"
+                           inputMode="decimal"
+                           className={`ml-2 w-20 text-right border-b bg-transparent ${isNonNegativeNumber(actualIngredientSpend) ? 'border-rose-300 dark:border-rose-700' : 'border-red-400'}`}
                      value={actualIngredientSpend}
                      onClick={e => e.stopPropagation()}
-                     onChange={e => setActualIngredientSpend(parseFloat(e.target.value))}
+                     onChange={e => setActualIngredientSpend(parseOptionalNumber(e.target.value) ?? 0)}
                    />
                  ) : (
                    <span className="float-right">{formatCurrency(actualIngredientSpend)}</span>

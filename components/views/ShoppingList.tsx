@@ -82,7 +82,7 @@ export const ShoppingList: React.FC<Props> = ({ orders, products, recipes, ingre
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:block">
       <div className="lg:col-span-4 space-y-6 print:hidden">
-        <Card className="sticky top-24 border-rose-200 dark:border-rose-800">
+        <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-4">Paramètres</h3>
           <div className="space-y-4">
             <Input 

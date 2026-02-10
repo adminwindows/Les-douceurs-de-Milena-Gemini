@@ -156,7 +156,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* Order Form */}
       <div className="lg:col-span-5 space-y-6">
-        <Card className="sticky top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
+        <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-6">Nouvelle Commande</h3>
           
           <div className="space-y-4">

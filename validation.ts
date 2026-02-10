@@ -3,7 +3,8 @@ export const parseOptionalNumber = (value: string): number | undefined => {
     return undefined;
   }
 
-  const parsed = Number(value);
+  const normalized = value.replace(/,/g, ".");
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
