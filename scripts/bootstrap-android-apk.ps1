@@ -67,7 +67,7 @@ function Ensure-AndroidLocalProperties {
 Write-Host "== Android first APK bootstrap (Windows) =="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  Write-Error "Node.js not found. Install Node.js 22+ and retry."
+  Write-Error "Node.js not found. Install Node.js 20+ and retry."
 }
 
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
@@ -76,8 +76,8 @@ if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
 
 Write-Host "Node: $(node -v)"
 $nodeMajor = [int](node -p "process.versions.node.split('.')[0]")
-if ($nodeMajor -lt 22) {
-  throw "Node.js 22+ is required (current: $(node -v))."
+if ($nodeMajor -lt 20) {
+  throw "Node.js 20+ is required (current: $(node -v))."
 }
 
 $javaVersion = (cmd /c "java -version 2>&1" | Select-Object -First 1)

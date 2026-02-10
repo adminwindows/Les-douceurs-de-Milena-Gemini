@@ -35,17 +35,17 @@
     "mobile:assets:android": "capacitor-assets generate --android --assetPath public/logo-milena.svg"
   },
   "dependencies": {
-    "@capacitor/core": "^8.0.2",
+    "@capacitor/core": "^7.4.2",
     "pdf-lib": "^1.17.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.0.2",
+    "@capacitor/android": "^7.4.2",
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.0.2",
-    "@capacitor/ios": "^8.0.2",
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/ios": "^7.4.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",
