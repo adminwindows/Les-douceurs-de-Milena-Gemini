@@ -319,3 +319,21 @@ Actions taken:
 
 Validation:
 - `npm run typecheck`
+
+## 19) Latest Turn Update (question: existing data vs loading a save)
+
+User question:
+- "What happen when the user already have data and then load a save?"
+
+Analysis performed:
+- Reviewed current import flow in `App.tsx` (`DataManagerModal.applyImportedData`) and schema parsing in `backupIO.ts`.
+
+Current behavior summary:
+- Import is selective by the modal checkboxes (Settings / Catalog / Operations / Reports).
+- For each selected section that exists in the imported JSON, current in-app data is replaced for that section.
+- Unselected sections are kept unchanged.
+- Selected sections that are missing in the file are also left unchanged (no wipe).
+- Result can be a mixed dataset (some sections from old data, some from imported file), and then autosave persists that resulting state.
+
+User-facing implication:
+- Loading a save does not always do a full reset; it behaves like a partial overwrite according to selection + file contents.
