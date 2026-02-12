@@ -177,9 +177,10 @@ The scripts live in:
 The application currently includes:
 
 * **Catalog management**: ingredients, recipes, and sellable products with validation.
-* **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing, and alternate purchase-price analysis modes.
+* **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing (ingredient HT/TTC basis + per-ingredient VAT), and alternate purchase-price analysis modes.
 * **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
-* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options, plus PDF export for mobile-friendly sharing.
+* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options, explicit completed-order filtering by default (optional pending inclusion), and PDF export for mobile-friendly sharing.
+* **Known scope choice**: variable delivery cost is currently marked as not implemented in pricing/report totals (kept at 0 in core math).
 * **Data safety**: local autosave, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
 * **Branding & UX**: bakery logo integrated in app shell/report visuals, improved mobile header fit, and explicit Oui/Non confirmation modal when validating delivered orders.
 * **Quality tooling**: Vitest test suite, typecheck script, and CI workflow for automated checks.

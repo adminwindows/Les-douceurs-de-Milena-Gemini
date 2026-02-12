@@ -405,3 +405,40 @@ Actions taken:
 
 Validation:
 - `npm run typecheck`
+
+## 23) Latest Turn Update (VAT ingredient model + monthly math hardening + tests/docs)
+
+User request:
+- Implement comprehensive VAT ingredient master behavior (HT/TTC basis per ingredient, migration defaults, purchase snapshots, bulk VAT updates).
+- Verify and clarify packaging/unsold semantics and add apply-loss-to-packaging toggle.
+- Make monthly report status filtering explicit, align delivery handling with "not implemented" path, and extract a pure monthly totals function with strong tests.
+- Expand robust pricing/math tests, update in-app guide, add `/docs` formula spec, and add changelog summary.
+
+Actions taken:
+- Refactored domain model and calculations:
+  - Added ingredient VAT fields (`priceAmount`, `priceBasis`, `vatRate`, `needsVatReview`) and purchase snapshots (`vatRateSnapshot`, `priceBasisSnapshot`).
+  - Added settings fields `defaultIngredientVatRate` and `includePendingOrdersInMonthlyReport`.
+  - Added product flag `applyLossToPackaging` and applied it in pricing/monthly computations.
+  - Introduced conversion helpers (`computeIngredientPrices`, `rebuildIngredientCost`) and switched costing to HT when TVA is active.
+  - Kept delivery variable cost out of pricing/report totals (path 1: not implemented in math).
+- Implemented migration/normalization flow:
+  - Added `dataMigrations.ts` and integrated normalization in app load and settings updates.
+  - Legacy ingredients in TVA mode are auto-defaulted and flagged for review.
+- Updated UI copy and behavior:
+  - Settings TVA helper text now matches explicit franchise/TVA-active messaging.
+  - Added default ingredient TVA input and pending-orders monthly toggle.
+  - Stock/ingredient screen now supports VAT basis/rate, computed HT/TTC display, review warning, purchase VAT snapshot capture, and a bulk VAT update action.
+  - Products screen includes toggle "apply manufacturing loss to packaging" (default OFF).
+  - User Guide includes a TVA section with numeric examples.
+- Monthly report math extraction:
+  - Added pure function module `monthlyReportMath.ts` and wired `MonthlyReport.tsx` to use it.
+  - Added explicit order inclusion helper (`shouldIncludeOrder`) used by report prefill warnings.
+- Documentation:
+  - Added `docs/formulas-spec.md`.
+  - Added `CHANGELOG.md` in Keep a Changelog structure.
+
+Validation:
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+- Playwright screenshot captured: `browser:/tmp/codex_browser_invocations/13dc97af8807cae4/artifacts/artifacts/home.png`

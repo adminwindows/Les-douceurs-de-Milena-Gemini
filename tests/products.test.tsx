@@ -18,7 +18,9 @@ describe('Products form behavior', () => {
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,
-      defaultTvaRate: 5.5
+      defaultTvaRate: 5.5,
+      defaultIngredientVatRate: 5.5,
+      includePendingOrdersInMonthlyReport: false
     };
 
     render(
@@ -70,7 +72,9 @@ describe('Products form behavior', () => {
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,
-      defaultTvaRate: 5.5
+      defaultTvaRate: 5.5,
+      defaultIngredientVatRate: 5.5,
+      includePendingOrdersInMonthlyReport: false
     };
 
     render(

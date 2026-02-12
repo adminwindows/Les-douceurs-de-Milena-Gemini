@@ -32,6 +32,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     lossRate: 0, 
     unsoldEstimate: 0, 
     packagingUsedOnUnsold: true, 
+    applyLossToPackaging: false,
     targetMargin: 0,
     estimatedMonthlySales: 0,
     category: 'Gâteau',
@@ -76,6 +77,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       lossRate: Number(newProduct.lossRate ?? 0),
       unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
       packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
+      applyLossToPackaging: !!newProduct.applyLossToPackaging,
       targetMargin: Number(newProduct.targetMargin ?? 0),
       estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
       category: newProduct.category || 'Autre',
@@ -90,6 +92,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
+      applyLossToPackaging: false,
       targetMargin: 0,
       estimatedMonthlySales: 0,
       category: 'Gâteau',
@@ -119,6 +122,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
+      applyLossToPackaging: false,
       targetMargin: 0,
       estimatedMonthlySales: 0,
       category: 'Gâteau',
@@ -143,6 +147,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             lossRate: Number(newProduct.lossRate ?? 0),
             unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
             packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
+            applyLossToPackaging: !!newProduct.applyLossToPackaging,
             targetMargin: Number(newProduct.targetMargin ?? 0),
             estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
             category: newProduct.category || 'Autre',
@@ -288,6 +293,19 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
               <label htmlFor="packagingOnUnsold" className="text-sm text-stone-600 dark:text-stone-400 cursor-pointer">
                 L'emballage est perdu si invendu ? 
                 <span className="block text-xs text-stone-400 dark:text-stone-500">Si non coché, le coût emballage ne s'applique pas aux invendus.</span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="applyLossToPackaging"
+                className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500"
+                checked={newProduct.applyLossToPackaging ?? false}
+                onChange={e => setNewProduct({ ...newProduct, applyLossToPackaging: e.target.checked })}
+              />
+              <label htmlFor="applyLossToPackaging" className="text-sm text-stone-600 dark:text-stone-400 cursor-pointer">
+                Appliquer la perte de fabrication à l'emballage
+                <span className="block text-xs text-stone-400 dark:text-stone-500">Désactivé par défaut : l'emballage n'est pas majoré par 1/(1-perte).</span>
               </label>
             </div>
 
