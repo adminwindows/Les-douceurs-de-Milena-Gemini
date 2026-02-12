@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product } from '../../types';
-import { convertToCostPerBaseUnit, formatCurrency } from '../../utils';
+import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product, GlobalSettings } from '../../types';
+import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices } from '../../utils';
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
@@ -14,10 +14,11 @@ interface Props {
   productionBatches: ProductionBatch[];
   recipes: Recipe[];
   products: Product[];
+  settings: GlobalSettings;
 }
 
 export const StockManagement: React.FC<Props> = ({ 
-  ingredients, setIngredients, purchases, setPurchases, productionBatches, recipes, products 
+  ingredients, setIngredients, purchases, setPurchases, productionBatches, recipes, products, settings
 }) => {
   const [activeTab, setActiveTab] = usePersistentState<'purchases' | 'analysis' | 'definitions'>('draft:stock:activeTab', 'purchases');
 
@@ -39,7 +40,9 @@ export const StockManagement: React.FC<Props> = ({
       date: newPurchase.date || new Date().toISOString().split('T')[0],
       ingredientId: newPurchase.ingredientId,
       quantity: Number(newPurchase.quantity),
-      price: Number(newPurchase.price)
+      price: Number(newPurchase.price),
+      vatRateSnapshot: ingredients.find(i => i.id === newPurchase.ingredientId)?.vatRate,
+      priceBasisSnapshot: ingredients.find(i => i.id === newPurchase.ingredientId)?.priceBasis
     }]);
     resetNewPurchase();
   };
@@ -49,32 +52,47 @@ export const StockManagement: React.FC<Props> = ({
   };
 
   // --- Ingredient Definition Logic ---
-  const [newIng, setNewIng, resetNewIng] = usePersistentState<Partial<Ingredient>>('draft:stock:newIng', { unit: Unit.KG, price: 0 });
+  const [newIng, setNewIng, resetNewIng] = usePersistentState<Partial<Ingredient>>('draft:stock:newIng', {
+    unit: Unit.KG,
+    price: 0,
+    priceAmount: 0,
+    priceBasis: 'TTC',
+    vatRate: settings.defaultIngredientVatRate
+  });
   const [editingId, setEditingId, resetEditingId] = usePersistentState<string | null>('draft:stock:editingId', null);
-  const isIngredientPriceValid = isNonNegativeNumber(newIng.price);
+  const isIngredientPriceValid = isNonNegativeNumber(newIng.priceAmount ?? newIng.price);
   const isIngredientFormValid = Boolean(newIng.name && isIngredientPriceValid);
+  const [bulkVatRate, setBulkVatRate] = useState<number>(settings.defaultIngredientVatRate ?? 5.5);
   
   const handleAddOrUpdateIngredient = () => {
     if (!isIngredientFormValid) return;
-    const costPerBaseUnit = convertToCostPerBaseUnit(Number(newIng.price || 0), 1, newIng.unit as Unit); 
+    const priceAmount = Number((newIng.priceAmount ?? newIng.price) || 0);
+    const ingredientBase: Ingredient = {
+      id: editingId || Date.now().toString(),
+      name: newIng.name!,
+      unit: newIng.unit as Unit,
+      price: priceAmount,
+      priceAmount,
+      priceBasis: settings.isTvaSubject ? (newIng.priceBasis ?? 'TTC') : 'TTC',
+      vatRate: settings.isTvaSubject ? Number(newIng.vatRate ?? settings.defaultIngredientVatRate) : 0,
+      quantity: editingId ? (ingredients.find(i => i.id === editingId)?.quantity ?? 0) : 0,
+      costPerBaseUnit: convertToCostPerBaseUnit(priceAmount, 1, newIng.unit as Unit)
+    };
+    const normalized = rebuildIngredientCost(ingredientBase, settings);
     
     if (editingId) {
         setIngredients(prev => prev.map(i => i.id === editingId ? {
             ...i,
-            name: newIng.name!,
-            unit: newIng.unit as Unit,
-            price: Number(newIng.price || 0),
-            costPerBaseUnit
+            ...normalized,
+            id: i.id,
+            quantity: i.quantity,
+            needsVatReview: false
         } : i));
         setEditingId(null);
     } else {
         setIngredients([...ingredients, {
-            id: Date.now().toString(),
-            name: newIng.name,
-            unit: newIng.unit as Unit,
-            price: Number(newIng.price || 0),
-            quantity: 0, // Starts with 0 stock
-            costPerBaseUnit
+            ...normalized,
+            needsVatReview: false
         }]);
     }
     resetNewIng();
@@ -84,7 +102,10 @@ export const StockManagement: React.FC<Props> = ({
       setNewIng({
           name: ing.name,
           unit: ing.unit,
-          price: ing.price
+          price: ing.price,
+          priceAmount: ing.priceAmount,
+          priceBasis: ing.priceBasis,
+          vatRate: ing.vatRate
       });
       setEditingId(ing.id);
   };
@@ -181,9 +202,14 @@ export const StockManagement: React.FC<Props> = ({
   const updateStandardPrice = (ingId: string, newPrice: number) => {
     setIngredients(prev => prev.map(i => {
       if(i.id !== ingId) return i;
-      const costPerBaseUnit = convertToCostPerBaseUnit(newPrice, 1, i.unit);
-      return { ...i, price: newPrice, costPerBaseUnit };
+      return rebuildIngredientCost({ ...i, price: newPrice, priceAmount: newPrice }, settings);
     }));
+  };
+
+  const applyBulkVat = (applyToAll: boolean) => {
+    if (!settings.isTvaSubject) return;
+    if (!window.confirm(`Appliquer ${bulkVatRate}% de TVA ${applyToAll ? 'à tous les ingrédients' : 'aux ingrédients filtrés'} ?`)) return;
+    setIngredients(prev => prev.map((ingredient) => rebuildIngredientCost({ ...ingredient, vatRate: bulkVatRate, needsVatReview: false }, settings)));
   };
 
   return (
@@ -232,14 +258,32 @@ export const StockManagement: React.FC<Props> = ({
                   onChange={e => setNewIng({...newIng, unit: e.target.value as Unit})}
                 />
                <Input 
-                 label="Prix Standard estimé (€)" 
+                 label={`Prix de référence (${settings.isTvaSubject ? 'TTC ou HT' : 'TTC'})`} 
                  type="number"
                  step="0.01"
-                 value={newIng.price ?? ''} 
-                 onChange={e => setNewIng({...newIng, price: parseOptionalNumber(e.target.value)})}
-                 helperText="Prix pour 1 unité de stock (ex: pour 1kg)" 
+                 value={newIng.priceAmount ?? newIng.price ?? ''}
+                 onChange={e => setNewIng({...newIng, priceAmount: parseOptionalNumber(e.target.value), price: parseOptionalNumber(e.target.value)})}
+                 helperText={settings.isTvaSubject ? 'Choisissez TTC si vous saisissez le montant tel que sur la facture.' : 'Prix pour 1 unité de stock (ex: pour 1kg)'}
                  error={isIngredientPriceValid ? undefined : '≥ 0'}
                />
+               {settings.isTvaSubject && (
+                <>
+                  <Select
+                    label="Base de saisie"
+                    options={[{ value: 'TTC', label: 'TTC' }, { value: 'HT', label: 'HT' }]}
+                    value={newIng.priceBasis ?? 'TTC'}
+                    onChange={e => setNewIng({ ...newIng, priceBasis: e.target.value as 'TTC' | 'HT' })}
+                  />
+                  <Input
+                    label="Taux TVA ingrédient"
+                    type="number"
+                    suffix="%"
+                    value={newIng.vatRate ?? settings.defaultIngredientVatRate}
+                    onChange={e => setNewIng({ ...newIng, vatRate: parseOptionalNumber(e.target.value) })}
+                  />
+                  <p className="text-xs text-stone-500">Le coût matière est calculé en HT (TVA récupérable).</p>
+                </>
+               )}
                <div className="flex gap-2">
                  <Button variant="secondary" onClick={confirmCancelIngredientDraft} className="w-1/3">Annuler</Button>
                  <Button onClick={handleAddOrUpdateIngredient} disabled={!isIngredientFormValid} className="flex-1">
@@ -250,13 +294,23 @@ export const StockManagement: React.FC<Props> = ({
            </Card>
            <Card className="md:col-span-2">
              <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Liste des Ingrédients (Fiches Techniques)</h3>
+             {settings.isTvaSubject && (
+              <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-xs text-amber-800 dark:text-amber-300">
+                Outil TVA en masse :
+                <div className="flex gap-2 mt-2">
+                  <input type="number" className="px-2 py-1 border rounded text-sm text-stone-900" value={bulkVatRate} onChange={e => setBulkVatRate(parseOptionalNumber(e.target.value) ?? 0)} />
+                  <Button size="sm" onClick={() => applyBulkVat(true)}>Appliquer à tous</Button>
+                </div>
+              </div>
+             )}
              <div className="overflow-x-auto">
                <table className="w-full text-sm text-left text-stone-600 dark:text-stone-300">
                  <thead className="bg-stone-100 dark:bg-stone-900 font-bold uppercase text-xs">
                    <tr>
                      <th className="p-3">Nom</th>
                      <th className="p-3">Unité</th>
-                     <th className="p-3">Prix Standard</th>
+                     <th className="p-3">Prix Réf.</th>
+                     {settings.isTvaSubject && <th className="p-3">TVA</th>}
                      <th className="p-3">Action</th>
                    </tr>
                  </thead>
@@ -265,7 +319,8 @@ export const StockManagement: React.FC<Props> = ({
                      <tr key={ing.id} className={`hover:bg-stone-50 dark:hover:bg-stone-800 ${editingId === ing.id ? 'bg-rose-50 dark:bg-rose-900/20' : ''}`}>
                        <td className="p-3 font-medium">{ing.name}</td>
                        <td className="p-3"><span className="bg-stone-200 dark:bg-stone-700 px-2 py-0.5 rounded text-xs">{ing.unit}</span></td>
-                       <td className="p-3">{formatCurrency(ing.price)}</td>
+                       <td className="p-3">{formatCurrency(ing.priceAmount)}</td>
+                       {settings.isTvaSubject && <td className="p-3 text-xs">{ing.vatRate}% ({ing.priceBasis}) {ing.needsVatReview && <span className="text-amber-600">Infos TVA ajoutées automatiquement. Vérifiez si ce prix est HT ou TTC.</span>}<br/>HT {formatCurrency(computeIngredientPrices(ing).priceHT)} / TTC {formatCurrency(computeIngredientPrices(ing).priceTTC)}</td>}
                        <td className="p-3 space-x-2">
                          <button onClick={() => startEditIngredient(ing)} className="text-indigo-500 hover:text-indigo-700 text-xs font-bold">Modifier</button>
                          <button onClick={() => handleDeleteIngredient(ing.id)} className="text-red-500 hover:text-red-700 text-xs">Supprimer</button>

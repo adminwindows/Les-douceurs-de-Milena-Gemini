@@ -11,7 +11,11 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: Unit;
-  price: number; // Prix standard (Fiche technique)
+  price: number; // Compat legacy alias of priceAmount
+  priceAmount: number;
+  priceBasis: 'TTC' | 'HT';
+  vatRate: number;
+  needsVatReview?: boolean;
   quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
   costPerBaseUnit: number;
 }
@@ -23,6 +27,8 @@ export interface Purchase {
   ingredientId: string;
   quantity: number; // Quantité achetée (dans l'unité de l'ingrédient)
   price: number; // Prix TOTAL payé pour cette quantité
+  vatRateSnapshot?: number;
+  priceBasisSnapshot?: 'TTC' | 'HT';
 }
 
 // Nouveau : Journal de production pour déstocker les ingrédients
@@ -56,6 +62,7 @@ export interface Product {
   lossRate: number; // Taux de perte fabrication (cassé, raté)
   unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
   packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
+  applyLossToPackaging?: boolean;
   targetMargin: number;
   estimatedMonthlySales: number; 
   category: string;
@@ -76,6 +83,8 @@ export interface GlobalSettings {
   taxRate: number; // Cotisations sociales
   isTvaSubject: boolean; // Nouveau: Assujetti à la TVA ?
   defaultTvaRate: number; // Nouveau: Taux par défaut (ex: 5.5)
+  defaultIngredientVatRate: number;
+  includePendingOrdersInMonthlyReport?: boolean;
 }
 
 // --- Orders & Reporting ---

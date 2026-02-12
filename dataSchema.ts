@@ -8,6 +8,10 @@ const ingredientSchema = z.object({
   name: z.string(),
   unit: unitSchema,
   price: z.number(),
+  priceAmount: z.number().optional(),
+  priceBasis: z.enum(['TTC', 'HT']).optional(),
+  vatRate: z.number().optional(),
+  needsVatReview: z.boolean().optional(),
   quantity: z.number(),
   costPerBaseUnit: z.number()
 });
@@ -17,7 +21,9 @@ const purchaseSchema = z.object({
   date: z.string(),
   ingredientId: z.string(),
   quantity: z.number(),
-  price: z.number()
+  price: z.number(),
+  vatRateSnapshot: z.number().optional(),
+  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional()
 });
 
 const productionBatchSchema = z.object({
@@ -50,6 +56,7 @@ const productSchema = z.object({
   lossRate: z.number(),
   unsoldEstimate: z.number(),
   packagingUsedOnUnsold: z.boolean(),
+  applyLossToPackaging: z.boolean().default(false),
   targetMargin: z.number(),
   estimatedMonthlySales: z.number(),
   category: z.string(),
@@ -69,7 +76,9 @@ const globalSettingsSchema = z.object({
   fixedCostItems: z.array(fixedCostItemSchema),
   taxRate: z.number(),
   isTvaSubject: z.boolean(),
-  defaultTvaRate: z.number()
+  defaultTvaRate: z.number(),
+  defaultIngredientVatRate: z.number().optional(),
+  includePendingOrdersInMonthlyReport: z.boolean().optional()
 });
 
 const orderItemSchema = z.object({
@@ -142,6 +151,10 @@ const legacyIngredientSchema = z.object({
   name: asString,
   unit: legacyUnitSchema.default(Unit.G),
   price: asNumber.catch(0),
+  priceAmount: asNumber.optional(),
+  priceBasis: z.enum(['TTC', 'HT']).optional(),
+  vatRate: asNumber.optional(),
+  needsVatReview: z.coerce.boolean().optional(),
   quantity: asNumber.catch(0),
   costPerBaseUnit: asNumber.catch(0)
 }).passthrough();
@@ -169,6 +182,7 @@ const legacyProductSchema = z.object({
   lossRate: asNumber.catch(0),
   unsoldEstimate: asNumber.catch(0),
   packagingUsedOnUnsold: z.coerce.boolean().catch(true),
+  applyLossToPackaging: z.coerce.boolean().catch(false),
   targetMargin: asNumber.catch(0),
   estimatedMonthlySales: asNumber.catch(0),
   category: asString.catch('Autre'),
@@ -188,7 +202,9 @@ const legacySettingsSchema = z.object({
   fixedCostItems: z.array(legacyFixedCostSchema).default([]),
   taxRate: asNumber.catch(0),
   isTvaSubject: z.coerce.boolean().catch(false),
-  defaultTvaRate: asNumber.catch(5.5)
+  defaultTvaRate: asNumber.catch(5.5),
+  defaultIngredientVatRate: asNumber.catch(5.5),
+  includePendingOrdersInMonthlyReport: z.coerce.boolean().catch(false)
 }).passthrough();
 
 const legacyOrderStatusSchema = z.preprocess((value) => {
@@ -213,7 +229,9 @@ const legacyPurchaseSchema = z.object({
   date: asString,
   ingredientId: asString,
   quantity: asNumber.catch(0),
-  price: asNumber.catch(0)
+  price: asNumber.catch(0),
+  vatRateSnapshot: asNumber.optional(),
+  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional()
 }).passthrough();
 
 const legacyProductionBatchSchema = z.object({
