@@ -21,6 +21,7 @@
 
 ## Prix minimum
 - Coût complet = matière + emballage + MO (selon toggle includeLaborInCost) + charges fixes allouées.
+- Les charges fixes ne sont pas converties automatiquement HT/TTC par l'application : elles sont utilisées telles que saisies.
 - Diviseur social = `1 - taxRate`.
 - Prix minimum HT = coût complet / diviseur.
 - Prix TTC = HT × (1 + TVA vente) si TVA activée.

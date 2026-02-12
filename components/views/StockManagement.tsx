@@ -6,6 +6,16 @@ import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../.
 import { Button, Card, Input, Select } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
 
+const getPurchaseTotals = (purchase: Purchase, ingredient?: Ingredient) => {
+  const vatRate = purchase.vatRateSnapshot ?? ingredient?.vatRate ?? 0;
+  const basis = purchase.priceBasisSnapshot ?? 'TTC';
+  const vatMultiplier = 1 + (vatRate / 100);
+  if (basis === 'HT') {
+    return { totalHT: purchase.price, totalTTC: purchase.price * vatMultiplier };
+  }
+  return { totalHT: purchase.price / vatMultiplier, totalTTC: purchase.price };
+};
+
 interface Props {
   ingredients: Ingredient[];
   setIngredients: React.Dispatch<React.SetStateAction<Ingredient[]>>;
@@ -26,7 +36,8 @@ export const StockManagement: React.FC<Props> = ({
   const [newPurchase, setNewPurchase, resetNewPurchase] = usePersistentState<Partial<Purchase>>('draft:stock:newPurchase', { 
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
-    price: 0
+    price: 0,
+    priceBasisSnapshot: 'TTC'
   });
 
   const isPurchaseQuantityValid = isPositiveNumber(newPurchase.quantity);
@@ -35,14 +46,15 @@ export const StockManagement: React.FC<Props> = ({
 
   const handleAddPurchase = () => {
     if (!isPurchaseFormValid) return;
+    const selectedIngredient = ingredients.find(i => i.id === newPurchase.ingredientId);
     setPurchases([...purchases, {
       id: Date.now().toString(),
       date: newPurchase.date || new Date().toISOString().split('T')[0],
       ingredientId: newPurchase.ingredientId,
       quantity: Number(newPurchase.quantity),
       price: Number(newPurchase.price),
-      vatRateSnapshot: ingredients.find(i => i.id === newPurchase.ingredientId)?.vatRate,
-      priceBasisSnapshot: ingredients.find(i => i.id === newPurchase.ingredientId)?.priceBasis
+      vatRateSnapshot: selectedIngredient?.vatRate,
+      priceBasisSnapshot: settings.isTvaSubject ? (newPurchase.priceBasisSnapshot ?? 'TTC') : undefined
     }]);
     resetNewPurchase();
   };
@@ -146,15 +158,18 @@ export const StockManagement: React.FC<Props> = ({
       // 1. Calculate Purchased Quantity and Spend
       const ingPurchases = purchases.filter(p => p.ingredientId === ing.id);
       const totalPurchasedQty = ingPurchases.reduce((acc, p) => acc + p.quantity, 0);
-      const totalSpent = ingPurchases.reduce((acc, p) => acc + p.price, 0);
+      const totalSpentHT = ingPurchases.reduce((acc, p) => acc + getPurchaseTotals(p, ing).totalHT, 0);
+      const totalSpentTTC = ingPurchases.reduce((acc, p) => acc + getPurchaseTotals(p, ing).totalTTC, 0);
       
       // 2. Calculate Prices (Average vs Last)
       // Terminology Update: "CUMP" -> "Prix Moyen"
-      const averagePrice = totalPurchasedQty > 0 ? totalSpent / totalPurchasedQty : 0;
+      const averagePriceHT = totalPurchasedQty > 0 ? totalSpentHT / totalPurchasedQty : 0;
+      const averagePriceTTC = totalPurchasedQty > 0 ? totalSpentTTC / totalPurchasedQty : 0;
       
       const sortedPurchases = [...ingPurchases].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const lastPurchase = sortedPurchases[0];
-      const lastPrice = lastPurchase ? (lastPurchase.price / lastPurchase.quantity) : 0;
+      const lastPriceHT = lastPurchase ? (getPurchaseTotals(lastPurchase, ing).totalHT / lastPurchase.quantity) : 0;
+      const lastPriceTTC = lastPurchase ? (getPurchaseTotals(lastPurchase, ing).totalTTC / lastPurchase.quantity) : 0;
 
       // 3. Calculate Consumption based on Production Batches
       // This is the "Theoretical" usage INCLUDING LOSS RATE
@@ -192,8 +207,10 @@ export const StockManagement: React.FC<Props> = ({
       return {
         ingredient: ing,
         currentStock,
-        averagePrice, // Previously CUMP
-        lastPrice,
+        averagePriceHT,
+        averagePriceTTC,
+        lastPriceHT,
+        lastPriceTTC,
         totalPurchasedQty
       };
     });
@@ -375,6 +392,14 @@ export const StockManagement: React.FC<Props> = ({
                   error={isPurchasePriceValid ? undefined : '> 0'}
                 />
               </div>
+              {settings.isTvaSubject && (
+                <Select
+                  label="Prix saisi en"
+                  value={newPurchase.priceBasisSnapshot ?? 'TTC'}
+                  options={[{ value: 'TTC', label: 'TTC' }, { value: 'HT', label: 'HT' }]}
+                  onChange={e => setNewPurchase({ ...newPurchase, priceBasisSnapshot: e.target.value as 'TTC' | 'HT' })}
+                />
+              )}
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={confirmCancelPurchaseDraft} className="w-1/3">Annuler</Button>
                 <Button onClick={handleAddPurchase} disabled={!isPurchaseFormValid} className="flex-1">
@@ -401,13 +426,24 @@ export const StockManagement: React.FC<Props> = ({
                 <tbody className="divide-y divide-stone-100 dark:divide-stone-700">
                   {[...purchases].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(p => {
                     const ing = ingredients.find(i => i.id === p.ingredientId);
+                    const totals = getPurchaseTotals(p, ing);
+                    const unitHT = p.quantity > 0 ? totals.totalHT / p.quantity : 0;
+                    const unitTTC = p.quantity > 0 ? totals.totalTTC / p.quantity : 0;
                     return (
                       <tr key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                         <td className="p-3">{new Date(p.date).toLocaleDateString()}</td>
                         <td className="p-3 font-medium text-stone-800 dark:text-stone-200">{ing?.name || 'Inconnu'}</td>
                         <td className="p-3 text-right">{p.quantity} {ing?.unit}</td>
-                        <td className="p-3 text-right font-bold">{formatCurrency(p.price)}</td>
-                        <td className="p-3 text-right text-xs text-stone-400">{(p.price/p.quantity).toFixed(2)}€/{ing?.unit}</td>
+                        <td className="p-3 text-right font-bold">
+                          {settings.isTvaSubject
+                            ? (<><div>{formatCurrency(totals.totalHT)} HT</div><div className="text-xs text-stone-400">({formatCurrency(totals.totalTTC)} TTC)</div></>)
+                            : formatCurrency(p.price)}
+                        </td>
+                        <td className="p-3 text-right text-xs text-stone-400">
+                          {settings.isTvaSubject
+                            ? (<><div>{unitHT.toFixed(2)}€ HT/{ing?.unit}</div><div>({unitTTC.toFixed(2)}€ TTC/{ing?.unit})</div></>)
+                            : `${(p.price/p.quantity).toFixed(2)}€/${ing?.unit}`}
+                        </td>
                         <td className="p-3 text-right">
                           <button onClick={() => handleDeletePurchase(p.id)} className="text-stone-300 hover:text-red-500">×</button>
                         </td>
@@ -455,34 +491,49 @@ export const StockManagement: React.FC<Props> = ({
                     </td>
                     <td className="p-3 text-right font-bold bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400">
                       {formatCurrency(row.ingredient.price)}
+                      {settings.isTvaSubject && <span className="block text-[11px] text-stone-400">({formatCurrency(computeIngredientPrices(row.ingredient).priceTTC)} TTC)</span>}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
-                      {row.lastPrice > 0 ? formatCurrency(row.lastPrice) : '-'}
+                      {row.lastPriceHT > 0
+                        ? (
+                          <>
+                            <div>{formatCurrency(row.lastPriceHT)}{settings.isTvaSubject ? ' HT' : ''}</div>
+                            {settings.isTvaSubject && <div className="text-[11px] text-stone-400">({formatCurrency(row.lastPriceTTC)} TTC)</div>}
+                          </>
+                        )
+                        : '-'}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
-                       {row.averagePrice > 0 ? formatCurrency(row.averagePrice) : '-'}
+                       {row.averagePriceHT > 0
+                         ? (
+                           <>
+                             <div>{formatCurrency(row.averagePriceHT)}{settings.isTvaSubject ? ' HT' : ''}</div>
+                             {settings.isTvaSubject && <div className="text-[11px] text-stone-400">({formatCurrency(row.averagePriceTTC)} TTC)</div>}
+                           </>
+                         )
+                         : '-'}
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex gap-2 justify-center">
-                        {row.lastPrice > 0 && Math.abs(row.lastPrice - row.ingredient.price) > 0.01 && (
+                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - row.ingredient.price) > 0.01 && (
                           <button 
-                            onClick={() => updateStandardPrice(row.ingredient.id, row.lastPrice)}
+                            onClick={() => updateStandardPrice(row.ingredient.id, row.lastPriceHT)}
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                             title="Mettre à jour le prix standard avec le dernier prix d'achat"
                           >
-                            Utiliser Dernier ({formatCurrency(row.lastPrice)})
+                            Utiliser Dernier ({formatCurrency(row.lastPriceHT)})
                           </button>
                         )}
-                        {row.averagePrice > 0 && Math.abs(row.averagePrice - row.ingredient.price) > 0.01 && (
+                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - row.ingredient.price) > 0.01 && (
                            <button 
-                             onClick={() => updateStandardPrice(row.ingredient.id, row.averagePrice)}
+                             onClick={() => updateStandardPrice(row.ingredient.id, row.averagePriceHT)}
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                              title="Mettre à jour le prix standard avec le Coût Moyen Lissé"
                            >
-                             Utiliser Moyen ({formatCurrency(row.averagePrice)})
+                             Utiliser Moyen ({formatCurrency(row.averagePriceHT)})
                            </button>
                         )}
-                        {row.lastPrice === 0 && row.averagePrice === 0 && <span className="text-xs text-stone-300">Pas d'achats</span>}
+                        {row.lastPriceHT === 0 && row.averagePriceHT === 0 && <span className="text-xs text-stone-300">Pas d'achats</span>}
                       </div>
                     </td>
                   </tr>

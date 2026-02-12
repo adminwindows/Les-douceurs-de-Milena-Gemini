@@ -442,3 +442,31 @@ Validation:
 - `npm test`
 - `npm run build`
 - Playwright screenshot captured: `browser:/tmp/codex_browser_invocations/13dc97af8807cae4/artifacts/artifacts/home.png`
+
+## 24) Latest Turn Update (follow-up fixes: fixed-cost TVA UX + purchase HT/TTC basis)
+
+User feedback:
+- Asked to confirm TVA is not auto-applied to fixed costs; requested removing the "HT" suffix in fixed-cost add box and replacing with short guidance note.
+- Requested in "Journal des achats" and "Stocks & prix moyens" that, when TVA is ON, user can choose whether purchase prices are entered TTC or HT, and tables should show HT values (with TTC in parentheses).
+
+Actions taken:
+- Updated fixed-cost UX in Settings:
+  - removed "HT" suffix from "Ajouter une charge" title,
+  - added short explanatory note when TVA is ON.
+- Updated purchases flow in StockManagement:
+  - added per-purchase selector "Prix saisi en: TTC | HT" (visible only when TVA ON),
+  - purchase snapshots now keep selected basis and ingredient VAT rate.
+- Updated purchases/history and stock-analysis displays:
+  - in TVA mode, show HT as primary with TTC in parentheses for total and unit purchase prices,
+  - in stock-analysis tables, show last/average purchase prices in HT with TTC in parentheses,
+  - standard-price update actions now use HT purchase-derived values for consistency.
+- Updated docs:
+  - `docs/formulas-spec.md` now explicitly states fixed costs are not auto-converted HT/TTC,
+  - `README.md` synchronized with the same rule.
+
+Validation:
+- `npm run typecheck`
+- `npm test`
+- Playwright screenshots:
+  - `browser:/tmp/codex_browser_invocations/a51c8c259d22d2ac/artifacts/artifacts/settings-fixed-cost-note.png`
+  - `browser:/tmp/codex_browser_invocations/a51c8c259d22d2ac/artifacts/artifacts/purchases-vat-basis.png`
