@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
-import { calculateRecipeMaterialCost } from '../../utils';
+import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
 import { isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
@@ -10,9 +10,10 @@ interface Props {
   ingredients: Ingredient[];
   recipes: Recipe[];
   setRecipes: React.Dispatch<React.SetStateAction<Recipe[]>>;
+  isTvaSubject?: boolean;
 }
 
-export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, setRecipes }) => {
+export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, setRecipes, isTvaSubject }) => {
   // Scaler State: Map recipeID -> targetQuantity (string for input handling)
   const [scalerTargets, setScalerTargets] = useState<Record<string, string>>({});
 
@@ -218,12 +219,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
 
           <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg mb-4 border border-emerald-100 dark:border-emerald-800">
             <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300 mb-1">
-              <span>Coût Matières Batch:</span>
-              <span className="font-bold">{tempBatchCost.toFixed(2)} €</span>
+              <span>Coût Matières Batch{isTvaSubject ? ' (HT)' : ''}:</span>
+              <span className="font-bold">{formatCurrency(tempBatchCost)}</span>
             </div>
             <div className="flex justify-between text-sm text-emerald-800 dark:text-emerald-300">
-              <span>Coût Matières / Unité:</span>
-              <span className="font-bold">{tempUnitCost.toFixed(2)} €</span>
+              <span>Coût Matières / Unité{isTvaSubject ? ' (HT)' : ''}:</span>
+              <span className="font-bold">{formatCurrency(tempUnitCost)}</span>
             </div>
           </div>
 
@@ -313,12 +314,12 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
 
                   <div className="pt-3 border-t border-stone-100 dark:border-stone-700 flex justify-between items-end">
                     <div>
-                      <p className="text-xs text-stone-400 dark:text-stone-500">Coût unitaire mat.</p>
-                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{unitCost.toFixed(2)} €</p>
+                      <p className="text-xs text-stone-400 dark:text-stone-500">Coût unitaire mat.{isTvaSubject ? ' (HT)' : ''}</p>
+                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{formatCurrency(unitCost)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-stone-400 dark:text-stone-500">Coût batch</p>
-                      <p className="font-medium text-stone-600 dark:text-stone-300">{batchCost.toFixed(2)} €</p>
+                      <p className="text-xs text-stone-400 dark:text-stone-500">Coût batch{isTvaSubject ? ' (HT)' : ''}</p>
+                      <p className="font-medium text-stone-600 dark:text-stone-300">{formatCurrency(batchCost)}</p>
                     </div>
                   </div>
                 </Card>

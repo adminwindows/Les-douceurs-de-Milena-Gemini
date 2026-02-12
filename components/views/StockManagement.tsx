@@ -425,7 +425,7 @@ export const StockManagement: React.FC<Props> = ({
                       <tr key={p.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                         <td className="p-3">{new Date(p.date).toLocaleDateString()}</td>
                         <td className="p-3 font-medium text-stone-800 dark:text-stone-200">{ing?.name || 'Inconnu'}</td>
-                        <td className="p-3 text-right">{p.quantity} {ing?.unit}</td>
+                        <td className="p-3 text-right">{p.quantity} {ing?.unit || '?'}</td>
                         <td className="p-3 text-right font-bold">
                           {settings.isTvaSubject
                             ? (<><div>{formatCurrency(totals.totalHT)} HT</div><div className="text-xs text-stone-400">({formatCurrency(totals.totalTTC)} TTC)</div></>)
@@ -433,8 +433,8 @@ export const StockManagement: React.FC<Props> = ({
                         </td>
                         <td className="p-3 text-right text-xs text-stone-400">
                           {settings.isTvaSubject
-                            ? (<><div>{unitHT.toFixed(2)}€ HT/{ing?.unit}</div><div>({unitTTC.toFixed(2)}€ TTC/{ing?.unit})</div></>)
-                            : `${(p.price/p.quantity).toFixed(2)}€/${ing?.unit}`}
+                            ? (<><div>{formatCurrency(unitHT)} HT/{ing?.unit || '?'}</div><div>({formatCurrency(unitTTC)} TTC/{ing?.unit || '?'})</div></>)
+                            : `${formatCurrency(p.price/p.quantity)}/${ing?.unit || '?'}`}
                         </td>
                         <td className="p-3 text-right">
                           <button onClick={() => handleDeletePurchase(p.id)} className="text-stone-300 hover:text-red-500">×</button>

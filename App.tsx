@@ -326,7 +326,7 @@ const App = () => {
           onExitDemo={exitDemo}
         />;
       case 'ingredients':
-        return <IngredientsRecettes ingredients={ingredients} recipes={recipes} setRecipes={setRecipes} />;
+        return <IngredientsRecettes ingredients={ingredients} recipes={recipes} setRecipes={setRecipes} isTvaSubject={settings.isTvaSubject} />;
       case 'stock':
         return <StockManagement
           ingredients={ingredients}
