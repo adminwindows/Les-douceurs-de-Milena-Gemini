@@ -470,3 +470,17 @@ Validation:
 - Playwright screenshots:
   - `browser:/tmp/codex_browser_invocations/a51c8c259d22d2ac/artifacts/artifacts/settings-fixed-cost-note.png`
   - `browser:/tmp/codex_browser_invocations/a51c8c259d22d2ac/artifacts/artifacts/purchases-vat-basis.png`
+
+## 25) Latest Turn Update (consistency fix: Prix Standard column HT label)
+
+User feedback:
+- Requested consistency in stock analysis table: "Prix Standard (Fiche)" should also clearly be shown as HT in TVA mode, matching other columns.
+
+Actions taken:
+- Updated `components/views/StockManagement.tsx` so the "Prix Standard (Fiche)" value now shows `HT` suffix when TVA is ON, while keeping TTC in parentheses below.
+
+Validation:
+- `npm run typecheck`
+- `npm test`
+- Playwright screenshot captured:
+  - `browser:/tmp/codex_browser_invocations/af7e4bdd9ea09f13/artifacts/artifacts/stock-prix-standard-ht.png`

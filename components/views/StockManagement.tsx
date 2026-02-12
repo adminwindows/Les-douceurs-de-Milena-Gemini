@@ -490,7 +490,7 @@ export const StockManagement: React.FC<Props> = ({
                       {row.currentStock.toFixed(2)}
                     </td>
                     <td className="p-3 text-right font-bold bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400">
-                      {formatCurrency(row.ingredient.price)}
+                      {formatCurrency(row.ingredient.price)}{settings.isTvaSubject ? ' HT' : ''}
                       {settings.isTvaSubject && <span className="block text-[11px] text-stone-400">({formatCurrency(computeIngredientPrices(row.ingredient).priceTTC)} TTC)</span>}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
