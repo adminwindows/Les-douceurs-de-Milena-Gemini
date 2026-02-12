@@ -178,6 +178,7 @@ The application currently includes:
 
 * **Catalog management**: ingredients, recipes, and sellable products with validation.
 * **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing (ingredient HT/TTC basis + per-ingredient VAT), and alternate purchase-price analysis modes.
+  * Note: fixed costs are not auto-converted HT/TTC; enter values consistently with your accounting basis.
 * **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
 * **Monthly reporting**: report archiving with inventory-variation and spend-based costing options, explicit completed-order filtering by default (optional pending inclusion), and PDF export for mobile-friendly sharing.
 * **Known scope choice**: variable delivery cost is currently marked as not implemented in pricing/report totals (kept at 0 in core math).

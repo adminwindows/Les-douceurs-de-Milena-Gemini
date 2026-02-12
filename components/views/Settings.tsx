@@ -238,7 +238,10 @@ export const Settings: React.FC<Props> = ({
           </div>
 
           <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700">
-            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 mb-3">Ajouter une charge {settings.isTvaSubject ? 'HT' : ''}</h4>
+            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 mb-1">Ajouter une charge</h4>
+            {settings.isTvaSubject && (
+              <p className="text-xs text-stone-500 mb-3">TVA activée : saisissez vos charges fixes dans la même base que votre suivi comptable habituel (recommandé : HT).</p>
+            )}
             <div className="flex gap-2 mb-2">
               <input
                 className="flex-1 px-3 py-2 rounded border border-rose-200 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:border-[#D45D79]"
