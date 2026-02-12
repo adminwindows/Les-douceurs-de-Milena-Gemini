@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Ingredient, Product, Recipe, GlobalSettings, Purchase } from '../../types';
-import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit, computeIngredientPrices, getPurchaseTotals } from '../../utils';
+import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit, getIngredientCostPrice, getPurchaseTotals } from '../../utils';
 import { Card, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -21,8 +21,7 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
   // Helper to recalculate ingredients cost based on mode
   // Cost calculations always use HT prices when TVA subject (TVA is recoverable)
   const activeIngredients = ingredients.map(ing => {
-      const standardHT = isTva ? computeIngredientPrices(ing).priceHT : ing.price;
-      let calcPriceHT = standardHT; // Default to Standard
+      let calcPriceHT = getIngredientCostPrice(ing, settings); // Default to Standard (HT when TVA subject)
 
       if (priceMode === 'average') {
           const ingPurchases = purchases.filter(p => p.ingredientId === ing.id);
