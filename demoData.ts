@@ -29,10 +29,10 @@ export const DEMO_DATASETS: DemoDataset[] = [
         defaultTvaRate: 5.5
       },
       ingredients: [
-        { id: 'di1', name: 'Farine T45', unit: Unit.KG, price: 1.35, quantity: 2.5, costPerBaseUnit: 0.00135 },
-        { id: 'di2', name: 'Beurre doux', unit: Unit.KG, price: 13.5, quantity: 1.2, costPerBaseUnit: 0.0135 },
-        { id: 'di3', name: 'Sucre', unit: Unit.KG, price: 1.45, quantity: 1.8, costPerBaseUnit: 0.00145 },
-        { id: 'di4', name: 'Œufs', unit: Unit.PIECE, price: 0.39, quantity: 24, costPerBaseUnit: 0.39 }
+        { id: 'di1', name: 'Farine T45', unit: Unit.KG, price: 1.35, priceAmount: 1.35, priceBasis: 'TTC' as const, vatRate: 0, quantity: 2.5, costPerBaseUnit: 0.00135 },
+        { id: 'di2', name: 'Beurre doux', unit: Unit.KG, price: 13.5, priceAmount: 13.5, priceBasis: 'TTC' as const, vatRate: 0, quantity: 1.2, costPerBaseUnit: 0.0135 },
+        { id: 'di3', name: 'Sucre', unit: Unit.KG, price: 1.45, priceAmount: 1.45, priceBasis: 'TTC' as const, vatRate: 0, quantity: 1.8, costPerBaseUnit: 0.00145 },
+        { id: 'di4', name: 'Œufs', unit: Unit.PIECE, price: 0.39, priceAmount: 0.39, priceBasis: 'TTC' as const, vatRate: 0, quantity: 24, costPerBaseUnit: 0.39 }
       ],
       recipes: [
         {
@@ -97,11 +97,11 @@ export const DEMO_DATASETS: DemoDataset[] = [
         defaultTvaRate: 5.5
       },
       ingredients: [
-        { id: 'wi1', name: 'Farine', unit: Unit.KG, price: 1.5, quantity: 24, costPerBaseUnit: 0.0015 },
-        { id: 'wi2', name: 'Sucre glace', unit: Unit.KG, price: 2.1, quantity: 10, costPerBaseUnit: 0.0021 },
-        { id: 'wi3', name: 'Beurre AOP', unit: Unit.KG, price: 15.5, quantity: 12, costPerBaseUnit: 0.0155 },
-        { id: 'wi4', name: 'Chocolat de couverture', unit: Unit.KG, price: 18.5, quantity: 8, costPerBaseUnit: 0.0185 },
-        { id: 'wi5', name: 'Crème 35%', unit: Unit.L, price: 4.8, quantity: 15, costPerBaseUnit: 0.0048 }
+        { id: 'wi1', name: 'Farine', unit: Unit.KG, price: 1.5, priceAmount: 1.5, priceBasis: 'HT' as const, vatRate: 5.5, quantity: 24, costPerBaseUnit: 0.0015 },
+        { id: 'wi2', name: 'Sucre glace', unit: Unit.KG, price: 2.1, priceAmount: 2.1, priceBasis: 'HT' as const, vatRate: 5.5, quantity: 10, costPerBaseUnit: 0.0021 },
+        { id: 'wi3', name: 'Beurre AOP', unit: Unit.KG, price: 15.5, priceAmount: 15.5, priceBasis: 'HT' as const, vatRate: 5.5, quantity: 12, costPerBaseUnit: 0.0155 },
+        { id: 'wi4', name: 'Chocolat de couverture', unit: Unit.KG, price: 18.5, priceAmount: 18.5, priceBasis: 'HT' as const, vatRate: 5.5, quantity: 8, costPerBaseUnit: 0.0185 },
+        { id: 'wi5', name: 'Crème 35%', unit: Unit.L, price: 4.8, priceAmount: 4.8, priceBasis: 'HT' as const, vatRate: 5.5, quantity: 15, costPerBaseUnit: 0.0048 }
       ],
       recipes: [
         {
@@ -165,8 +165,8 @@ export const DEMO_DATASETS: DemoDataset[] = [
       ],
       savedReports: [],
       purchases: [
-        { id: 'wpu1', date: today, ingredientId: 'wi4', quantity: 12, price: 222 },
-        { id: 'wpu2', date: today, ingredientId: 'wi3', quantity: 18, price: 279 }
+        { id: 'wpu1', date: today, ingredientId: 'wi4', quantity: 12, price: 222, vatRateSnapshot: 5.5, priceBasisSnapshot: 'TTC' as const },
+        { id: 'wpu2', date: today, ingredientId: 'wi3', quantity: 18, price: 279, vatRateSnapshot: 5.5, priceBasisSnapshot: 'TTC' as const }
       ],
       productionBatches: [
         { id: 'wb1', date: today, productId: 'wp1', quantity: 200 },
@@ -192,9 +192,9 @@ export const DEMO_DATASETS: DemoDataset[] = [
         defaultTvaRate: 5.5
       },
       ingredients: [
-        { id: 'ti1', name: 'Farine', unit: Unit.KG, price: 1.65, quantity: 4, costPerBaseUnit: 0.00165 },
-        { id: 'ti2', name: 'Beurre', unit: Unit.KG, price: 18.2, quantity: 1.5, costPerBaseUnit: 0.0182 },
-        { id: 'ti3', name: 'Chocolat', unit: Unit.KG, price: 22.4, quantity: 1.2, costPerBaseUnit: 0.0224 }
+        { id: 'ti1', name: 'Farine', unit: Unit.KG, price: 1.65, priceAmount: 1.65, priceBasis: 'TTC' as const, vatRate: 0, quantity: 4, costPerBaseUnit: 0.00165 },
+        { id: 'ti2', name: 'Beurre', unit: Unit.KG, price: 18.2, priceAmount: 18.2, priceBasis: 'TTC' as const, vatRate: 0, quantity: 1.5, costPerBaseUnit: 0.0182 },
+        { id: 'ti3', name: 'Chocolat', unit: Unit.KG, price: 22.4, priceAmount: 22.4, priceBasis: 'TTC' as const, vatRate: 0, quantity: 1.2, costPerBaseUnit: 0.0224 }
       ],
       recipes: [
         {

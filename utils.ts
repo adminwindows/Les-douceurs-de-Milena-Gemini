@@ -8,8 +8,8 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
   return price / (quantity * multiplier);
 };
 
-export const formatCurrency = (amount: number, currency = '€') => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
+export const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
 export const computeIngredientPrices = (ingredient: Pick<Ingredient, 'priceAmount' | 'priceBasis' | 'vatRate'>) => {
