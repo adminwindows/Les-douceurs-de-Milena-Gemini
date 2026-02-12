@@ -1,20 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product, GlobalSettings } from '../../types';
-import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices } from '../../utils';
+import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices, getPurchaseTotals } from '../../utils';
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
-
-const getPurchaseTotals = (purchase: Purchase, ingredient?: Ingredient) => {
-  const vatRate = purchase.vatRateSnapshot ?? ingredient?.vatRate ?? 0;
-  const basis = purchase.priceBasisSnapshot ?? 'TTC';
-  const vatMultiplier = 1 + (vatRate / 100);
-  if (basis === 'HT') {
-    return { totalHT: purchase.price, totalTTC: purchase.price * vatMultiplier };
-  }
-  return { totalHT: purchase.price / vatMultiplier, totalTTC: purchase.price };
-};
 
 interface Props {
   ingredients: Ingredient[];
@@ -216,10 +206,12 @@ export const StockManagement: React.FC<Props> = ({
     });
   }, [ingredients, purchases, productionBatches, recipes, products]);
 
-  const updateStandardPrice = (ingId: string, newPrice: number) => {
+  const updateStandardPrice = (ingId: string, newPriceHT: number) => {
     setIngredients(prev => prev.map(i => {
       if(i.id !== ingId) return i;
-      return rebuildIngredientCost({ ...i, price: newPrice, priceAmount: newPrice }, settings);
+      const vatMultiplier = 1 + (i.vatRate / 100);
+      const newPriceAmount = i.priceBasis === 'TTC' ? newPriceHT * vatMultiplier : newPriceHT;
+      return rebuildIngredientCost({ ...i, price: newPriceAmount, priceAmount: newPriceAmount }, settings);
     }));
   };
 
@@ -516,8 +508,8 @@ export const StockManagement: React.FC<Props> = ({
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex gap-2 justify-center">
-                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - row.ingredient.price) > 0.01 && (
-                          <button 
+                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
+                          <button
                             onClick={() => updateStandardPrice(row.ingredient.id, row.lastPriceHT)}
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                             title="Mettre à jour le prix standard avec le dernier prix d'achat"
@@ -525,8 +517,8 @@ export const StockManagement: React.FC<Props> = ({
                             Utiliser Dernier ({formatCurrency(row.lastPriceHT)})
                           </button>
                         )}
-                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - row.ingredient.price) > 0.01 && (
-                           <button 
+                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
+                           <button
                              onClick={() => updateStandardPrice(row.ingredient.id, row.averagePriceHT)}
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                              title="Mettre à jour le prix standard avec le Coût Moyen Lissé"

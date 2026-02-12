@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Ingredient, Product, Recipe, GlobalSettings, Purchase } from '../../types';
-import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit } from '../../utils';
+import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit, computeIngredientPrices, getPurchaseTotals } from '../../utils';
 import { Card, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -19,39 +19,32 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
   const [priceMode, setPriceMode] = useState<PriceMode>('standard');
 
   // Helper to recalculate ingredients cost based on mode
+  // Cost calculations always use HT prices when TVA subject (TVA is recoverable)
   const activeIngredients = ingredients.map(ing => {
-      let calcPrice = ing.price; // Default to Standard
+      const standardHT = isTva ? computeIngredientPrices(ing).priceHT : ing.price;
+      let calcPriceHT = standardHT; // Default to Standard
 
       if (priceMode === 'average') {
           const ingPurchases = purchases.filter(p => p.ingredientId === ing.id);
           const totalQty = ingPurchases.reduce((acc, p) => acc + p.quantity, 0);
-          const totalSpent = ingPurchases.reduce((acc, p) => acc + p.price, 0);
+          const totalSpentHT = ingPurchases.reduce((acc, p) => acc + getPurchaseTotals(p, ing).totalHT, 0);
           if (totalQty > 0) {
-              calcPrice = totalSpent / totalQty;
-          } else {
-              // Fallback to Standard
-              calcPrice = ing.price;
+              calcPriceHT = totalSpentHT / totalQty;
           }
       } else if (priceMode === 'last') {
           const ingPurchases = purchases
              .filter(p => p.ingredientId === ing.id)
              .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          
+
           if (ingPurchases.length > 0) {
               const last = ingPurchases[0];
-              calcPrice = last.price / last.quantity;
-          } else {
-              // Fallback to Standard
-              calcPrice = ing.price;
+              calcPriceHT = getPurchaseTotals(last, ing).totalHT / last.quantity;
           }
       }
 
-      // Important: Always recalculate costPerBaseUnit to ensure consistency, 
-      // even for Standard mode (to fix potential drift in initial data)
       return {
           ...ing,
-          price: calcPrice,
-          costPerBaseUnit: convertToCostPerBaseUnit(calcPrice, 1, ing.unit)
+          costPerBaseUnit: convertToCostPerBaseUnit(calcPriceHT, 1, ing.unit)
       };
   });
 
