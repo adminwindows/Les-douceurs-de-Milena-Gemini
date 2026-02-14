@@ -1,5 +1,5 @@
 
-import { Ingredient, Product, Recipe, Unit, GlobalSettings } from './types';
+import { Ingredient, Product, Purchase, Recipe, Unit, GlobalSettings } from './types';
 
 export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: Unit): number => {
   if (!Number.isFinite(price) || !Number.isFinite(quantity) || quantity <= 0) return 0;
@@ -31,6 +31,16 @@ export const rebuildIngredientCost = (ingredient: Ingredient, settings: GlobalSe
     price: ingredient.priceAmount,
     costPerBaseUnit
   };
+};
+
+export const getPurchaseTotals = (purchase: Purchase, ingredient?: Ingredient) => {
+  const vatRate = purchase.vatRateSnapshot ?? ingredient?.vatRate ?? 0;
+  const basis = purchase.priceBasisSnapshot ?? 'TTC';
+  const vatMultiplier = 1 + (vatRate / 100);
+  if (basis === 'HT') {
+    return { totalHT: purchase.price, totalTTC: purchase.price * vatMultiplier };
+  }
+  return { totalHT: purchase.price / vatMultiplier, totalTTC: purchase.price };
 };
 
 export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredient[]): number => {

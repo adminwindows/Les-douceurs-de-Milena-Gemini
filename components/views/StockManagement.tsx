@@ -1,20 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product, GlobalSettings } from '../../types';
-import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices } from '../../utils';
+import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices, getPurchaseTotals } from '../../utils';
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
-
-const getPurchaseTotals = (purchase: Purchase, ingredient?: Ingredient) => {
-  const vatRate = purchase.vatRateSnapshot ?? ingredient?.vatRate ?? 0;
-  const basis = purchase.priceBasisSnapshot ?? 'TTC';
-  const vatMultiplier = 1 + (vatRate / 100);
-  if (basis === 'HT') {
-    return { totalHT: purchase.price, totalTTC: purchase.price * vatMultiplier };
-  }
-  return { totalHT: purchase.price / vatMultiplier, totalTTC: purchase.price };
-};
 
 interface Props {
   ingredients: Ingredient[];
