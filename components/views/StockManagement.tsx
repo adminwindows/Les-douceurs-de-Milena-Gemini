@@ -219,7 +219,7 @@ export const StockManagement: React.FC<Props> = ({
   const updateStandardPrice = (ingId: string, newPrice: number) => {
     setIngredients(prev => prev.map(i => {
       if(i.id !== ingId) return i;
-      return rebuildIngredientCost({ ...i, price: newPrice, priceAmount: newPrice }, settings);
+      return rebuildIngredientCost({ ...i, price: newPrice, priceAmount: newPrice, priceBasis: settings.isTvaSubject ? 'HT' : i.priceBasis }, settings);
     }));
   };
 
@@ -490,7 +490,7 @@ export const StockManagement: React.FC<Props> = ({
                       {row.currentStock.toFixed(2)}
                     </td>
                     <td className="p-3 text-right font-bold bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400">
-                      {formatCurrency(row.ingredient.price)}{settings.isTvaSubject ? ' HT' : ''}
+                      {formatCurrency(settings.isTvaSubject ? computeIngredientPrices(row.ingredient).priceHT : row.ingredient.price)}{settings.isTvaSubject ? ' HT' : ''}
                       {settings.isTvaSubject && <span className="block text-[11px] text-stone-400">({formatCurrency(computeIngredientPrices(row.ingredient).priceTTC)} TTC)</span>}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
@@ -515,7 +515,7 @@ export const StockManagement: React.FC<Props> = ({
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex gap-2 justify-center">
-                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - row.ingredient.price) > 0.01 && (
+                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
                           <button 
                             onClick={() => updateStandardPrice(row.ingredient.id, row.lastPriceHT)}
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
@@ -524,7 +524,7 @@ export const StockManagement: React.FC<Props> = ({
                             Utiliser Dernier ({formatCurrency(row.lastPriceHT)})
                           </button>
                         )}
-                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - row.ingredient.price) > 0.01 && (
+                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
                            <button 
                              onClick={() => updateStandardPrice(row.ingredient.id, row.averagePriceHT)}
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
