@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
 import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
-import { computeMonthlyTotals, shouldIncludeOrder } from '../../monthlyReportMath';
 import { isNonNegativeNumber, parseOptionalNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 import { BrandLogo } from '../ui/BrandLogo';
@@ -165,7 +164,8 @@ export const MonthlyReport: React.FC<Props> = ({
       setActualFixedItems(settings.fixedCostItems.map(i => ({ ...i })));
       
       // Orders Aggregation
-      const relevantCompletedOrders = orders.filter(o => o.date.startsWith(selectedMonth) && shouldIncludeOrder(o, settings.includePendingOrdersInMonthlyReport ?? false));
+      const relevantOrders = orders.filter(o => o.date.startsWith(selectedMonth) && o.status !== 'completed'); // Only completed for stats? Actually app usually counts all unless cancelled.
+      const relevantCompletedOrders = orders.filter(o => o.date.startsWith(selectedMonth) && o.status !== 'cancelled');
 
       const aggregatedSales: Record<string, number> = {};
       
@@ -234,6 +234,44 @@ export const MonthlyReport: React.FC<Props> = ({
   };
 
   // --- Calculations ---
+  // 1. Revenue
+  // actualPrice in sales array is considered TTC/Net paid by customer
+  const totalRevenueTTC = sales.reduce((sum, s) => sum + (s.quantitySold * s.actualPrice), 0);
+  
+  // Calculate HT if TVA enabled
+  // We must calculate line by line because rates might differ per product
+  let totalRevenueHT = 0;
+  let totalTvaCollected = 0;
+
+  if (isTva) {
+    sales.forEach(s => {
+      const p = products.find(prod => prod.id === s.productId);
+      const tvaRate = p?.tvaRate ?? settings.defaultTvaRate ?? 0;
+      const lineTTC = s.quantitySold * s.actualPrice;
+      const lineHT = lineTTC / (1 + tvaRate/100);
+      totalRevenueHT += lineHT;
+      totalTvaCollected += (lineTTC - lineHT);
+    });
+  } else {
+    totalRevenueHT = totalRevenueTTC; // Franchise base, revenue is the total
+    totalTvaCollected = 0;
+  }
+
+  // 2. Variable Costs
+  // Method 1: Calculated Theoretical
+  const calculatedFoodCost = sales.reduce((sum, s) => {
+    const product = products.find(p => p.id === s.productId);
+    const recipe = recipes.find(r => r.id === product?.recipeId);
+    if (!product || !recipe) return sum;
+
+    const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
+    const unitCost = batchCost / (recipe.batchYield ?? 1);
+    
+    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
+
+    const totalUnits = s.quantitySold + (s.quantityUnsold || 0);
+    return sum + (unitCost * mfgLossMultiplier * totalUnits);
+  }, 0);
 
   // Method 3: Inventory Variation
   const inventoryVariationCost = inventory.reduce((sum, item) => {
@@ -246,34 +284,33 @@ export const MonthlyReport: React.FC<Props> = ({
     return sum + (usedQty * pricePerStockUnit);
   }, 0);
 
+  // Selection
+  let finalFoodCost = 0;
+  if (costMode === 0) finalFoodCost = calculatedFoodCost;
+  else if (costMode === 1) finalFoodCost = actualIngredientSpend;
+  else finalFoodCost = inventoryVariationCost;
+
+  // Packaging
+  const totalPackagingCost = sales.reduce((sum, s) => {
+    const product = products.find(p => p.id === s.productId);
+    if (!product) return sum;
+    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
+    const totalPackagedUnits = s.quantitySold + (product.packagingUsedOnUnsold ? (s.quantityUnsold || 0) : 0);
+    return sum + (product.packagingCost * totalPackagedUnits * mfgLossMultiplier);
+  }, 0);
+
+  // 3. Social Charges
+  // Logic: Social charges are calculated on Revenue.
+  // If isTvaSubject => On Revenue HT.
+  // If !isTvaSubject => On Revenue Total.
+  const baseForSocialCharges = totalRevenueHT; 
+  const totalSocialCharges = baseForSocialCharges * (settings.taxRate / 100);
+
+  // 4. Result
+  const totalVariableCosts = finalFoodCost + totalPackagingCost + totalSocialCharges;
+  const grossMargin = totalRevenueHT - totalVariableCosts; // Margin on HT
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
-  const { totalRevenueTTC, totalRevenueHT, totalTvaCollected, finalFoodCost, totalPackagingCost, totalSocialCharges, netResult } = computeMonthlyTotals({
-    sales,
-    products,
-    recipes,
-    ingredients,
-    settings,
-    costMode,
-    actualIngredientSpend,
-    inventoryVariationCost,
-    actualFixedCosts: totalActualFixedCosts,
-    selectedMonth,
-    orders
-  });
-  const calculatedFoodCost = computeMonthlyTotals({
-    sales,
-    products,
-    recipes,
-    ingredients,
-    settings,
-    costMode: 0,
-    actualIngredientSpend,
-    inventoryVariationCost,
-    actualFixedCosts: totalActualFixedCosts,
-    selectedMonth,
-    orders
-  }).finalFoodCost;
-  const grossMargin = totalRevenueHT - (finalFoodCost + totalPackagingCost + totalSocialCharges);
+  const netResult = grossMargin - totalActualFixedCosts;
 
   const isSalesValid = sales.every(s =>
     isNonNegativeNumber(s.quantitySold) &&
@@ -360,7 +397,7 @@ export const MonthlyReport: React.FC<Props> = ({
               
               // Warning logic
               const realSold = orders
-                  .filter(o => o.date.startsWith(selectedMonth) && shouldIncludeOrder(o, settings.includePendingOrdersInMonthlyReport ?? false))
+                  .filter(o => o.date.startsWith(selectedMonth) && o.status !== 'cancelled')
                   .reduce((sum, o) => sum + (o.items.find(i=>i.productId === p.id)?.quantity || 0), 0);
                   
               const realProd = productionBatches

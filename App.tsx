@@ -28,7 +28,6 @@ import {
 import { DEMO_DATASETS, cloneAppData, getDemoDatasetById } from './demoData';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
 import { BackupSelection, exportBackupFile, getMobileBackupBridge, parseImportedAppData } from './backupIO';
-import { normalizeAppData, normalizeIngredient, normalizeSettings } from './dataMigrations';
 
 const DataManagerModal = ({
   isOpen, onClose,
@@ -198,15 +197,14 @@ const App = () => {
   };
 
   const savedState = loadAppState();
-  const normalizedSavedState = savedState ? normalizeAppData(savedState) : undefined;
-  const [ingredients, setIngredients] = useState<Ingredient[]>(normalizedSavedState?.ingredients ?? []);
-  const [recipes, setRecipes] = useState<Recipe[]>(normalizedSavedState?.recipes ?? []);
-  const [products, setProducts] = useState<Product[]>(normalizedSavedState?.products ?? []);
-  const [settings, setSettings] = useState<GlobalSettings>(normalizedSavedState?.settings ?? normalizeSettings(firstLaunchSettings));
-  const [orders, setOrders] = useState<Order[]>(normalizedSavedState?.orders ?? []);
-  const [savedReports, setSavedReports] = useState<MonthlyReportData[]>(normalizedSavedState?.savedReports ?? []);
-  const [purchases, setPurchases] = useState<Purchase[]>(normalizedSavedState?.purchases ?? []);
-  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(normalizedSavedState?.productionBatches ?? []);
+  const [ingredients, setIngredients] = useState<Ingredient[]>(savedState?.ingredients ?? []);
+  const [recipes, setRecipes] = useState<Recipe[]>(savedState?.recipes ?? []);
+  const [products, setProducts] = useState<Product[]>(savedState?.products ?? []);
+  const [settings, setSettings] = useState<GlobalSettings>(savedState?.settings ?? firstLaunchSettings);
+  const [orders, setOrders] = useState<Order[]>(savedState?.orders ?? []);
+  const [savedReports, setSavedReports] = useState<MonthlyReportData[]>(savedState?.savedReports ?? []);
+  const [purchases, setPurchases] = useState<Purchase[]>(savedState?.purchases ?? []);
+  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(savedState?.productionBatches ?? []);
   const [activeDemoDatasetId, setActiveDemoDatasetId] = useState<string | undefined>(loadDemoSession()?.datasetId);
 
   useEffect(() => {
@@ -240,21 +238,11 @@ const App = () => {
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-  const handleSettingsUpdate: React.Dispatch<React.SetStateAction<GlobalSettings>> = (updater) => {
-    setSettings(prev => {
-      const nextRaw = typeof updater === 'function' ? updater(prev) : updater;
-      const next = normalizeSettings(nextRaw);
-      setIngredients(current => current.map((ingredient) => normalizeIngredient(ingredient, next)));
-      return next;
-    });
-  };
-
   const setAllData = (data: AppData) => {
-    const normalized = normalizeAppData(data);
-    setIngredients(normalized.ingredients);
+    setIngredients(data.ingredients);
     setRecipes(data.recipes);
-    setProducts(normalized.products);
-    setSettings(normalized.settings);
+    setProducts(data.products);
+    setSettings(data.settings);
     setOrders(data.orders);
     setSavedReports(data.savedReports);
     setPurchases(data.purchases);
@@ -298,15 +286,10 @@ const App = () => {
 
   const setData = (key: string, val: any) => {
     switch (key) {
-      case 'ingredients': setIngredients((val as Ingredient[]).map((ingredient) => normalizeIngredient(ingredient, settings))); break;
+      case 'ingredients': setIngredients(val); break;
       case 'recipes': setRecipes(val); break;
-      case 'products': setProducts((val as Product[]).map(product => ({ ...product, applyLossToPackaging: product.applyLossToPackaging ?? false }))); break;
-      case 'settings': {
-        const normalizedSettings = normalizeSettings(val);
-        setSettings(normalizedSettings);
-        setIngredients(prev => prev.map((ingredient) => normalizeIngredient(ingredient, normalizedSettings)));
-        break;
-      }
+      case 'products': setProducts(val); break;
+      case 'settings': setSettings(val); break;
       case 'orders': setOrders(val); break;
       case 'savedReports': setSavedReports(val); break;
       case 'purchases': setPurchases(val); break;
@@ -319,7 +302,7 @@ const App = () => {
       case 'settings':
         return <Settings
           settings={settings}
-          setSettings={handleSettingsUpdate}
+          setSettings={setSettings}
           demoDatasets={DEMO_DATASETS}
           activeDemoDatasetId={activeDemoDatasetId}
           onActivateDemo={activateDemo}
@@ -336,7 +319,6 @@ const App = () => {
           productionBatches={productionBatches}
           recipes={recipes}
           products={products}
-          settings={settings}
         />;
       case 'production':
         return <Production

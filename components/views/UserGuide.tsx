@@ -194,18 +194,6 @@ export const UserGuide: React.FC = () => {
       {activeTab === 'advanced' && (
           <div className="space-y-6">
               <Card>
-                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">TVA (ingrédients & ventes)</h3>
-                  <div className="space-y-2 text-sm text-stone-600 dark:text-stone-300">
-                    <p>En mode <strong>Franchise de TVA</strong>, vous saisissez le prix tel que payé (TTC) et il est utilisé tel quel dans le coût matière.</p>
-                    <p>En mode <strong>TVA activée</strong>, le coût matière est calculé en HT (TVA récupérable).</p>
-                    <ul className="list-disc pl-5">
-                      <li>Exemple 1 : Farine 1,20€ TTC à 5,5% → HT = 1,20 / 1,055 = 1,14€.</li>
-                      <li>Exemple 2 : Beurre 10,00€ HT à 5,5% → TTC = 10,00 × 1,055 = 10,55€.</li>
-                    </ul>
-                  </div>
-              </Card>
-
-              <Card>
                   <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">La Gestion des Stocks Avancée</h3>
                   <div className="prose dark:prose-invert max-w-none text-sm text-stone-600 dark:text-stone-300">
                       <p className="mb-2">Pour que le suivi soit efficace, l'application utilise une logique de flux :</p>

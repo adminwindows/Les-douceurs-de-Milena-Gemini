@@ -14,9 +14,7 @@ describe('Settings labor toggle', () => {
       fixedCostItems: [],
       taxRate: 22,
       isTvaSubject: false,
-      defaultTvaRate: 5.5,
-      defaultIngredientVatRate: 5.5,
-      includePendingOrdersInMonthlyReport: false
+      defaultTvaRate: 5.5
     };
 
     const setSettings = (updater: any) => {
