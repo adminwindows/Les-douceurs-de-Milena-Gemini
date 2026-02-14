@@ -206,10 +206,16 @@ export const StockManagement: React.FC<Props> = ({
     });
   }, [ingredients, purchases, productionBatches, recipes, products]);
 
-  const updateStandardPrice = (ingId: string, newPrice: number) => {
+  const updateStandardPrice = (ingId: string, newPrice: { priceHT: number; priceTTC: number }) => {
     setIngredients(prev => prev.map(i => {
-      if(i.id !== ingId) return i;
-      return rebuildIngredientCost({ ...i, price: newPrice, priceAmount: newPrice, priceBasis: settings.isTvaSubject ? 'HT' : i.priceBasis }, settings);
+      if (i.id !== ingId) return i;
+
+      // Preserve the ingredient's original priceBasis when updating from purchase data
+      const nextPriceAmount = settings.isTvaSubject
+        ? ((i.priceBasis ?? 'TTC') === 'TTC' ? newPrice.priceTTC : newPrice.priceHT)
+        : newPrice.priceTTC;
+
+      return rebuildIngredientCost({ ...i, price: nextPriceAmount, priceAmount: nextPriceAmount }, settings);
     }));
   };
 
@@ -507,7 +513,7 @@ export const StockManagement: React.FC<Props> = ({
                       <div className="flex gap-2 justify-center">
                         {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
                           <button 
-                            onClick={() => updateStandardPrice(row.ingredient.id, row.lastPriceHT)}
+                            onClick={() => updateStandardPrice(row.ingredient.id, { priceHT: row.lastPriceHT, priceTTC: row.lastPriceTTC })}
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                             title="Mettre à jour le prix standard avec le dernier prix d'achat"
                           >
@@ -515,8 +521,8 @@ export const StockManagement: React.FC<Props> = ({
                           </button>
                         )}
                         {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - computeIngredientPrices(row.ingredient).priceHT) > 0.01 && (
-                           <button 
-                             onClick={() => updateStandardPrice(row.ingredient.id, row.averagePriceHT)}
+                           <button
+                             onClick={() => updateStandardPrice(row.ingredient.id, { priceHT: row.averagePriceHT, priceTTC: row.averagePriceTTC })}
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                              title="Mettre à jour le prix standard avec le Coût Moyen Lissé"
                            >
