@@ -16,7 +16,6 @@ describe('import schema compatibility', () => {
           recipeId: 20,
           laborTimeMinutes: '12',
           packagingCost: '0.3',
-          variableDeliveryCost: '0',
           lossRate: '3',
           unsoldEstimate: '0',
           packagingUsedOnUnsold: 'true',

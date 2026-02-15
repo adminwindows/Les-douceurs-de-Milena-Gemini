@@ -191,11 +191,11 @@ export const MonthlyReport: React.FC<Props> = ({
         const recipe = recipes.find(r => r.id === p.recipeId);
         const batchCost = recipe ? calculateRecipeMaterialCost(recipe, ingredients) : 0;
         const unitMat = batchCost / (recipe?.batchYield ?? 1);
-        const labor = (p.laborTimeMinutes/60) * settings.hourlyRate;
+        const labor = settings.includeLaborInCost ? (p.laborTimeMinutes/60) * settings.hourlyRate : 0;
         const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales ?? 1),0));
-        
+
         // Basic estimation without complex loss logic for default value
-        const totalCostHT = unitMat + p.packagingCost + p.variableDeliveryCost + labor + fixed;
+        const totalCostHT = unitMat + p.packagingCost + labor + fixed;
         const socialDivisor = (1 - settings.taxRate/100);
         const priceHT = (totalCostHT + p.targetMargin) / socialDivisor;
         const tvaRate = p.tvaRate ?? settings.defaultTvaRate ?? 0;

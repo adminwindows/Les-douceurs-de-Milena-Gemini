@@ -77,9 +77,8 @@ export const calculateProductMetrics = (
   const finalMaterialCost = unitMaterialCost * manufacturingLossMultiplier * materialProductionRatio;
   const packagingLossMultiplier = product.applyLossToPackaging ? manufacturingLossMultiplier : 1;
   const finalPackagingCost = product.packagingCost * packagingLossMultiplier * packagingRatio;
-  const finalDeliveryCost = 0;
 
-  const totalVariableCosts = finalMaterialCost + finalPackagingCost + finalDeliveryCost;
+  const totalVariableCosts = finalMaterialCost + finalPackagingCost;
 
   const fullCost = totalVariableCosts + laborCost + allocatedFixedCost;
 
@@ -169,7 +168,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     recipeId: 'r1',
     laborTimeMinutes: 5,
     packagingCost: 0.10,
-    variableDeliveryCost: 0,
+
     lossRate: 5,
     unsoldEstimate: 2,
     packagingUsedOnUnsold: false,
@@ -184,7 +183,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     recipeId: 'r2',
     laborTimeMinutes: 45,
     packagingCost: 1.50,
-    variableDeliveryCost: 0,
+
     lossRate: 0,
     unsoldEstimate: 0,
     packagingUsedOnUnsold: true,

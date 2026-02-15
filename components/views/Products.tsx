@@ -28,7 +28,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', {
     laborTimeMinutes: 15,
     packagingCost: 0.10,
-    variableDeliveryCost: 0,
+
     lossRate: 0, 
     unsoldEstimate: 0, 
     packagingUsedOnUnsold: true, 
@@ -48,7 +48,6 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   const isUnsoldEstimateValid = isNonNegativeNumber(newProduct.unsoldEstimate);
   const isLaborTimeValid = isNonNegativeNumber(newProduct.laborTimeMinutes);
   const isPackagingCostValid = isNonNegativeNumber(newProduct.packagingCost);
-  const isVariableDeliveryCostValid = isNonNegativeNumber(newProduct.variableDeliveryCost);
   const isTargetMarginValid = isNonNegativeNumber(newProduct.targetMargin);
   const isTvaRateValid = !isTvaEnabled || isPercentage(newProduct.tvaRate);
   const isProductFormValid = Boolean(
@@ -59,7 +58,6 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     isUnsoldEstimateValid &&
     isLaborTimeValid &&
     isPackagingCostValid &&
-    isVariableDeliveryCostValid &&
     isTargetMarginValid &&
     isTvaRateValid
   );
@@ -73,7 +71,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       recipeId: newProduct.recipeId,
       laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
       packagingCost: Number(newProduct.packagingCost ?? 0),
-      variableDeliveryCost: Number(newProduct.variableDeliveryCost ?? 0),
+
       lossRate: Number(newProduct.lossRate ?? 0),
       unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
       packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
@@ -88,7 +86,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       name: '',
       laborTimeMinutes: 15,
       packagingCost: 0.10,
-      variableDeliveryCost: 0,
+  
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
@@ -118,7 +116,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       name: '',
       laborTimeMinutes: 15,
       packagingCost: 0.10,
-      variableDeliveryCost: 0,
+  
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
@@ -143,7 +141,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             recipeId: newProduct.recipeId!,
             laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
             packagingCost: Number(newProduct.packagingCost ?? 0),
-            variableDeliveryCost: Number(newProduct.variableDeliveryCost ?? 0),
+      
             lossRate: Number(newProduct.lossRate ?? 0),
             unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
             packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,

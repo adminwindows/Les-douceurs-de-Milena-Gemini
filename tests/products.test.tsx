@@ -56,7 +56,6 @@ describe('Products form behavior', () => {
       recipeId: 'r1',
       laborTimeMinutes: 10,
       packagingCost: 0.2,
-      variableDeliveryCost: 0,
       lossRate: 2,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
