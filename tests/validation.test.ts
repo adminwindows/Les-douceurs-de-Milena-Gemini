@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../validation';
+import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber, hasPriceDrift } from '../validation';
 
 describe('validation helpers', () => {
   it('parses optional numbers safely', () => {
@@ -29,5 +29,13 @@ describe('validation helpers', () => {
     expect(isPercentage(99.99)).toBe(true);
     expect(isPercentage(100)).toBe(false);
     expect(isPercentage(-1)).toBe(false);
+  });
+
+  it('detects price drift with strict tolerance (0)', () => {
+    expect(hasPriceDrift(1.20, 1.20)).toBe(false);
+    expect(hasPriceDrift(1.20, 1.21)).toBe(true);
+    expect(hasPriceDrift(1.20, 1.19)).toBe(true);
+    expect(hasPriceDrift(0, 0)).toBe(false);
+    expect(hasPriceDrift(0, 0.001)).toBe(true);
   });
 });

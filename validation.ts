@@ -16,3 +16,16 @@ export const isPositiveNumber = (value: unknown): value is number =>
 
 export const isPercentage = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 100;
+
+/**
+ * Tolerance for price-drift detection (standard vs purchase price).
+ * 0 = strict equality (any difference triggers the update suggestion).
+ * Set to a positive value (e.g. 0.01) to ignore sub-centime differences.
+ */
+export const PRICE_DRIFT_TOLERANCE = 0;
+
+/**
+ * Returns true when `newPrice` differs from `currentPrice` beyond PRICE_DRIFT_TOLERANCE.
+ */
+export const hasPriceDrift = (currentPrice: number, newPrice: number): boolean =>
+  Math.abs(newPrice - currentPrice) > PRICE_DRIFT_TOLERANCE;

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product, GlobalSettings } from '../../types';
 import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost, computeIngredientPrices } from '../../utils';
-import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber } from '../../validation';
+import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber, hasPriceDrift } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
 
@@ -515,7 +515,7 @@ export const StockManagement: React.FC<Props> = ({
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex gap-2 justify-center">
-                        {row.lastPriceHT > 0 && Math.abs(row.lastPriceHT - row.ingredient.price) > 0.01 && (
+                        {row.lastPriceHT > 0 && hasPriceDrift(row.ingredient.price, row.lastPriceHT) && (
                           <button 
                             onClick={() => updateStandardPrice(row.ingredient.id, row.lastPriceHT)}
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
@@ -524,7 +524,7 @@ export const StockManagement: React.FC<Props> = ({
                             Utiliser Dernier ({formatCurrency(row.lastPriceHT)})
                           </button>
                         )}
-                        {row.averagePriceHT > 0 && Math.abs(row.averagePriceHT - row.ingredient.price) > 0.01 && (
+                        {row.averagePriceHT > 0 && hasPriceDrift(row.ingredient.price, row.averagePriceHT) && (
                            <button 
                              onClick={() => updateStandardPrice(row.ingredient.id, row.averagePriceHT)}
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"

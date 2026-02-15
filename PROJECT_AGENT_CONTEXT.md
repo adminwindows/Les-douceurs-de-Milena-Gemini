@@ -580,3 +580,27 @@ Files modified:
 Files deleted:
 - `patch.patch`
 - `Check and apply patch.patch file.html`
+
+## 29) Latest Turn Update (strict price-drift check + framework)
+
+User request:
+- Replace the hardcoded `> 0.01` threshold for standard price update suggestions with exact check (no threshold).
+- Provide a framework (independent from the test assertion framework) that allows configuring a tolerance later.
+
+Actions taken:
+- Added to `validation.ts`:
+  - `PRICE_DRIFT_TOLERANCE` constant (set to `0` for strict / exact mode),
+  - `hasPriceDrift(currentPrice, newPrice)` helper: returns true when `|newPrice - currentPrice| > PRICE_DRIFT_TOLERANCE`.
+- Updated `components/views/StockManagement.tsx`:
+  - Replaced two hardcoded `Math.abs(...) > 0.01` checks (lines 518 and 527) with `hasPriceDrift(row.ingredient.price, row.lastPriceHT)` and `hasPriceDrift(row.ingredient.price, row.averagePriceHT)`.
+  - Imported `hasPriceDrift` from validation.
+- Added test in `tests/validation.test.ts` covering `hasPriceDrift` with strict tolerance.
+
+Validation:
+- `npx vitest run` — 90 tests pass (1 new test added)
+
+Files modified:
+- `validation.ts`
+- `components/views/StockManagement.tsx`
+- `tests/validation.test.ts`
+- `PROJECT_AGENT_CONTEXT.md`
