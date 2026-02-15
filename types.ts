@@ -58,7 +58,6 @@ export interface Product {
   recipeId: string;
   laborTimeMinutes: number;
   packagingCost: number;
-  variableDeliveryCost: number;
   lossRate: number; // Taux de perte fabrication (cassé, raté)
   unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
   packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?

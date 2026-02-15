@@ -86,7 +86,7 @@ describe('backup I/O', () => {
   });
 
   it('parses wrapped JSON payloads and applies schema coercion', () => {
-    const imported = parseImportedAppData('prefix text\n{"products":[{"id":1,"name":"P","recipeId":2,"laborTimeMinutes":"1","packagingCost":"0","variableDeliveryCost":"0","lossRate":"0","unsoldEstimate":"0","packagingUsedOnUnsold":"false","targetMargin":"1","estimatedMonthlySales":"1","category":"X","tvaRate":"5.5"}]}\nsuffix');
+    const imported = parseImportedAppData('prefix text\n{"products":[{"id":1,"name":"P","recipeId":2,"laborTimeMinutes":"1","packagingCost":"0","lossRate":"0","unsoldEstimate":"0","packagingUsedOnUnsold":"false","targetMargin":"1","estimatedMonthlySales":"1","category":"X","tvaRate":"5.5"}]}\nsuffix');
 
     expect(imported.products?.[0].id).toBe('1');
     expect(imported.products?.[0].tvaRate).toBe(5.5);

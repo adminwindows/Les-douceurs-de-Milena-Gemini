@@ -171,7 +171,7 @@ describe('calculateRecipeMaterialCost', () => {
 describe('calculateProductMetrics', () => {
   const ing: Ingredient[] = [{ id: 'i1', name: 'F', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }];
   const recipe: Recipe = { id: 'r1', name: 'R', ingredients: [{ ingredientId: 'i1', quantity: 100 }], batchYield: 10, lossPercentage: 0 };
-  const base: Product = { id: 'p', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 0, variableDeliveryCost: 0, lossRate: 0, unsoldEstimate: 0, packagingUsedOnUnsold: false, applyLossToPackaging: false, targetMargin: 0, estimatedMonthlySales: 10, category: 'c' };
+  const base: Product = { id: 'p', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 0, lossRate: 0, unsoldEstimate: 0, packagingUsedOnUnsold: false, applyLossToPackaging: false, targetMargin: 0, estimatedMonthlySales: 10, category: 'c' };
 
   it('computes basic unitMaterialCost', () => {
     // batchCost = 100*0.01 = 1.0; unitCost = 1.0/10 = 0.1
@@ -303,15 +303,6 @@ describe('calculateProductMetrics', () => {
       const m = calculateProductMetrics(base, recipe, ing, settingsTax, [base]);
       // fullCost / (1 - 0.2) = fullCost / 0.8
       expect(m.minPriceBreakeven).toBeCloseTo(m.fullCost / 0.8, 6);
-    });
-  });
-
-  describe('delivery cost', () => {
-    it('variableDeliveryCost is forced to 0 (not implemented)', () => {
-      const product = { ...base, variableDeliveryCost: 99 };
-      const withDelivery = calculateProductMetrics(product, recipe, ing, settingsOff, [product]);
-      const withoutDelivery = calculateProductMetrics(base, recipe, ing, settingsOff, [base]);
-      expect(withDelivery.fullCost).toBeCloseTo(withoutDelivery.fullCost, 6);
     });
   });
 

@@ -93,14 +93,6 @@ finalPackagingCost = packagingCost × packagingLossMultiplier × packagingRatio
 - `packagingUsedOnUnsold` (boolean, par produit) : si ON, les invendus sont aussi emballés.
 - `applyLossToPackaging` (boolean, par produit, défaut OFF) : si ON, le multiplicateur de perte s'applique aussi à l'emballage.
 
-### Livraison variable
-
-```
-finalDeliveryCost = 0  (non implémenté)
-```
-
-- Le champ `variableDeliveryCost` existe dans le modèle produit mais est forcé à 0 dans tous les calculs (pricing et bilan mensuel). Non inclus dans les prix suggérés.
-
 ### Main d'œuvre
 
 ```
@@ -125,7 +117,7 @@ allocatedFixedCost = totalEstimatedVolume > 0 ? totalFixedCosts / totalEstimated
 ### Coûts variables totaux
 
 ```
-totalVariableCosts = finalMaterialCost + finalPackagingCost + finalDeliveryCost
+totalVariableCosts = finalMaterialCost + finalPackagingCost
 ```
 
 ### Coût complet

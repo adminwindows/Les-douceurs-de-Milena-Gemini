@@ -55,7 +55,7 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'dr1',
           laborTimeMinutes: 7,
           packagingCost: 0.2,
-          variableDeliveryCost: 0,
+
           lossRate: 2,
           unsoldEstimate: 1,
           packagingUsedOnUnsold: false,
@@ -134,7 +134,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'wr1',
           laborTimeMinutes: 10,
           packagingCost: 0.28,
-          variableDeliveryCost: 0.1,
           lossRate: 7,
           unsoldEstimate: 10,
           packagingUsedOnUnsold: true,
@@ -149,7 +148,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'wr2',
           laborTimeMinutes: 5,
           packagingCost: 0.12,
-          variableDeliveryCost: 0.05,
           lossRate: 2,
           unsoldEstimate: 8,
           packagingUsedOnUnsold: false,
@@ -216,7 +214,7 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'tr1',
           laborTimeMinutes: 6,
           packagingCost: 0.15,
-          variableDeliveryCost: 0,
+
           lossRate: 6,
           unsoldEstimate: 5,
           packagingUsedOnUnsold: false,

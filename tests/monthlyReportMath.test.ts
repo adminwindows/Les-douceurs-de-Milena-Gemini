@@ -11,7 +11,7 @@ const baseSettings: GlobalSettings = {
 };
 
 const product: Product = {
-  id: 'p1', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 1, variableDeliveryCost: 9,
+  id: 'p1', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 1,
   lossRate: 10, unsoldEstimate: 0, packagingUsedOnUnsold: true, applyLossToPackaging: false,
   targetMargin: 0, estimatedMonthlySales: 10, category: 'c', tvaRate: 10
 };
@@ -185,18 +185,6 @@ describe('computeMonthlyTotals – cost modes', () => {
   it('mode 2: uses inventoryVariationCost', () => {
     const totals = computeMonthlyTotals(makeInput({ costMode: 2, inventoryVariationCost: 55 }));
     expect(totals.finalFoodCost).toBeCloseTo(55, 6);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Delivery handling
-// ---------------------------------------------------------------------------
-describe('computeMonthlyTotals – delivery', () => {
-  it('variableDeliveryCost is ignored in monthly totals', () => {
-    const withDelivery = computeMonthlyTotals(makeInput({ products: [{ ...product, variableDeliveryCost: 99 }] }));
-    const withoutDelivery = computeMonthlyTotals(makeInput({ products: [{ ...product, variableDeliveryCost: 0 }] }));
-    expect(withDelivery.netResult).toBeCloseTo(withoutDelivery.netResult, 6);
-    expect(withDelivery.totalPackagingCost).toBeCloseTo(withoutDelivery.totalPackagingCost, 6);
   });
 });
 

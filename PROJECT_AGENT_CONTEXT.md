@@ -484,3 +484,66 @@ Validation:
 - `npm test`
 - Playwright screenshot captured:
   - `browser:/tmp/codex_browser_invocations/af7e4bdd9ea09f13/artifacts/artifacts/stock-prix-standard-ht.png`
+
+## 26) Latest Turn Update (pricing/packaging/reporting verification + comprehensive tests)
+
+User request:
+- Verify packaging/unsold/manufacturing-loss semantics and add tests.
+- Verify monthly report correctness (order filtering, delivery consistency, labor toggle vs prefill).
+- Extract monthly report computations to pure function and unit-test thoroughly.
+- Add core pricing math tests (conversions, recipes, metrics, monotonicity).
+- Create complete `docs/formulas-spec.md` and update `CHANGELOG.md`.
+
+Verification findings:
+- `packagingUsedOnUnsold` (per-product boolean) — confirmed working in both `calculateProductMetrics` and `computeMonthlyTotals`.
+- `applyLossToPackaging` (per-product boolean, default OFF) — confirmed working in both pricing and monthly report.
+- Order filtering (`shouldIncludeOrder`) — confirmed: completed always included, cancelled always excluded, pending excluded by default (toggle in settings).
+- `computeMonthlyTotals` — already extracted as pure function in `monthlyReportMath.ts`.
+
+Bugs found and fixed:
+- **Monthly report price prefill** always included labor regardless of `includeLaborInCost` toggle → fixed to respect the toggle.
+- **Monthly report price prefill** included `variableDeliveryCost` while all calculations forced it to 0 → removed from prefill.
+
+Actions taken:
+- Fixed `MonthlyReport.tsx` price prefill (labor toggle + delivery removal).
+- Expanded `tests/utils.test.ts` from 7 to 43 tests covering: unit conversions (all unit types, invalid inputs), ingredient HT/TTC conversions, recipe material cost (multi-ingredient, missing ingredient, loss), product metrics (labor toggle, loss rate, unsold, packaging ON/OFF, loss-to-packaging ON/OFF, fixed cost allocation, VAT pricing, social charges, monotonicity).
+- Expanded `tests/monthlyReportMath.test.ts` from 4 to 25 tests covering: order status filtering, VAT ON/OFF split, social contributions base, packaging logic (unsold + loss), cost modes, net result, multi-product, edge cases.
+- Rewrote `docs/formulas-spec.md` with complete exact formulas for all calculations.
+- Updated `CHANGELOG.md` with fixes, new tests, and expanded scope summary.
+
+Validation:
+- `npm run typecheck` — clean
+- `npm test` — 91 tests pass (up from 34)
+- `npm run build` — not run (tests + typecheck sufficient)
+
+## 27) Latest Turn Update (remove all delivery cost references + context update)
+
+User request:
+- Remove ALL mentions of delivery cost from the entire codebase.
+- Update PROJECT_AGENT_CONTEXT.md with current context.
+
+Actions taken:
+- Removed `variableDeliveryCost` field from `Product` interface in `types.ts`.
+- Removed `variableDeliveryCost` from both strict and legacy product schemas in `dataSchema.ts`.
+- Removed `finalDeliveryCost` variable and references from `utils.ts` calculations.
+- Removed `variableDeliveryCost` from all initial/default product data in `utils.ts`.
+- Removed all delivery validation, default values, and form handling from `components/views/Products.tsx`.
+- Removed delivery comment from `components/views/MonthlyReport.tsx`.
+- Removed `variableDeliveryCost` from all 3 demo datasets in `demoData.ts`.
+- Removed delivery section from `docs/formulas-spec.md`.
+- Removed delivery scope line from `README.md`.
+- Updated `CHANGELOG.md` to note field removal instead of "not implemented".
+- Removed delivery test sections from `tests/utils.test.ts` and `tests/monthlyReportMath.test.ts`.
+- Removed `variableDeliveryCost` from test fixtures in `tests/products.test.tsx`, `tests/importSchema.test.ts`, and `tests/backupIO.test.ts`.
+- Note: `tests/fixtures/proof-save.json` and `patch.patch` / `.html` build artifacts were NOT modified (backward-compat fixture + generated files).
+- Note: "livraison" references in `Orders.tsx` (order delivery date label) were NOT removed as they refer to order delivery dates, not delivery cost.
+
+Validation:
+- `npx tsc --noEmit` — clean (no type errors)
+- `npx vitest run` — 89 tests pass (2 delivery tests removed from prior 91)
+
+Files modified:
+- `types.ts`, `dataSchema.ts`, `utils.ts`, `demoData.ts`, `dataMigrations.ts` (no change needed)
+- `components/views/Products.tsx`, `components/views/MonthlyReport.tsx`
+- `tests/utils.test.ts`, `tests/monthlyReportMath.test.ts`, `tests/products.test.tsx`, `tests/importSchema.test.ts`, `tests/backupIO.test.ts`
+- `docs/formulas-spec.md`, `CHANGELOG.md`, `README.md`, `PROJECT_AGENT_CONTEXT.md`

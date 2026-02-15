@@ -195,7 +195,6 @@ export const MonthlyReport: React.FC<Props> = ({
         const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales ?? 1),0));
 
         // Basic estimation without complex loss logic for default value
-        // Note: variableDeliveryCost is not implemented — excluded from prefill
         const totalCostHT = unitMat + p.packagingCost + labor + fixed;
         const socialDivisor = (1 - settings.taxRate/100);
         const priceHT = (totalCostHT + p.targetMargin) / socialDivisor;
