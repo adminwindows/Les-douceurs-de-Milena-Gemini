@@ -11,13 +11,11 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: Unit;
-  price: number; // Compat legacy alias of priceAmount
-  priceAmount: number;
-  priceBasis: 'TTC' | 'HT';
-  vatRate: number;
-  needsVatReview?: boolean;
+  price: number; // Prix HT pour 1 unité de stock (seule base stockée)
   quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
   costPerBaseUnit: number;
+  helperVatRate?: number; // UI-only: last TVA rate used in TTC→HT converter (prefill convenience)
+  needsPriceReview?: boolean; // One-time migration flag: price was auto-converted from TTC to HT
 }
 
 // Nouveau : Journal des achats pour gérer les variations de prix
@@ -26,9 +24,7 @@ export interface Purchase {
   date: string;
   ingredientId: string;
   quantity: number; // Quantité achetée (dans l'unité de l'ingrédient)
-  price: number; // Prix TOTAL payé pour cette quantité
-  vatRateSnapshot?: number;
-  priceBasisSnapshot?: 'TTC' | 'HT';
+  price: number; // Prix TOTAL HT payé pour cette quantité
 }
 
 // Nouveau : Journal de production pour déstocker les ingrédients
@@ -78,11 +74,10 @@ export interface GlobalSettings {
   currency: string;
   hourlyRate: number;
   includeLaborInCost: boolean;
-  fixedCostItems: FixedCostItem[]; 
+  fixedCostItems: FixedCostItem[];
   taxRate: number; // Cotisations sociales
-  isTvaSubject: boolean; // Nouveau: Assujetti à la TVA ?
-  defaultTvaRate: number; // Nouveau: Taux par défaut (ex: 5.5)
-  defaultIngredientVatRate: number;
+  isTvaSubject: boolean; // Assujetti à la TVA ?
+  defaultTvaRate: number; // Taux TVA ventes par défaut (ex: 5.5)
   includePendingOrdersInMonthlyReport?: boolean;
 }
 

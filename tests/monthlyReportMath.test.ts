@@ -8,7 +8,7 @@ import { expectEqual } from './assertHelpers';
 // ---------------------------------------------------------------------------
 const baseSettings: GlobalSettings = {
   currency: 'EUR', hourlyRate: 15, includeLaborInCost: true, fixedCostItems: [], taxRate: 20,
-  isTvaSubject: true, defaultTvaRate: 10, defaultIngredientVatRate: 5.5, includePendingOrdersInMonthlyReport: false
+  isTvaSubject: true, defaultTvaRate: 10, includePendingOrdersInMonthlyReport: false
 };
 
 const product: Product = {
@@ -17,7 +17,7 @@ const product: Product = {
   targetMargin: 0, estimatedMonthlySales: 10, category: 'c', tvaRate: 10
 };
 const recipe: Recipe = { id: 'r1', name: 'R', ingredients: [{ ingredientId: 'i1', quantity: 100 }], batchYield: 10, lossPercentage: 0 };
-const ingredient: Ingredient = { id: 'i1', name: 'I', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 };
+const ingredient: Ingredient = { id: 'i1', name: 'I', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 };
 
 const makeInput = (overrides: Partial<MonthlyTotalsInput> = {}): MonthlyTotalsInput => ({
   sales: [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }],

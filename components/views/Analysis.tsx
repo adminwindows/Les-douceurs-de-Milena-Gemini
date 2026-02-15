@@ -63,7 +63,7 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
             <div className="text-sm text-rose-900 dark:text-rose-100">
               <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? '(Mode Assujetti TVA)' : '(Mode Franchise)'}</p>
               <ul className="list-disc pl-4 space-y-1 text-rose-800 dark:text-rose-200">
-                <li><strong>Coût Complet :</strong> Inclut matières, emballage, main d'œuvre ({settings.hourlyRate}€/h) et charges fixes. {isTva && "(Affiché Hors Taxe)"}</li>
+                <li><strong>Coût Complet :</strong> Inclut matières{isTva ? ' (HT)' : ''}, emballage, main d'œuvre ({settings.hourlyRate}€/h) et charges fixes.{isTva && " Tous les coûts matière sont HT (TVA récupérable sur les achats)."}</li>
                 <li><strong>Prix Min (Rentable) :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.</li>
               </ul>
             </div>

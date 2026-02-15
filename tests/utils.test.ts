@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateProductMetrics, calculateRecipeMaterialCost, computeIngredientPrices, convertToCostPerBaseUnit, rebuildIngredientCost } from '../utils';
+import { calculateProductMetrics, calculateRecipeMaterialCost, convertToCostPerBaseUnit, rebuildIngredientCost, ttcToHt } from '../utils';
 import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
 import { normalizeIngredient } from '../dataMigrations';
 import { expectEqual } from './assertHelpers';
 
-const settingsOff: GlobalSettings = { currency: 'EUR', hourlyRate: 0, includeLaborInCost: true, fixedCostItems: [], taxRate: 0, isTvaSubject: false, defaultTvaRate: 5.5, defaultIngredientVatRate: 5.5, includePendingOrdersInMonthlyReport: false };
+const settingsOff: GlobalSettings = { currency: 'EUR', hourlyRate: 0, includeLaborInCost: true, fixedCostItems: [], taxRate: 0, isTvaSubject: false, defaultTvaRate: 5.5, includePendingOrdersInMonthlyReport: false };
 const settingsOn: GlobalSettings = { ...settingsOff, isTvaSubject: true };
 
 // ---------------------------------------------------------------------------
@@ -61,50 +61,31 @@ describe('convertToCostPerBaseUnit', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Ingredient price conversion (HT/TTC)
+// TTC→HT conversion helper
 // ---------------------------------------------------------------------------
-describe('computeIngredientPrices', () => {
-  it('converts TTC to HT with vat rate', () => {
-    expectEqual(computeIngredientPrices({ priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20 }).priceHT, 1.2 / (1 + 20 / 100));
+describe('ttcToHt', () => {
+  it('converts TTC to HT with given VAT rate', () => {
+    expectEqual(ttcToHt(1.2, 20), 1.2 / (1 + 20 / 100));
   });
 
-  it('converts HT to TTC with vat rate', () => {
-    expectEqual(computeIngredientPrices({ priceAmount: 1, priceBasis: 'HT', vatRate: 20 }).priceTTC, 1 * (1 + 20 / 100));
+  it('0% VAT rate returns price unchanged', () => {
+    expectEqual(ttcToHt(5, 0), 5);
   });
 
-  it('TTC basis returns priceAmount as TTC', () => {
-    const result = computeIngredientPrices({ priceAmount: 10, priceBasis: 'TTC', vatRate: 10 });
-    expectEqual(result.priceTTC, 10);
-    expectEqual(result.priceHT, 10 / (1 + 10 / 100));
-  });
-
-  it('HT basis returns priceAmount as HT', () => {
-    const result = computeIngredientPrices({ priceAmount: 10, priceBasis: 'HT', vatRate: 10 });
-    expectEqual(result.priceHT, 10);
-    expectEqual(result.priceTTC, 10 * (1 + 10 / 100));
-  });
-
-  it('0% vat rate means HT = TTC', () => {
-    const result = computeIngredientPrices({ priceAmount: 5, priceBasis: 'TTC', vatRate: 0 });
-    expectEqual(result.priceHT, 5);
-    expectEqual(result.priceTTC, 5);
+  it('negative VAT rate returns price unchanged', () => {
+    expectEqual(ttcToHt(5, -1), 5);
   });
 });
 
 // ---------------------------------------------------------------------------
-// rebuildIngredientCost (TVA ON/OFF)
+// rebuildIngredientCost (always HT, no TVA branching)
 // ---------------------------------------------------------------------------
 describe('rebuildIngredientCost', () => {
-  const ingredient: Ingredient = { id: 'i1', name: 'Farine', unit: Unit.KG, quantity: 1, price: 1.2, priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20, costPerBaseUnit: 0 };
+  const ingredient: Ingredient = { id: 'i1', name: 'Farine', unit: Unit.KG, quantity: 1, price: 1.2, costPerBaseUnit: 0 };
 
-  it('uses priceAmount as-is when TVA OFF', () => {
+  it('computes costPerBaseUnit from price (always HT)', () => {
     // 1.2€ for 1kg → 0.0012 €/g
-    expectEqual(rebuildIngredientCost(ingredient, settingsOff).costPerBaseUnit, 1.2 / 1 / 1000);
-  });
-
-  it('uses priceHT when TVA ON', () => {
-    // 1.2 TTC / 1.2 (vatMultiplier) = 1.0 HT → 0.001 €/g
-    expectEqual(rebuildIngredientCost(ingredient, settingsOn).costPerBaseUnit, (1.2 / (1 + 20 / 100)) / 1 / 1000);
+    expectEqual(rebuildIngredientCost(ingredient).costPerBaseUnit, 1.2 / 1 / 1000);
   });
 });
 
@@ -114,8 +95,8 @@ describe('rebuildIngredientCost', () => {
 describe('calculateRecipeMaterialCost', () => {
   it('sums ingredient costs for a multi-ingredient recipe', () => {
     const ingredients: Ingredient[] = [
-      { id: 'i1', name: 'A', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 },
-      { id: 'i2', name: 'B', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.02 },
+      { id: 'i1', name: 'A', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 },
+      { id: 'i2', name: 'B', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.02 },
     ];
     const recipe: Recipe = {
       id: 'r1', name: 'Multi', batchYield: 1, lossPercentage: 0,
@@ -127,7 +108,7 @@ describe('calculateRecipeMaterialCost', () => {
 
   it('applies recipe lossPercentage', () => {
     const ingredients: Ingredient[] = [
-      { id: 'i1', name: 'A', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }
+      { id: 'i1', name: 'A', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }
     ];
     const recipe: Recipe = {
       id: 'r1', name: 'Test', batchYield: 10, lossPercentage: 10,
@@ -139,7 +120,7 @@ describe('calculateRecipeMaterialCost', () => {
 
   it('handles missing ingredient gracefully (skips it)', () => {
     const ingredients: Ingredient[] = [
-      { id: 'i1', name: 'A', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }
+      { id: 'i1', name: 'A', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }
     ];
     const recipe: Recipe = {
       id: 'r1', name: 'Test', batchYield: 1, lossPercentage: 0,
@@ -156,7 +137,7 @@ describe('calculateRecipeMaterialCost', () => {
 
   it('0% lossPercentage does not change cost', () => {
     const ingredients: Ingredient[] = [
-      { id: 'i1', name: 'A', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }
+      { id: 'i1', name: 'A', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }
     ];
     const recipe: Recipe = {
       id: 'r1', name: 'Test', batchYield: 1, lossPercentage: 0,
@@ -170,7 +151,7 @@ describe('calculateRecipeMaterialCost', () => {
 // Product metrics
 // ---------------------------------------------------------------------------
 describe('calculateProductMetrics', () => {
-  const ing: Ingredient[] = [{ id: 'i1', name: 'F', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }];
+  const ing: Ingredient[] = [{ id: 'i1', name: 'F', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }];
   const recipe: Recipe = { id: 'r1', name: 'R', ingredients: [{ ingredientId: 'i1', quantity: 100 }], batchYield: 10, lossPercentage: 0 };
   const base: Product = { id: 'p', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 0, lossRate: 0, unsoldEstimate: 0, packagingUsedOnUnsold: false, applyLossToPackaging: false, targetMargin: 0, estimatedMonthlySales: 10, category: 'c' };
 
@@ -311,8 +292,8 @@ describe('calculateProductMetrics', () => {
 
   describe('monotonicity', () => {
     it('increasing ingredient price must not decrease fullCost', () => {
-      const lowIng: Ingredient[] = [{ id: 'i1', name: 'F', unit: Unit.G, price: 1, priceAmount: 1, priceBasis: 'HT', vatRate: 0, quantity: 1, costPerBaseUnit: 0.01 }];
-      const highIng: Ingredient[] = [{ ...lowIng[0], price: 2, priceAmount: 2, costPerBaseUnit: 0.02 }];
+      const lowIng: Ingredient[] = [{ id: 'i1', name: 'F', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }];
+      const highIng: Ingredient[] = [{ ...lowIng[0], price: 2, costPerBaseUnit: 0.02 }];
       const low = calculateProductMetrics(base, recipe, lowIng, settingsOff, [base]).fullCost;
       const high = calculateProductMetrics(base, recipe, highIng, settingsOff, [base]).fullCost;
       expect(high).toBeGreaterThanOrEqual(low);
@@ -344,12 +325,27 @@ describe('calculateProductMetrics', () => {
   });
 
   describe('migration', () => {
-    it('sets VAT defaults and needs review under TVA ON', () => {
-      const legacy = { id: 'i1', name: 'Sucre', unit: Unit.KG, price: 2, quantity: 1, costPerBaseUnit: 0.002 } as Ingredient;
+    it('converts TTC ingredient to HT under TVA ON and flags needsPriceReview', () => {
+      // Simulate legacy ingredient with priceBasis='TTC' and vatRate=20
+      const legacy = { id: 'i1', name: 'Sucre', unit: Unit.KG, price: 1.2, priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20, quantity: 1, costPerBaseUnit: 0.002 } as any;
       const migrated = normalizeIngredient(legacy, settingsOn);
-      expect(migrated.priceBasis).toBe('HT');
-      expect(migrated.vatRate).toBe(5.5);
-      expect(migrated.needsVatReview).toBe(true);
+      // Price should be converted: 1.2 / 1.2 = 1.0 HT
+      expectEqual(migrated.price, 1.2 / (1 + 20 / 100));
+      expect(migrated.needsPriceReview).toBe(true);
+      expect(migrated.helperVatRate).toBe(20);
+    });
+
+    it('keeps price as-is when priceBasis was HT', () => {
+      const legacy = { id: 'i1', name: 'Sucre', unit: Unit.KG, price: 2, priceAmount: 2, priceBasis: 'HT', vatRate: 20, quantity: 1, costPerBaseUnit: 0.002 } as any;
+      const migrated = normalizeIngredient(legacy, settingsOn);
+      expectEqual(migrated.price, 2);
+      expect(migrated.needsPriceReview).toBeUndefined();
+    });
+
+    it('no conversion when TVA is OFF', () => {
+      const legacy = { id: 'i1', name: 'Sucre', unit: Unit.KG, price: 1.2, priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20, quantity: 1, costPerBaseUnit: 0.002 } as any;
+      const migrated = normalizeIngredient(legacy, settingsOff);
+      expectEqual(migrated.price, 1.2);
     });
   });
 });

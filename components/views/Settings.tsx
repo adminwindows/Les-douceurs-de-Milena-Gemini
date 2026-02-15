@@ -129,32 +129,21 @@ export const Settings: React.FC<Props> = ({
               </div>
               <p className="text-xs text-stone-500 dark:text-stone-400">
                 {settings.isTvaSubject
-                  ? 'TVA activée : la TVA sur vos achats est récupérable. Les coûts sont calculés en HT. Pour chaque ingrédient, vous indiquez une fois son taux de TVA et si son prix est saisi en TTC ou HT : l’app convertit automatiquement.'
+                  ? 'TVA activée : la TVA sur vos achats est récupérable. Tous les prix ingrédients et charges sont en HT. Un convertisseur TTC → HT est disponible lors de la saisie.'
                   : 'Franchise de TVA : vous payez vos achats TTC et ne récupérez pas la TVA. Vous ne facturez pas de TVA sur vos ventes.'}
               </p>
             </div>
 
             {settings.isTvaSubject && (
-              <>
-                <Input
-                  label="Taux de TVA ventes par défaut"
-                  type="number"
-                  suffix="%"
-                  value={settings.defaultTvaRate}
-                  onChange={e => handleNumberChange('defaultTvaRate', e.target.value)}
-                  helperText="Généralement 5.5% pour l'alimentaire."
-                  error={isDefaultTvaRateValid ? undefined : '< 100%'}
-                />
-                <Input
-                  label="Taux de TVA ingrédients par défaut"
-                  type="number"
-                  suffix="%"
-                  value={settings.defaultIngredientVatRate}
-                  onChange={e => handleNumberChange('defaultIngredientVatRate', e.target.value)}
-                  helperText="Pré-rempli sur les nouvelles fiches ingrédient (modifiable par ingrédient)."
-                  error={isDefaultTvaRateValid ? undefined : '< 100%'}
-                />
-              </>
+              <Input
+                label="Taux de TVA ventes par défaut"
+                type="number"
+                suffix="%"
+                value={settings.defaultTvaRate}
+                onChange={e => handleNumberChange('defaultTvaRate', e.target.value)}
+                helperText="Taux TVA appliqué aux prix de vente (ex: 5.5% alimentaire). Aussi utilisé comme taux par défaut dans le convertisseur TTC → HT."
+                error={isDefaultTvaRateValid ? undefined : '< 100%'}
+              />
             )}
 
             <div className="p-3 border border-stone-200 dark:border-stone-700 rounded-lg">
@@ -240,7 +229,7 @@ export const Settings: React.FC<Props> = ({
           <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700">
             <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 mb-1">Ajouter une charge</h4>
             {settings.isTvaSubject && (
-              <p className="text-xs text-stone-500 mb-3">TVA activée : saisissez vos charges fixes dans la même base que votre suivi comptable habituel (recommandé : HT).</p>
+              <p className="text-xs text-stone-500 mb-3">Saisissez vos charges fixes HT (la TVA sur ces charges étant récupérable, seul le montant HT compte).</p>
             )}
             <div className="flex gap-2 mb-2">
               <input

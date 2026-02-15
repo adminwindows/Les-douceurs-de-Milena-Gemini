@@ -8,12 +8,10 @@ const ingredientSchema = z.object({
   name: z.string(),
   unit: unitSchema,
   price: z.number(),
-  priceAmount: z.number().optional(),
-  priceBasis: z.enum(['TTC', 'HT']).optional(),
-  vatRate: z.number().optional(),
-  needsVatReview: z.boolean().optional(),
   quantity: z.number(),
-  costPerBaseUnit: z.number()
+  costPerBaseUnit: z.number(),
+  helperVatRate: z.number().optional(),
+  needsPriceReview: z.boolean().optional()
 });
 
 const purchaseSchema = z.object({
@@ -21,9 +19,7 @@ const purchaseSchema = z.object({
   date: z.string(),
   ingredientId: z.string(),
   quantity: z.number(),
-  price: z.number(),
-  vatRateSnapshot: z.number().optional(),
-  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional()
+  price: z.number()
 });
 
 const productionBatchSchema = z.object({
@@ -76,7 +72,6 @@ const globalSettingsSchema = z.object({
   taxRate: z.number(),
   isTvaSubject: z.boolean(),
   defaultTvaRate: z.number(),
-  defaultIngredientVatRate: z.number().optional(),
   includePendingOrdersInMonthlyReport: z.boolean().optional()
 });
 
@@ -150,10 +145,12 @@ const legacyIngredientSchema = z.object({
   name: asString,
   unit: legacyUnitSchema.default(Unit.G),
   price: asNumber.catch(0),
-  priceAmount: asNumber.optional(),
-  priceBasis: z.enum(['TTC', 'HT']).optional(),
-  vatRate: asNumber.optional(),
-  needsVatReview: z.coerce.boolean().optional(),
+  priceAmount: asNumber.optional(),       // legacy: kept for migration
+  priceBasis: z.enum(['TTC', 'HT']).optional(), // legacy: kept for migration
+  vatRate: asNumber.optional(),            // legacy: kept for migration
+  helperVatRate: asNumber.optional(),
+  needsPriceReview: z.coerce.boolean().optional(),
+  needsVatReview: z.coerce.boolean().optional(), // legacy: ignored
   quantity: asNumber.catch(0),
   costPerBaseUnit: asNumber.catch(0)
 }).passthrough();
@@ -201,7 +198,7 @@ const legacySettingsSchema = z.object({
   taxRate: asNumber.catch(0),
   isTvaSubject: z.coerce.boolean().catch(false),
   defaultTvaRate: asNumber.catch(5.5),
-  defaultIngredientVatRate: asNumber.catch(5.5),
+  defaultIngredientVatRate: asNumber.catch(5.5), // legacy: kept for migration
   includePendingOrdersInMonthlyReport: z.coerce.boolean().catch(false)
 }).passthrough();
 
@@ -228,8 +225,8 @@ const legacyPurchaseSchema = z.object({
   ingredientId: asString,
   quantity: asNumber.catch(0),
   price: asNumber.catch(0),
-  vatRateSnapshot: asNumber.optional(),
-  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional()
+  vatRateSnapshot: asNumber.optional(),               // legacy: kept for migration
+  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional() // legacy: kept for migration
 }).passthrough();
 
 const legacyProductionBatchSchema = z.object({

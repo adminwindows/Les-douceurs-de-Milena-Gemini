@@ -15,7 +15,6 @@ describe('Settings labor toggle', () => {
       taxRate: 22,
       isTvaSubject: false,
       defaultTvaRate: 5.5,
-      defaultIngredientVatRate: 5.5,
       includePendingOrdersInMonthlyReport: false
     };
 

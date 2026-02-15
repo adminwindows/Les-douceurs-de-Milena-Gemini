@@ -5,11 +5,11 @@
 ### Coût par unité de base d'un ingrédient
 
 ```
-costPerBaseUnit = prix_utilisé / (quantité_achetée × multiplicateur)
+costPerBaseUnit = prix_HT / (quantité_achetée × multiplicateur)
 ```
 
 - **multiplicateur** = 1000 si l'unité est `kg` ou `L` (conversion en g ou ml), sinon 1 (g, ml, pièce).
-- **prix_utilisé** : voir section TVA ci-dessous.
+- **prix_HT** : toujours HT. C'est la seule base stockée pour les ingrédients.
 - Si `quantité_achetée ≤ 0` ou prix invalide (NaN, Infinity) → `costPerBaseUnit = 0`.
 
 ### Coût batch recette
@@ -32,29 +32,22 @@ unitMaterialCost = coût_batch / batchYield
 
 ---
 
-## 2. Ingrédients et TVA
+## 2. Ingrédients : tout est HT
 
-### Règle selon le statut TVA global (`settings.isTvaSubject`)
+Les prix des ingrédients sont **toujours stockés en HT**. Aucun taux de TVA n'est attaché à un ingrédient.
 
-- **Franchise TVA (OFF)** : le coût matière utilise `priceAmount` tel que saisi (TTC payé = coût réel).
-- **Assujetti TVA (ON)** : le coût matière utilise toujours `priceHT`.
+- **Franchise TVA (OFF)** : les prix n'ont pas de notion HT/TTC. Pas de convertisseur affiché.
+- **Assujetti TVA (ON)** : les prix affichés sont HT. Un convertisseur TTC → HT éphémère est disponible à la saisie.
 
-### Conversions HT ↔ TTC
+### Convertisseur TTC → HT (UI-only)
 
 ```
-vatMultiplier = 1 + vatRate / 100
-
-Si priceBasis === 'TTC':
-  priceHT  = priceAmount / vatMultiplier
-  priceTTC = priceAmount
-
-Si priceBasis === 'HT':
-  priceHT  = priceAmount
-  priceTTC = priceAmount × vatMultiplier
+priceHT = priceTTC / (1 + vatRate / 100)
 ```
 
-- Chaque ingrédient possède son propre `vatRate` et `priceBasis`.
-- Si `vatRate = 0` alors `priceHT = priceTTC = priceAmount`.
+- Disponible uniquement quand `isTvaSubject = true`.
+- Le taux TVA utilisé est pré-rempli avec `ingredient.helperVatRate` (dernier taux utilisé) ou `settings.defaultTvaRate` en fallback.
+- `helperVatRate` est une commodité de pré-remplissage, jamais utilisée dans aucun calcul de coût.
 
 ---
 
@@ -112,7 +105,7 @@ allocatedFixedCost = totalEstimatedVolume > 0 ? totalFixedCosts / totalEstimated
 ```
 
 - Les charges fixes sont réparties uniformément par unité estimée vendue sur l'ensemble des produits.
-- Les montants sont utilisés tels que saisis (pas de conversion HT/TTC automatique).
+- En mode assujetti TVA, les charges fixes doivent être saisies HT (la TVA sur ces charges étant récupérable).
 
 ### Coûts variables totaux
 
@@ -162,6 +155,8 @@ Si isTvaSubject:
 Sinon:
   TTC = HT (pas de majoration)
 ```
+
+- Seuls les **produits** (prix de vente) ont un taux TVA. Les ingrédients n'en ont pas.
 
 ---
 

@@ -12,25 +12,16 @@ export const formatCurrency = (amount: number, currency = '€') => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
-export const computeIngredientPrices = (ingredient: Pick<Ingredient, 'priceAmount' | 'priceBasis' | 'vatRate'>) => {
-  const vatMultiplier = 1 + (ingredient.vatRate || 0) / 100;
-  const priceHT = ingredient.priceBasis === 'TTC' ? ingredient.priceAmount / vatMultiplier : ingredient.priceAmount;
-  const priceTTC = ingredient.priceBasis === 'HT' ? ingredient.priceAmount * vatMultiplier : ingredient.priceAmount;
-  return { priceHT, priceTTC };
+/** Convert a TTC price to HT given a TVA rate. Pure helper for UI converters. */
+export const ttcToHt = (priceTTC: number, vatRate: number): number => {
+  if (vatRate <= 0) return priceTTC;
+  return priceTTC / (1 + vatRate / 100);
 };
 
-export const getIngredientCostPrice = (ingredient: Ingredient, settings: GlobalSettings): number => {
-  if (!settings.isTvaSubject) return ingredient.priceAmount;
-  return computeIngredientPrices(ingredient).priceHT;
-};
-
-export const rebuildIngredientCost = (ingredient: Ingredient, settings: GlobalSettings): Ingredient => {
-  const costPerBaseUnit = convertToCostPerBaseUnit(getIngredientCostPrice(ingredient, settings), 1, ingredient.unit);
-  return {
-    ...ingredient,
-    price: ingredient.priceAmount,
-    costPerBaseUnit
-  };
+/** Ingredient prices are always HT. Simply recomputes costPerBaseUnit from price. */
+export const rebuildIngredientCost = (ingredient: Ingredient): Ingredient => {
+  const costPerBaseUnit = convertToCostPerBaseUnit(ingredient.price, 1, ingredient.unit);
+  return { ...ingredient, costPerBaseUnit };
 };
 
 export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredient[]): number => {
@@ -119,17 +110,16 @@ export const INITIAL_SETTINGS: GlobalSettings = {
   taxRate: 22,
   isTvaSubject: false,
   defaultTvaRate: 5.5,
-  defaultIngredientVatRate: 5.5,
   includePendingOrdersInMonthlyReport: false
 };
 
 export const INITIAL_INGREDIENTS: Ingredient[] = [
-  { id: '1', name: 'Farine T55', unit: Unit.KG, price: 1.20, priceAmount: 1.20, priceBasis: 'TTC', vatRate: 5.5, quantity: 1, costPerBaseUnit: 0.0012 },
-  { id: '2', name: 'Sucre Blanc', unit: Unit.KG, price: 1.50, priceAmount: 1.50, priceBasis: 'TTC', vatRate: 5.5, quantity: 1, costPerBaseUnit: 0.0015 },
-  { id: '3', name: 'Beurre Doux', unit: Unit.KG, price: 16.00, priceAmount: 16.00, priceBasis: 'TTC', vatRate: 5.5, quantity: 0.5, costPerBaseUnit: 0.016 },
-  { id: '4', name: 'Oeufs', unit: Unit.PIECE, price: 0.42, priceAmount: 0.42, priceBasis: 'TTC', vatRate: 5.5, quantity: 6, costPerBaseUnit: 0.42 },
-  { id: '5', name: 'Chocolat Noir 70%', unit: Unit.KG, price: 15.00, priceAmount: 15.00, priceBasis: 'TTC', vatRate: 5.5, quantity: 1, costPerBaseUnit: 0.015 },
-  { id: '6', name: 'Crème Liquide 35%', unit: Unit.L, price: 4.00, priceAmount: 4.00, priceBasis: 'TTC', vatRate: 5.5, quantity: 1, costPerBaseUnit: 0.004 },
+  { id: '1', name: 'Farine T55', unit: Unit.KG, price: 1.20, quantity: 1, costPerBaseUnit: 0.0012 },
+  { id: '2', name: 'Sucre Blanc', unit: Unit.KG, price: 1.50, quantity: 1, costPerBaseUnit: 0.0015 },
+  { id: '3', name: 'Beurre Doux', unit: Unit.KG, price: 16.00, quantity: 0.5, costPerBaseUnit: 0.016 },
+  { id: '4', name: 'Oeufs', unit: Unit.PIECE, price: 0.42, quantity: 6, costPerBaseUnit: 0.42 },
+  { id: '5', name: 'Chocolat Noir 70%', unit: Unit.KG, price: 15.00, quantity: 1, costPerBaseUnit: 0.015 },
+  { id: '6', name: 'Crème Liquide 35%', unit: Unit.L, price: 4.00, quantity: 1, costPerBaseUnit: 0.004 },
 ];
 
 export const INITIAL_RECIPES = [
