@@ -55,7 +55,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'dr1',
           laborTimeMinutes: 7,
           packagingCost: 0.2,
-
           lossRate: 2,
           unsoldEstimate: 1,
           packagingUsedOnUnsold: false,
@@ -214,7 +213,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
           recipeId: 'tr1',
           laborTimeMinutes: 6,
           packagingCost: 0.15,
-
           lossRate: 6,
           unsoldEstimate: 5,
           packagingUsedOnUnsold: false,

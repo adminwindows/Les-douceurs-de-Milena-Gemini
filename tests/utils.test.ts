@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { calculateProductMetrics, calculateRecipeMaterialCost, computeIngredientPrices, convertToCostPerBaseUnit, rebuildIngredientCost } from '../utils';
 import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
 import { normalizeIngredient } from '../dataMigrations';
+import { expectEqual } from './assertHelpers';
 
 const settingsOff: GlobalSettings = { currency: 'EUR', hourlyRate: 0, includeLaborInCost: true, fixedCostItems: [], taxRate: 0, isTvaSubject: false, defaultTvaRate: 5.5, defaultIngredientVatRate: 5.5, includePendingOrdersInMonthlyReport: false };
 const settingsOn: GlobalSettings = { ...settingsOff, isTvaSubject: true };
@@ -12,50 +13,50 @@ const settingsOn: GlobalSettings = { ...settingsOff, isTvaSubject: true };
 describe('convertToCostPerBaseUnit', () => {
   it('converts kg price to per-gram cost', () => {
     // 2€ for 1 kg = 0.002 €/g
-    expect(convertToCostPerBaseUnit(2, 1, Unit.KG)).toBeCloseTo(0.002, 8);
+    expectEqual(convertToCostPerBaseUnit(2, 1, Unit.KG), 2 / 1 / 1000);
   });
 
   it('converts L price to per-ml cost', () => {
     // 3€ for 2 L = 3/(2*1000) = 0.0015 €/ml
-    expect(convertToCostPerBaseUnit(3, 2, Unit.L)).toBeCloseTo(0.0015, 8);
+    expectEqual(convertToCostPerBaseUnit(3, 2, Unit.L), 3 / 2 / 1000);
   });
 
   it('g unit uses multiplier 1', () => {
     // 5€ for 500g = 0.01 €/g
-    expect(convertToCostPerBaseUnit(5, 500, Unit.G)).toBeCloseTo(0.01, 8);
+    expectEqual(convertToCostPerBaseUnit(5, 500, Unit.G), 5 / 500);
   });
 
   it('ml unit uses multiplier 1', () => {
     // 2€ for 100ml = 0.02 €/ml
-    expect(convertToCostPerBaseUnit(2, 100, Unit.ML)).toBeCloseTo(0.02, 8);
+    expectEqual(convertToCostPerBaseUnit(2, 100, Unit.ML), 2 / 100);
   });
 
   it('pièce unit uses multiplier 1', () => {
     // 6€ for 12 pieces = 0.50 €/piece
-    expect(convertToCostPerBaseUnit(6, 12, Unit.PIECE)).toBeCloseTo(0.5, 8);
+    expectEqual(convertToCostPerBaseUnit(6, 12, Unit.PIECE), 6 / 12);
   });
 
   it('non-1 purchase quantities', () => {
     // 10€ for 5 kg = 10/(5*1000) = 0.002 €/g
-    expect(convertToCostPerBaseUnit(10, 5, Unit.KG)).toBeCloseTo(0.002, 8);
+    expectEqual(convertToCostPerBaseUnit(10, 5, Unit.KG), 10 / 5 / 1000);
     // 7.50€ for 3 L = 7.50/(3*1000) = 0.0025 €/ml
-    expect(convertToCostPerBaseUnit(7.50, 3, Unit.L)).toBeCloseTo(0.0025, 8);
+    expectEqual(convertToCostPerBaseUnit(7.50, 3, Unit.L), 7.50 / 3 / 1000);
   });
 
   it('returns 0 for zero quantity', () => {
-    expect(convertToCostPerBaseUnit(3, 0, Unit.G)).toBe(0);
+    expectEqual(convertToCostPerBaseUnit(3, 0, Unit.G), 0);
   });
 
   it('returns 0 for negative quantity', () => {
-    expect(convertToCostPerBaseUnit(3, -1, Unit.KG)).toBe(0);
+    expectEqual(convertToCostPerBaseUnit(3, -1, Unit.KG), 0);
   });
 
   it('returns 0 for NaN price', () => {
-    expect(convertToCostPerBaseUnit(NaN, 1, Unit.G)).toBe(0);
+    expectEqual(convertToCostPerBaseUnit(NaN, 1, Unit.G), 0);
   });
 
   it('returns 0 for Infinity quantity', () => {
-    expect(convertToCostPerBaseUnit(1, Infinity, Unit.G)).toBe(0);
+    expectEqual(convertToCostPerBaseUnit(1, Infinity, Unit.G), 0);
   });
 });
 
@@ -64,29 +65,29 @@ describe('convertToCostPerBaseUnit', () => {
 // ---------------------------------------------------------------------------
 describe('computeIngredientPrices', () => {
   it('converts TTC to HT with vat rate', () => {
-    expect(computeIngredientPrices({ priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20 }).priceHT).toBeCloseTo(1, 6);
+    expectEqual(computeIngredientPrices({ priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20 }).priceHT, 1.2 / (1 + 20 / 100));
   });
 
   it('converts HT to TTC with vat rate', () => {
-    expect(computeIngredientPrices({ priceAmount: 1, priceBasis: 'HT', vatRate: 20 }).priceTTC).toBeCloseTo(1.2, 6);
+    expectEqual(computeIngredientPrices({ priceAmount: 1, priceBasis: 'HT', vatRate: 20 }).priceTTC, 1 * (1 + 20 / 100));
   });
 
   it('TTC basis returns priceAmount as TTC', () => {
     const result = computeIngredientPrices({ priceAmount: 10, priceBasis: 'TTC', vatRate: 10 });
-    expect(result.priceTTC).toBeCloseTo(10, 6);
-    expect(result.priceHT).toBeCloseTo(10 / 1.1, 6);
+    expectEqual(result.priceTTC, 10);
+    expectEqual(result.priceHT, 10 / (1 + 10 / 100));
   });
 
   it('HT basis returns priceAmount as HT', () => {
     const result = computeIngredientPrices({ priceAmount: 10, priceBasis: 'HT', vatRate: 10 });
-    expect(result.priceHT).toBeCloseTo(10, 6);
-    expect(result.priceTTC).toBeCloseTo(11, 6);
+    expectEqual(result.priceHT, 10);
+    expectEqual(result.priceTTC, 10 * (1 + 10 / 100));
   });
 
   it('0% vat rate means HT = TTC', () => {
     const result = computeIngredientPrices({ priceAmount: 5, priceBasis: 'TTC', vatRate: 0 });
-    expect(result.priceHT).toBeCloseTo(5, 6);
-    expect(result.priceTTC).toBeCloseTo(5, 6);
+    expectEqual(result.priceHT, 5);
+    expectEqual(result.priceTTC, 5);
   });
 });
 
@@ -98,12 +99,12 @@ describe('rebuildIngredientCost', () => {
 
   it('uses priceAmount as-is when TVA OFF', () => {
     // 1.2€ for 1kg → 0.0012 €/g
-    expect(rebuildIngredientCost(ingredient, settingsOff).costPerBaseUnit).toBeCloseTo(0.0012, 8);
+    expectEqual(rebuildIngredientCost(ingredient, settingsOff).costPerBaseUnit, 1.2 / 1 / 1000);
   });
 
   it('uses priceHT when TVA ON', () => {
     // 1.2 TTC / 1.2 (vatMultiplier) = 1.0 HT → 0.001 €/g
-    expect(rebuildIngredientCost(ingredient, settingsOn).costPerBaseUnit).toBeCloseTo(0.001, 8);
+    expectEqual(rebuildIngredientCost(ingredient, settingsOn).costPerBaseUnit, (1.2 / (1 + 20 / 100)) / 1 / 1000);
   });
 });
 
@@ -121,7 +122,7 @@ describe('calculateRecipeMaterialCost', () => {
       ingredients: [{ ingredientId: 'i1', quantity: 100 }, { ingredientId: 'i2', quantity: 50 }]
     };
     // 100*0.01 + 50*0.02 = 1 + 1 = 2
-    expect(calculateRecipeMaterialCost(recipe, ingredients)).toBeCloseTo(2, 6);
+    expectEqual(calculateRecipeMaterialCost(recipe, ingredients), 100 * 0.01 + 50 * 0.02);
   });
 
   it('applies recipe lossPercentage', () => {
@@ -132,8 +133,8 @@ describe('calculateRecipeMaterialCost', () => {
       id: 'r1', name: 'Test', batchYield: 10, lossPercentage: 10,
       ingredients: [{ ingredientId: 'i1', quantity: 100 }]
     };
-    // batchCost = 100*0.01 = 1.0; with 10% loss: 1.0 * 1.1 = 1.1
-    expect(calculateRecipeMaterialCost(recipe, ingredients)).toBeCloseTo(1.1, 6);
+    // batchCost = 100*0.01 = 1.0; with 10% loss: 1.0 * (1 + 10/100) = 1.1
+    expectEqual(calculateRecipeMaterialCost(recipe, ingredients), 100 * 0.01 * (1 + 10 / 100));
   });
 
   it('handles missing ingredient gracefully (skips it)', () => {
@@ -145,12 +146,12 @@ describe('calculateRecipeMaterialCost', () => {
       ingredients: [{ ingredientId: 'i1', quantity: 100 }, { ingredientId: 'missing', quantity: 10 }]
     };
     // Only i1 counted: 100*0.01 = 1.0
-    expect(calculateRecipeMaterialCost(recipe, ingredients)).toBeCloseTo(1.0, 6);
+    expectEqual(calculateRecipeMaterialCost(recipe, ingredients), 100 * 0.01);
   });
 
   it('returns 0 for empty recipe', () => {
     const recipe: Recipe = { id: 'r1', name: 'Empty', ingredients: [], batchYield: 1, lossPercentage: 0 };
-    expect(calculateRecipeMaterialCost(recipe, [])).toBe(0);
+    expectEqual(calculateRecipeMaterialCost(recipe, []), 0);
   });
 
   it('0% lossPercentage does not change cost', () => {
@@ -161,7 +162,7 @@ describe('calculateRecipeMaterialCost', () => {
       id: 'r1', name: 'Test', batchYield: 1, lossPercentage: 0,
       ingredients: [{ ingredientId: 'i1', quantity: 100 }]
     };
-    expect(calculateRecipeMaterialCost(recipe, ingredients)).toBeCloseTo(1.0, 6);
+    expectEqual(calculateRecipeMaterialCost(recipe, ingredients), 100 * 0.01);
   });
 });
 
@@ -176,7 +177,7 @@ describe('calculateProductMetrics', () => {
   it('computes basic unitMaterialCost', () => {
     // batchCost = 100*0.01 = 1.0; unitCost = 1.0/10 = 0.1
     const m = calculateProductMetrics(base, recipe, ing, settingsOff, [base]);
-    expect(m.unitMaterialCost).toBeCloseTo(0.1, 6);
+    expectEqual(m.unitMaterialCost, 100 * 0.01 / 10);
   });
 
   describe('includeLaborInCost toggle', () => {
@@ -187,25 +188,25 @@ describe('calculateProductMetrics', () => {
     it('ON: laborCost is included in fullCost', () => {
       const m = calculateProductMetrics(product, recipe, ing, settingsWithLabor, [product]);
       // labor = (30/60)*60 = 30
-      expect(m.laborCost).toBeCloseTo(30, 6);
+      expectEqual(m.laborCost, (30 / 60) * 60);
       expect(m.fullCost).toBeGreaterThan(m.totalVariableCosts);
     });
 
     it('OFF: laborCost is 0, fullCost equals variable costs + fixed', () => {
       const m = calculateProductMetrics(product, recipe, ing, settingsWithoutLabor, [product]);
-      expect(m.laborCost).toBe(0);
+      expectEqual(m.laborCost, 0);
     });
   });
 
   describe('lossRate (manufacturing loss multiplier)', () => {
-    it('lossRate 10% increases material cost by 1/(1-0.1) ≈ 1.1111', () => {
+    it('lossRate 10% increases material cost by 1/(1-0.1)', () => {
       const product = { ...base, lossRate: 10 };
       const m = calculateProductMetrics(product, recipe, ing, settingsOff, [product]);
       const noLoss = calculateProductMetrics(base, recipe, ing, settingsOff, [base]);
-      const expectedMultiplier = 1 / (1 - 0.1);
-      expect(m.unitMaterialCost).toBeCloseTo(noLoss.unitMaterialCost, 6); // unitMaterialCost is before loss
+      const expectedMultiplier = 1 / (1 - 10 / 100);
+      expectEqual(m.unitMaterialCost, noLoss.unitMaterialCost); // unitMaterialCost is before loss
       // fullCost includes the loss multiplier via totalVariableCosts
-      expect(m.fullCost).toBeCloseTo(noLoss.unitMaterialCost * expectedMultiplier, 4);
+      expectEqual(m.fullCost, noLoss.unitMaterialCost * expectedMultiplier);
     });
   });
 
@@ -226,17 +227,19 @@ describe('calculateProductMetrics', () => {
       const m = calculateProductMetrics({ ...product, packagingUsedOnUnsold: false }, recipe, ing, settingsOff, [{ ...product, packagingUsedOnUnsold: false }]);
       // packagingQuantity = 10 (sold only), packagingRatio = 10/10 = 1.0
       // finalPackagingCost = 1 * 1 * 1 = 1
-      // totalVariableCosts = material + packaging = (0.1 * 12/10) + 1.0
+      // totalVariableCosts = material + packaging
       const expectedPackaging = 1 * (10 / 10); // = 1.0
-      expect(m.totalVariableCosts - m.unitMaterialCost * ((10 + 2) / 10)).toBeCloseTo(expectedPackaging, 4);
+      expectEqual(m.totalVariableCosts - m.unitMaterialCost * ((10 + 2) / 10), expectedPackaging);
     });
 
     it('ON: packaging includes unsold units', () => {
       const m = calculateProductMetrics({ ...product, packagingUsedOnUnsold: true }, recipe, ing, settingsOff, [{ ...product, packagingUsedOnUnsold: true }]);
       const mOff = calculateProductMetrics({ ...product, packagingUsedOnUnsold: false }, recipe, ing, settingsOff, [{ ...product, packagingUsedOnUnsold: false }]);
-      // ON = 12/10 = 1.2 ratio, OFF = 10/10 = 1.0 ratio → 0.2 more packaging cost
+      // ON = 12/10 = 1.2 ratio, OFF = 10/10 = 1.0 ratio
       expect(m.totalVariableCosts).toBeGreaterThan(mOff.totalVariableCosts);
-      expect(m.totalVariableCosts - mOff.totalVariableCosts).toBeCloseTo(0.2, 4);
+      // Verify ON total directly: material * productionRatio + packaging * packagingRatio
+      // materialProductionRatio = (10+2)/10, mfgLoss = 1, packagingRatio = (10+2)/10
+      expectEqual(m.totalVariableCosts, m.unitMaterialCost * ((10 + 2) / 10) + 1 * ((10 + 2) / 10));
     });
   });
 
@@ -252,9 +255,9 @@ describe('calculateProductMetrics', () => {
     it('ON: packaging multiplied by 1/(1-lossRate/100)', () => {
       const mOn = calculateProductMetrics({ ...product, applyLossToPackaging: true }, recipe, ing, settingsOff, [{ ...product, applyLossToPackaging: true }]);
       const mOff = calculateProductMetrics({ ...product, applyLossToPackaging: false }, recipe, ing, settingsOff, [{ ...product, applyLossToPackaging: false }]);
-      const expectedMultiplier = 1 / (1 - 0.1);
-      // Packaging diff = 1 * expectedMultiplier - 1 * 1 ≈ 0.1111
-      expect(mOn.totalVariableCosts - mOff.totalVariableCosts).toBeCloseTo(expectedMultiplier - 1, 3);
+      const expectedMultiplier = 1 / (1 - 10 / 100);
+      // Packaging diff = 1 * expectedMultiplier - 1 * 1
+      expectEqual(mOn.totalVariableCosts - mOff.totalVariableCosts, 1 * expectedMultiplier - 1 * 1);
     });
   });
 
@@ -265,34 +268,34 @@ describe('calculateProductMetrics', () => {
       const p2 = { ...base, id: 'p2', estimatedMonthlySales: 30 };
       const m = calculateProductMetrics(p1, recipe, ing, settingsFC, [p1, p2]);
       // totalVolume = 20+30=50, allocatedFixedCost = 100/50 = 2
-      expect(m.allocatedFixedCost).toBeCloseTo(2, 6);
+      expectEqual(m.allocatedFixedCost, 100 / (20 + 30));
     });
 
     it('returns 0 when no products have estimated sales', () => {
       const settingsFC: GlobalSettings = { ...settingsOff, fixedCostItems: [{ id: 'f1', name: 'Rent', amount: 100 }] };
       const p = { ...base, estimatedMonthlySales: 0 };
       const m = calculateProductMetrics(p, recipe, ing, settingsFC, [p]);
-      expect(m.allocatedFixedCost).toBe(0);
+      expectEqual(m.allocatedFixedCost, 0);
     });
   });
 
   describe('VAT ON/OFF for minimum price', () => {
     it('TVA OFF: minPriceBreakevenTTC equals minPriceBreakeven (HT)', () => {
       const m = calculateProductMetrics(base, recipe, ing, settingsOff, [base]);
-      expect(m.minPriceBreakevenTTC).toBeCloseTo(m.minPriceBreakeven, 6);
+      expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven);
     });
 
     it('TVA ON: minPriceBreakevenTTC = HT * (1 + tvaRate/100)', () => {
       const settingsTva: GlobalSettings = { ...settingsOff, isTvaSubject: true, defaultTvaRate: 10 };
       const m = calculateProductMetrics(base, recipe, ing, settingsTva, [base]);
-      expect(m.minPriceBreakevenTTC).toBeCloseTo(m.minPriceBreakeven * 1.1, 6);
+      expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 10 / 100));
     });
 
     it('product-specific tvaRate overrides default', () => {
       const settingsTva: GlobalSettings = { ...settingsOff, isTvaSubject: true, defaultTvaRate: 10 };
       const product = { ...base, tvaRate: 20 };
       const m = calculateProductMetrics(product, recipe, ing, settingsTva, [product]);
-      expect(m.minPriceBreakevenTTC).toBeCloseTo(m.minPriceBreakeven * 1.2, 6);
+      expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 20 / 100));
       expect(m.tvaRate).toBe(20);
     });
   });
@@ -302,7 +305,7 @@ describe('calculateProductMetrics', () => {
       const settingsTax: GlobalSettings = { ...settingsOff, taxRate: 20 };
       const m = calculateProductMetrics(base, recipe, ing, settingsTax, [base]);
       // fullCost / (1 - 0.2) = fullCost / 0.8
-      expect(m.minPriceBreakeven).toBeCloseTo(m.fullCost / 0.8, 6);
+      expectEqual(m.minPriceBreakeven, m.fullCost / (1 - 20 / 100));
     });
   });
 

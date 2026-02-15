@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeMonthlyTotals, shouldIncludeOrder, MonthlyTotalsInput } from '../monthlyReportMath';
 import { GlobalSettings, Ingredient, MonthlyEntry, Order, Product, Recipe, Unit } from '../types';
+import { expectEqual } from './assertHelpers';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -67,31 +68,31 @@ describe('computeMonthlyTotals – VAT handling', () => {
   it('TVA ON: splits revenue into HT and TTC, social charges on HT', () => {
     const totals = computeMonthlyTotals(makeInput());
     // 10 units × 11€ TTC = 110 TTC
-    expect(totals.totalRevenueTTC).toBeCloseTo(110, 6);
-    // HT = 110 / 1.10 = 100
-    expect(totals.totalRevenueHT).toBeCloseTo(100, 6);
-    // TVA collected = 110 - 100 = 10
-    expect(totals.totalTvaCollected).toBeCloseTo(10, 6);
-    // Social charges = 100 × 20% = 20
-    expect(totals.totalSocialCharges).toBeCloseTo(20, 6);
+    expectEqual(totals.totalRevenueTTC, 10 * 11);
+    // HT = 110 / (1 + 10/100) = 110 / 1.1
+    expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100));
+    // TVA collected = TTC - HT
+    expectEqual(totals.totalTvaCollected, 10 * 11 - 10 * 11 / (1 + 10 / 100));
+    // Social charges = HT × 20%
+    expectEqual(totals.totalSocialCharges, 10 * 11 / (1 + 10 / 100) * (20 / 100));
   });
 
   it('TVA OFF: HT = TTC = total revenue, no TVA collected', () => {
     const noTva = { ...baseSettings, isTvaSubject: false };
     const totals = computeMonthlyTotals(makeInput({ settings: noTva }));
-    expect(totals.totalRevenueTTC).toBeCloseTo(110, 6);
-    expect(totals.totalRevenueHT).toBeCloseTo(110, 6);
-    expect(totals.totalTvaCollected).toBeCloseTo(0, 6);
-    // Social charges on full revenue: 110 × 20% = 22
-    expect(totals.totalSocialCharges).toBeCloseTo(22, 6);
+    expectEqual(totals.totalRevenueTTC, 10 * 11);
+    expectEqual(totals.totalRevenueHT, 10 * 11);
+    expectEqual(totals.totalTvaCollected, 0);
+    // Social charges on full revenue: 110 × 20%
+    expectEqual(totals.totalSocialCharges, 10 * 11 * (20 / 100));
   });
 
   it('per-product tvaRate is used for HT conversion', () => {
-    // product has tvaRate=10 but default is also 10, let's use 20
+    // product has tvaRate=10 but let's use 20
     const prod20 = { ...product, tvaRate: 20 };
     const totals = computeMonthlyTotals(makeInput({ products: [prod20] }));
-    // 110 TTC / 1.20 = 91.6667 HT
-    expect(totals.totalRevenueHT).toBeCloseTo(110 / 1.2, 4);
+    // 110 TTC / (1 + 20/100)
+    expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 20 / 100));
   });
 });
 
@@ -101,15 +102,15 @@ describe('computeMonthlyTotals – VAT handling', () => {
 describe('computeMonthlyTotals – social contributions base', () => {
   it('base is HT when TVA ON', () => {
     const totals = computeMonthlyTotals(makeInput());
-    // HT=100, taxRate=20% → 20
-    expect(totals.totalSocialCharges).toBeCloseTo(100 * 0.2, 6);
+    // HT = 110/1.1, taxRate=20%
+    expectEqual(totals.totalSocialCharges, 10 * 11 / (1 + 10 / 100) * (20 / 100));
   });
 
   it('base is total revenue when TVA OFF', () => {
     const noTva = { ...baseSettings, isTvaSubject: false };
     const totals = computeMonthlyTotals(makeInput({ settings: noTva }));
-    // Revenue = 110, taxRate=20% → 22
-    expect(totals.totalSocialCharges).toBeCloseTo(110 * 0.2, 6);
+    // Revenue = 110, taxRate=20%
+    expectEqual(totals.totalSocialCharges, 10 * 11 * (20 / 100));
   });
 });
 
@@ -122,46 +123,46 @@ describe('computeMonthlyTotals – packaging', () => {
   it('packagingUsedOnUnsold OFF: packaging only on sold units', () => {
     const prod = { ...product, packagingUsedOnUnsold: false };
     const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
-    // packagingCost=1, sold=10, unsold not counted → 10
-    expect(totals.totalPackagingCost).toBeCloseTo(10, 6);
+    // packagingCost=1, sold=10, unsold not counted → 1 * 10 * 1 = 10
+    expectEqual(totals.totalPackagingCost, 1 * 10 * 1);
   });
 
   it('packagingUsedOnUnsold ON: packaging on sold + unsold', () => {
     const prod = { ...product, packagingUsedOnUnsold: true };
     const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
-    // packagingCost=1, sold=10+unsold=2 → 12
-    expect(totals.totalPackagingCost).toBeCloseTo(12, 6);
+    // packagingCost=1, sold=10+unsold=2 → 1 * 12 * 1 = 12
+    expectEqual(totals.totalPackagingCost, 1 * (10 + 2) * 1);
   });
 
   it('ON → OFF reduces packaging cost', () => {
     const off = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [{ ...product, packagingUsedOnUnsold: false }] }));
     const on = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [{ ...product, packagingUsedOnUnsold: true }] }));
     expect(on.totalPackagingCost).toBeGreaterThan(off.totalPackagingCost);
-    // Exact diff = 2 (unsold * packagingCost)
-    expect(on.totalPackagingCost - off.totalPackagingCost).toBeCloseTo(2, 6);
+    // Exact diff = unsold * packagingCost = 2 * 1 = 2
+    expectEqual(on.totalPackagingCost - off.totalPackagingCost, 1 * (10 + 2) - 1 * 10);
   });
 
   it('applyLossToPackaging OFF: no loss multiplier on packaging', () => {
     const prod = { ...product, packagingUsedOnUnsold: false, applyLossToPackaging: false };
     const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
     // 1 * 10 * 1 = 10
-    expect(totals.totalPackagingCost).toBeCloseTo(10, 6);
+    expectEqual(totals.totalPackagingCost, 1 * 10 * 1);
   });
 
   it('applyLossToPackaging ON: packaging multiplied by mfg loss multiplier', () => {
     const prod = { ...product, packagingUsedOnUnsold: false, applyLossToPackaging: true, lossRate: 10 };
     const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
-    // mfgLossMultiplier = 1/(1-0.1) ≈ 1.1111
-    // 1 * 10 * 1.1111 ≈ 11.1111
-    expect(totals.totalPackagingCost).toBeCloseTo(10 / 0.9, 3);
+    // mfgLossMultiplier = 1/(1 - 10/100)
+    // 1 * 10 * mfgLossMultiplier
+    expectEqual(totals.totalPackagingCost, 1 * 10 * (1 / (1 - 10 / 100)));
   });
 
   it('combined: packagingUsedOnUnsold ON + applyLossToPackaging ON', () => {
     const prod = { ...product, packagingUsedOnUnsold: true, applyLossToPackaging: true, lossRate: 10 };
     const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
-    // units = 10+2 = 12; multiplier = 1/0.9 ≈ 1.1111
-    // 1 * 12 * 1.1111 ≈ 13.3333
-    expect(totals.totalPackagingCost).toBeCloseTo(12 / 0.9, 3);
+    // units = 10+2 = 12; multiplier = 1/(1 - 10/100)
+    // 1 * 12 * multiplier
+    expectEqual(totals.totalPackagingCost, 1 * (10 + 2) * (1 / (1 - 10 / 100)));
   });
 });
 
@@ -172,19 +173,19 @@ describe('computeMonthlyTotals – cost modes', () => {
   it('mode 0: uses calculated recipe-based food cost', () => {
     const totals = computeMonthlyTotals(makeInput({ costMode: 0, actualIngredientSpend: 999, inventoryVariationCost: 888 }));
     // batchCost = 100*0.01 = 1.0, unitCost = 0.1, sold=10, unsold=0
-    // mfgLoss = 1/(1-0.1) ≈ 1.1111
-    // calculatedFoodCost = 0.1 * 1.1111 * 10 ≈ 1.1111
-    expect(totals.finalFoodCost).toBeCloseTo(10 * 0.1 / 0.9, 3);
+    // mfgLoss = 1/(1-0.1)
+    // calculatedFoodCost = 0.1 * mfgLoss * 10
+    expectEqual(totals.finalFoodCost, (100 * 0.01 / 10) * (1 / (1 - 10 / 100)) * 10);
   });
 
   it('mode 1: uses actualIngredientSpend', () => {
     const totals = computeMonthlyTotals(makeInput({ costMode: 1, actualIngredientSpend: 42 }));
-    expect(totals.finalFoodCost).toBeCloseTo(42, 6);
+    expectEqual(totals.finalFoodCost, 42);
   });
 
   it('mode 2: uses inventoryVariationCost', () => {
     const totals = computeMonthlyTotals(makeInput({ costMode: 2, inventoryVariationCost: 55 }));
-    expect(totals.finalFoodCost).toBeCloseTo(55, 6);
+    expectEqual(totals.finalFoodCost, 55);
   });
 });
 
@@ -195,7 +196,7 @@ describe('computeMonthlyTotals – net result', () => {
   it('netResult = grossMargin - actualFixedCosts', () => {
     const totals = computeMonthlyTotals(makeInput({ actualFixedCosts: 30 }));
     const expectedGross = totals.totalRevenueHT - (totals.finalFoodCost + totals.totalPackagingCost + totals.totalSocialCharges);
-    expect(totals.netResult).toBeCloseTo(expectedGross - 30, 4);
+    expectEqual(totals.netResult, expectedGross - 30);
   });
 
   it('netResult can be negative when costs exceed revenue', () => {
@@ -236,7 +237,7 @@ describe('computeMonthlyTotals – multi-product', () => {
       recipes: [recipe, r2]
     }));
     // Total TTC = 10*11 + 5*24 = 110 + 120 = 230
-    expect(totals.totalRevenueTTC).toBeCloseTo(230, 6);
+    expectEqual(totals.totalRevenueTTC, 10 * 11 + 5 * 24);
   });
 });
 
@@ -246,20 +247,20 @@ describe('computeMonthlyTotals – multi-product', () => {
 describe('computeMonthlyTotals – edge cases', () => {
   it('empty sales array returns all zeros', () => {
     const totals = computeMonthlyTotals(makeInput({ sales: [] }));
-    expect(totals.totalRevenueTTC).toBe(0);
-    expect(totals.totalRevenueHT).toBe(0);
-    expect(totals.totalTvaCollected).toBe(0);
-    expect(totals.finalFoodCost).toBe(0);
-    expect(totals.totalPackagingCost).toBe(0);
-    expect(totals.totalSocialCharges).toBe(0);
-    expect(totals.netResult).toBe(0);
+    expectEqual(totals.totalRevenueTTC, 0);
+    expectEqual(totals.totalRevenueHT, 0);
+    expectEqual(totals.totalTvaCollected, 0);
+    expectEqual(totals.finalFoodCost, 0);
+    expectEqual(totals.totalPackagingCost, 0);
+    expectEqual(totals.totalSocialCharges, 0);
+    expectEqual(totals.netResult, 0);
   });
 
   it('missing product in sales is skipped for packaging/food cost', () => {
     const sales: MonthlyEntry[] = [{ productId: 'nonexistent', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
     const totals = computeMonthlyTotals(makeInput({ sales, products: [] }));
-    expect(totals.totalRevenueTTC).toBeCloseTo(110, 6);
-    expect(totals.finalFoodCost).toBe(0);
-    expect(totals.totalPackagingCost).toBe(0);
+    expectEqual(totals.totalRevenueTTC, 10 * 11);
+    expectEqual(totals.finalFoodCost, 0);
+    expectEqual(totals.totalPackagingCost, 0);
   });
 });
