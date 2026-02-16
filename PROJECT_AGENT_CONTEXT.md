@@ -696,3 +696,24 @@ Validation:
 Files modified:
 - `components/views/Analysis.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 33) Latest Turn Update (fix monthly report price prefill to match Analysis)
+
+User report:
+- Prefilled prices in Bilan Mensuel differ by a few cents from Prix Conseillé in Analysis.
+
+Root cause:
+- MonthlyReport prefill used a simplified cost estimation (no manufacturing loss, no unsold ratio, no packaging ratio), while Analysis used the full `calculateProductMetrics` function. The two diverged.
+
+Actions taken:
+- Replaced the manual simplified calculation in `MonthlyReport.tsx` prefill (lines 190-202) with a call to `calculateProductMetrics`, using `metrics.priceWithMarginTTC` as the prefilled price.
+- Updated import: replaced `calculateRecipeMaterialCost` with `calculateProductMetrics`.
+- Prefill now matches Analysis exactly (same function, same inputs, same result).
+
+Validation:
+- `npx tsc --noEmit` — clean
+- `npx vitest run` — 89 tests pass
+
+Files modified:
+- `components/views/MonthlyReport.tsx`
+- `PROJECT_AGENT_CONTEXT.md`

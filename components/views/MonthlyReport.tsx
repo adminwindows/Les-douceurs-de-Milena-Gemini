@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
-import { calculateRecipeMaterialCost, formatCurrency } from '../../utils';
+import { calculateProductMetrics, formatCurrency } from '../../utils';
 import { computeMonthlyTotals, shouldIncludeOrder } from '../../monthlyReportMath';
 import { isNonNegativeNumber, parseOptionalNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
@@ -187,19 +187,13 @@ export const MonthlyReport: React.FC<Props> = ({
         // Logic: Unsold is Production - Sold. Cannot be negative (if stock error, 0).
         const calculatedUnsold = Math.max(0, produced - sold);
 
-        // Calculate theoretical price TTC for initialization
+        // Calculate theoretical price TTC using the same function as Analysis
         const recipe = recipes.find(r => r.id === p.recipeId);
-        const batchCost = recipe ? calculateRecipeMaterialCost(recipe, ingredients) : 0;
-        const unitMat = batchCost / (recipe?.batchYield ?? 1);
-        const labor = settings.includeLaborInCost ? (p.laborTimeMinutes/60) * settings.hourlyRate : 0;
-        const fixed = (settings.fixedCostItems.reduce((s,i)=>s+i.amount,0) / products.reduce((s,prod)=>s+(prod.estimatedMonthlySales ?? 1),0));
-
-        // Basic estimation without complex loss logic for default value
-        const totalCostHT = unitMat + p.packagingCost + labor + fixed;
-        const socialDivisor = (1 - settings.taxRate/100);
-        const priceHT = (totalCostHT + p.targetMargin) / socialDivisor;
-        const tvaRate = p.tvaRate ?? settings.defaultTvaRate ?? 0;
-        const priceTTC = isTva ? priceHT * (1 + tvaRate/100) : priceHT;
+        let priceTTC = 0;
+        if (recipe) {
+          const metrics = calculateProductMetrics(p, recipe, ingredients, settings, products);
+          priceTTC = metrics.priceWithMarginTTC;
+        }
 
         return {
           productId: p.id,
