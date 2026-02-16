@@ -658,3 +658,20 @@ Files modified:
 - `tests/assertHelpers.ts`: `expectEqual` with configurable `NUMERIC_TOLERANCE` (set to 0)
 - `dataMigrations.ts`: normalizes legacy TVA fields, settings, products on load/import
 - `TtcToHtHelper.tsx`: ephemeral TTC→HT converter for ingredient price entry
+
+## 31) Latest Turn Update (fix Analysis explanation when labor is disabled)
+
+User request:
+- The "Comprendre vos prix" explanation box in the Analysis page always mentions labor cost ("main d'œuvre") even when `includeLaborInCost` is OFF in settings. Fix to be conditional.
+
+Actions taken:
+- Updated `components/views/Analysis.tsx` line 66:
+  - Labor mention (`, main d'œuvre (X€/h)`) now only appears when `settings.includeLaborInCost` is true.
+  - When labor is disabled, an explicit note is shown: "Main d'œuvre non incluse (désactivée dans Réglages)."
+
+Validation:
+- `npx tsc --noEmit` — clean
+
+Files modified:
+- `components/views/Analysis.tsx`
+- `PROJECT_AGENT_CONTEXT.md`
