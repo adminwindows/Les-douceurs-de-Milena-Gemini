@@ -604,3 +604,57 @@ Files modified:
 - `components/views/StockManagement.tsx`
 - `tests/validation.test.ts`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 30) Latest Turn Update (TVA revamp: ingredients always HT + TTC→HT helper)
+
+User request (inferred from prior design discussion):
+- Simplify TVA model: ingredient prices are **always stored as HT** (single source of truth). Remove per-ingredient TVA fields and per-purchase VAT snapshots. Add an ephemeral UI converter (TTC→HT) for user convenience.
+
+Actions taken:
+- **Removed legacy per-ingredient TVA fields** from `Ingredient` interface: `vatRate`, `priceBasis` (`'TTC'|'HT'`), `priceAmount`, `needsVatReview` (the old multi-field model).
+- **Removed `defaultIngredientVatRate`** from `GlobalSettings`.
+- **Removed per-purchase VAT snapshot fields**: `vatRateSnapshot`, `priceBasisSnapshot` from `Purchase`.
+- **New `Ingredient` fields** (simplified):
+  - `price` — always HT (the only stored price truth).
+  - `helperVatRate?: number` — UI-only: last TVA rate used in TTC→HT converter (prefill convenience, never used in calculations).
+  - `needsPriceReview?: boolean` — one-time migration flag when price was auto-converted from TTC to HT.
+- **New component `components/ui/TtcToHtHelper.tsx`**: ephemeral converter shown when TVA is enabled; user enters TTC + VAT rate → component computes HT and applies to ingredient price. Prefills rate from `ingredient.helperVatRate` or `settings.defaultTvaRate`.
+- **Migration in `dataMigrations.ts`**: `normalizeIngredient` converts legacy TTC ingredients to HT, flags `needsPriceReview`, preserves old `vatRate` as `helperVatRate`. `normalizePurchase` converts legacy TTC purchase prices to HT. All legacy fields are stripped from result.
+- **Simplified `utils.ts`**: removed `computeIngredientPrices` / `getIngredientCostPrice` helpers (no longer needed since price is always HT). `rebuildIngredientCost` no longer takes settings. Added `ttcToHt(ttc, vatRate)` pure helper.
+- **UI updates**: added HT notes throughout when TVA is enabled (ingredient reference, purchases, stock analysis, fixed costs, analysis page). Removed bulk VAT rate update action and per-ingredient TVA basis selector (no longer relevant).
+- **Product-side TVA unchanged**: `tvaRate` per product, `defaultTvaRate` in settings, revenue HT/TTC split in monthly report remain as-is.
+- **Updated `docs/formulas-spec.md`** to reflect HT-only ingredient model.
+- **Updated `dataSchema.ts`**: removed legacy TVA fields from strict/legacy schemas, added `helperVatRate` and `needsPriceReview` as optional.
+
+Validation:
+- `npx tsc --noEmit` — clean
+- `npx vitest run` — 89 tests pass (some TVA test fixtures simplified; migration tests added)
+- `npm run build` — success
+
+Files modified:
+- `types.ts`, `dataSchema.ts`, `dataMigrations.ts`, `utils.ts`
+- `components/ui/TtcToHtHelper.tsx` (new)
+- `components/views/StockManagement.tsx`, `components/views/Settings.tsx`, `components/views/Analysis.tsx`
+- `components/views/Products.tsx`, `components/views/MonthlyReport.tsx`
+- `docs/formulas-spec.md`
+- `tests/utils.test.ts`, `tests/monthlyReportMath.test.ts`, `tests/products.test.tsx`, `tests/settingsLaborToggle.test.tsx`
+
+## Current Project State Summary (as of turn 30)
+
+### Architecture
+- **Branch**: `claude/fix-packaging-pricing-reporting-0ywV4` (5 commits ahead of `master`)
+- **Tests**: 9 test files, 89 tests, all passing
+- **Build**: clean typecheck + build
+
+### Domain Model (current)
+- **Ingredient**: `price` always HT, `costPerBaseUnit` computed, optional `helperVatRate` (UI-only) and `needsPriceReview` (migration flag)
+- **Purchase**: `price` always total HT for quantity
+- **Product**: `tvaRate` per product, `packagingUsedOnUnsold`, `applyLossToPackaging` toggles, no `variableDeliveryCost`
+- **Settings**: `isTvaSubject`, `defaultTvaRate` (product-side), `includeLaborInCost`, `includePendingOrdersInMonthlyReport`, `fixedCostItems`
+- **Monthly report**: pure `computeMonthlyTotals` function, order filtering via `shouldIncludeOrder`, 3 cost modes
+
+### Key Frameworks/Tools
+- `validation.ts`: `hasPriceDrift` (strict tolerance = 0), input parsers
+- `tests/assertHelpers.ts`: `expectEqual` with configurable `NUMERIC_TOLERANCE` (set to 0)
+- `dataMigrations.ts`: normalizes legacy TVA fields, settings, products on load/import
+- `TtcToHtHelper.tsx`: ephemeral TTC→HT converter for ingredient price entry
