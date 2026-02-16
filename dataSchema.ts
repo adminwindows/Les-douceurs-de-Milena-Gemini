@@ -93,7 +93,8 @@ const monthlyEntrySchema = z.object({
   productId: z.string(),
   quantitySold: z.number(),
   quantityUnsold: z.number(),
-  actualPrice: z.number()
+  actualPrice: z.number(),
+  isTvaSubject: z.boolean().optional()
 });
 
 const inventoryEntrySchema = z.object({
@@ -243,7 +244,8 @@ const legacyReportSchema = z.object({
     productId: asString,
     quantitySold: asNumber.catch(0),
     quantityUnsold: asNumber.catch(0),
-    actualPrice: asNumber.catch(0)
+    actualPrice: asNumber.catch(0),
+    isTvaSubject: z.boolean().optional()
   }).passthrough()).default([]),
   actualFixedCostItems: z.array(legacyFixedCostSchema).default([]),
   actualIngredientSpend: asNumber.catch(0),

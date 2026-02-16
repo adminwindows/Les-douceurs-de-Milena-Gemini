@@ -101,7 +101,8 @@ export interface MonthlyEntry {
   productId: string;
   quantitySold: number;
   quantityUnsold: number; // Invendus réels du mois
-  actualPrice: number; // Prix de vente unitaire (TTC si assujetti)
+  actualPrice: number; // Prix de vente unitaire (TTC si assujetti au moment de la saisie)
+  isTvaSubject?: boolean; // Snapshot: TVA mode when this entry was created/saved
 }
 
 export interface InventoryEntry {

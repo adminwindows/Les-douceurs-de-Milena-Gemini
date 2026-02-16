@@ -97,6 +97,60 @@ describe('computeMonthlyTotals – VAT handling', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Per-entry TVA snapshot
+// ---------------------------------------------------------------------------
+describe('computeMonthlyTotals – per-entry TVA snapshot', () => {
+  it('entry saved with isTvaSubject=true is treated as TTC even when global setting is OFF', () => {
+    const noTvaSettings = { ...baseSettings, isTvaSubject: false };
+    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: true }];
+    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, sales }));
+    // Entry was saved as TTC → should still extract TVA
+    expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100));
+    expectEqual(totals.totalTvaCollected, 10 * 11 - 10 * 11 / (1 + 10 / 100));
+  });
+
+  it('entry saved with isTvaSubject=false is treated as net even when global setting is ON', () => {
+    const tvaSettings = { ...baseSettings, isTvaSubject: true };
+    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: false }];
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
+    // Entry was saved as net → no TVA extraction
+    expectEqual(totals.totalRevenueHT, 10 * 11);
+    expectEqual(totals.totalTvaCollected, 0);
+  });
+
+  it('legacy entry without snapshot falls back to current global setting (TVA ON)', () => {
+    const tvaSettings = { ...baseSettings, isTvaSubject: true };
+    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
+    // No snapshot → uses current isTva=true → extracts TVA
+    expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100));
+  });
+
+  it('legacy entry without snapshot falls back to current global setting (TVA OFF)', () => {
+    const noTvaSettings = { ...baseSettings, isTvaSubject: false };
+    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
+    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, sales }));
+    // No snapshot → uses current isTva=false → no extraction
+    expectEqual(totals.totalRevenueHT, 10 * 11);
+    expectEqual(totals.totalTvaCollected, 0);
+  });
+
+  it('mixed entries: some TTC, some net in the same report', () => {
+    const tvaSettings = { ...baseSettings, isTvaSubject: true };
+    const sales: MonthlyEntry[] = [
+      { productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: true },
+      { productId: 'p1', quantitySold: 5, quantityUnsold: 0, actualPrice: 11, isTvaSubject: false }
+    ];
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
+    // First entry: TTC → HT = 110/1.1 = 100
+    // Second entry: net → HT = 55
+    expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100) + 5 * 11);
+    // TVA only from first entry
+    expectEqual(totals.totalTvaCollected, 10 * 11 - 10 * 11 / (1 + 10 / 100));
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Social contributions base
 // ---------------------------------------------------------------------------
 describe('computeMonthlyTotals – social contributions base', () => {

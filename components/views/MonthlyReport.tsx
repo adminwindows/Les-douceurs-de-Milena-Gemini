@@ -199,7 +199,8 @@ export const MonthlyReport: React.FC<Props> = ({
           productId: p.id,
           quantitySold: sold,
           quantityUnsold: calculatedUnsold,
-          actualPrice: priceTTC // Always store TTC (or Net if no Tva)
+          actualPrice: priceTTC, // Always store TTC (or Net if no Tva)
+          isTvaSubject: isTva
         };
       });
       setSales(initialSales);
@@ -289,10 +290,12 @@ export const MonthlyReport: React.FC<Props> = ({
       alert('Impossible de sauvegarder : corrigez les valeurs négatives dans les champs du bilan.');
       return;
     }
+    // Stamp each sale entry with current TVA mode at save time
+    const stampedSales = sales.map(s => ({ ...s, isTvaSubject: isTva }));
     const report: MonthlyReportData = {
       id: selectedMonth,
       monthStr: selectedMonth,
-      sales,
+      sales: stampedSales,
       actualFixedCostItems: actualFixedItems,
       actualIngredientSpend,
       inventory,

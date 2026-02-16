@@ -29,18 +29,21 @@ export const computeMonthlyTotals = (input: MonthlyTotalsInput) => {
   let totalRevenueHT = 0;
   let totalTvaCollected = 0;
 
-  if (isTva) {
-    sales.forEach((s) => {
+  // Per-entry TVA interpretation: use the snapshot stored on each entry,
+  // falling back to the current global setting for legacy entries without snapshot.
+  sales.forEach((s) => {
+    const entryWasTva = s.isTvaSubject ?? isTva;
+    const lineTotal = s.quantitySold * s.actualPrice;
+    if (entryWasTva) {
       const p = products.find(prod => prod.id === s.productId);
       const tvaRate = p?.tvaRate ?? settings.defaultTvaRate ?? 0;
-      const lineTTC = s.quantitySold * s.actualPrice;
-      const lineHT = lineTTC / (1 + tvaRate / 100);
+      const lineHT = lineTotal / (1 + tvaRate / 100);
       totalRevenueHT += lineHT;
-      totalTvaCollected += (lineTTC - lineHT);
-    });
-  } else {
-    totalRevenueHT = totalRevenueTTC;
-  }
+      totalTvaCollected += (lineTotal - lineHT);
+    } else {
+      totalRevenueHT += lineTotal;
+    }
+  });
 
   const calculatedFoodCost = sales.reduce((sum, s) => {
     const product = products.find(p => p.id === s.productId);
