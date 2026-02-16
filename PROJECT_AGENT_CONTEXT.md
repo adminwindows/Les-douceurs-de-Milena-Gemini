@@ -675,3 +675,24 @@ Validation:
 Files modified:
 - `components/views/Analysis.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 32) Latest Turn Update (TVA conditioning on Analysis explanation)
+
+User request:
+- Make the "Prix Min (Rentable)" explanation line conditional on TVA mode too.
+- Clarify that min/recommended prices are TTC when TVA is ON and include the product TVA rate info.
+
+Actions taken:
+- Updated `components/views/Analysis.tsx`:
+  - "Prix Min (Rentable)" label now shows "TTC" suffix when TVA is ON.
+  - Added TVA note: "Inclut la TVA produit (taux par produit, défaut X%)." when TVA is ON.
+
+User question answered (no code change):
+- `defaultTvaRate` serves as: (1) fallback when a product has no explicit `tvaRate`, and (2) prefill for the TTC→HT ingredient helper. If all products have explicit rates, purpose #1 is just a safety net.
+
+Validation:
+- `npx tsc --noEmit` — clean
+
+Files modified:
+- `components/views/Analysis.tsx`
+- `PROJECT_AGENT_CONTEXT.md`
