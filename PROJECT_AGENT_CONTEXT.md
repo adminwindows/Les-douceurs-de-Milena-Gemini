@@ -717,3 +717,32 @@ Validation:
 Files modified:
 - `components/views/MonthlyReport.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 34) Latest Turn Update (fix monthly report TVA mode-switch regression)
+
+User report:
+- After saving monthly sales entries, switching TVA mode in Settings later could change historical monthly report totals unexpectedly.
+
+Root cause:
+- `MonthlyEntry.actualPrice` is interpreted as TTC when TVA is enabled and net/HT when TVA is disabled.
+- `computeMonthlyTotals` previously interpreted **all** entries using the **current** global `settings.isTvaSubject`, so toggling TVA later retroactively changed old report math.
+
+Actions taken:
+- Added `isTvaSubject?: boolean` snapshot field on `MonthlyEntry` (TVA mode at entry save time).
+- Updated monthly save flow (`MonthlyReport.tsx`) to stamp each saved sale line with current TVA mode.
+- Updated prefill/initialization flow to include the snapshot on generated entries.
+- Updated `computeMonthlyTotals` to interpret each line with `entry.isTvaSubject ?? settings.isTvaSubject` (legacy-safe fallback).
+- Updated strict + legacy schemas in `dataSchema.ts` to accept optional `isTvaSubject` on monthly sales entries.
+- Added dedicated tests for per-entry TVA snapshot behavior (TVA ON/OFF + legacy fallback + mixed-mode entries).
+
+Validation:
+- `npx tsc --noEmit` — clean
+- `npx vitest run` — 94 tests pass
+
+Files modified:
+- `components/views/MonthlyReport.tsx`
+- `monthlyReportMath.ts`
+- `types.ts`
+- `dataSchema.ts`
+- `tests/monthlyReportMath.test.ts`
+- `PROJECT_AGENT_CONTEXT.md`
