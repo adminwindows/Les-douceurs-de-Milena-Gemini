@@ -1,8 +1,7 @@
-
-import React, { useState } from 'react';
-import { Ingredient, Product, Recipe, GlobalSettings, Purchase } from '../../types';
-import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit } from '../../utils';
-import { Card, InfoTooltip } from '../ui/Common';
+import React from 'react';
+import { Product, Recipe, Ingredient, GlobalSettings, Purchase } from '../../types';
+import { Card, Button } from '../ui/Common';
+import { calculateProductMetrics, formatCurrency } from '../../utils';
 
 interface Props {
   products: Product[];
@@ -12,183 +11,44 @@ interface Props {
   purchases: Purchase[];
 }
 
-type PriceMode = 'standard' | 'average' | 'last';
-
-export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, settings, purchases }) => {
-  const isTva = settings.isTvaSubject;
-  const [priceMode, setPriceMode] = useState<PriceMode>('standard');
-
-  // Helper to recalculate ingredients cost based on mode
-  const activeIngredients = ingredients.map(ing => {
-      let calcPrice = ing.price; // Default to Standard
-
-      if (priceMode === 'average') {
-          const ingPurchases = purchases.filter(p => p.ingredientId === ing.id);
-          const totalQty = ingPurchases.reduce((acc, p) => acc + p.quantity, 0);
-          const totalSpent = ingPurchases.reduce((acc, p) => acc + p.price, 0);
-          if (totalQty > 0) {
-              calcPrice = totalSpent / totalQty;
-          } else {
-              // Fallback to Standard
-              calcPrice = ing.price;
-          }
-      } else if (priceMode === 'last') {
-          const ingPurchases = purchases
-             .filter(p => p.ingredientId === ing.id)
-             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          
-          if (ingPurchases.length > 0) {
-              const last = ingPurchases[0];
-              calcPrice = last.price / last.quantity;
-          } else {
-              // Fallback to Standard
-              calcPrice = ing.price;
-          }
-      }
-
-      // Important: Always recalculate costPerBaseUnit to ensure consistency, 
-      // even for Standard mode (to fix potential drift in initial data)
-      return {
-          ...ing,
-          price: calcPrice,
-          costPerBaseUnit: convertToCostPerBaseUnit(calcPrice, 1, ing.unit)
-      };
-  });
+export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, settings }) => {
+  const toggleMode = () => {
+    if ((settings.pricingMode ?? 'margin') === 'margin') {
+      // eslint-disable-next-line no-alert
+      alert('Passez en mode salaire depuis Réglages.');
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 bg-[#FFF0F3] dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-xl flex items-start gap-4 shadow-sm">
-            <span className="text-2xl">💡</span>
-            <div className="text-sm text-rose-900 dark:text-rose-100">
-              <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? '(Mode Assujetti TVA)' : '(Mode Franchise)'}</p>
-              <ul className="list-disc pl-4 space-y-1 text-rose-800 dark:text-rose-200">
-                <li><strong>Coût Complet :</strong> Inclut matières{isTva ? ' (HT)' : ''}, emballage{settings.includeLaborInCost ? `, main d'œuvre (${settings.hourlyRate}€/h)` : ''} et charges fixes.{isTva && " Tous les coûts matière sont HT (TVA récupérable sur les achats)."}{!settings.includeLaborInCost && " Main d'œuvre non incluse (désactivée dans Réglages)."}</li>
-                <li><strong>Prix Min (Rentable){isTva ? ' TTC' : ''} :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.{isTva && ` Inclut la TVA produit (taux par produit, défaut ${settings.defaultTvaRate}%).`}</li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="md:w-1/3 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 p-4 rounded-xl shadow-sm">
-              <label className="text-sm font-bold text-stone-700 dark:text-stone-300 block mb-3">Base de calcul des Coûts Matières</label>
-              <div className="flex flex-col gap-2">
-                 <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                        type="radio" 
-                        name="priceMode" 
-                        value="standard" 
-                        checked={priceMode === 'standard'} 
-                        onChange={() => setPriceMode('standard')}
-                        className="text-[#D45D79] focus:ring-[#D45D79]"
-                    />
-                    <span className="text-sm text-stone-700 dark:text-stone-300">Prix Standard (Fiche Technique)</span>
-                 </label>
-                 <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                        type="radio" 
-                        name="priceMode" 
-                        value="average" 
-                        checked={priceMode === 'average'} 
-                        onChange={() => setPriceMode('average')}
-                        className="text-[#D45D79] focus:ring-[#D45D79]"
-                    />
-                    <span className="text-sm text-stone-700 dark:text-stone-300">Prix Moyen Pondéré (Achats)</span>
-                 </label>
-                 <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                        type="radio" 
-                        name="priceMode" 
-                        value="last" 
-                        checked={priceMode === 'last'} 
-                        onChange={() => setPriceMode('last')}
-                        className="text-[#D45D79] focus:ring-[#D45D79]"
-                    />
-                    <span className="text-sm text-stone-700 dark:text-stone-300">Dernier Prix d'Achat</span>
-                 </label>
+    <div className="space-y-4">
+      <Card>
+        <h3 className="text-lg font-bold mb-2">Pricing mode</h3>
+        <p className="text-sm">Mode actif: <strong>{settings.pricingMode ?? 'margin'}</strong></p>
+        <p className="text-sm">Salaire cible mensuel: <strong>{settings.targetMonthlySalary ?? 0}€</strong></p>
+        <Button size="sm" variant="secondary" onClick={toggleMode}>Info mode</Button>
+      </Card>
+
+      <Card>
+        <h3 className="text-lg font-bold mb-3">Prix minimum vs recommandé</h3>
+        <div className="space-y-2">
+          {products.map(product => {
+            const recipe = recipes.find(r => r.id === product.recipeId);
+            if (!recipe) return null;
+            const metrics = calculateProductMetrics(product, recipe, ingredients, settings, products);
+            return (
+              <div key={product.id} className="border rounded p-3 text-sm">
+                <div className="font-bold">{product.name}</div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>Prix minimum: {formatCurrency(metrics.minPriceBreakevenTTC)}</div>
+                  <div>Prix recommandé: {formatCurrency(metrics.priceWithMarginTTC)}</div>
+                  <div>Recommandé (mode marge): {formatCurrency(metrics.marginModePriceTTC)}</div>
+                  <div>Recommandé (mode salaire): {formatCurrency(metrics.salaryModePriceTTC)}</div>
+                </div>
               </div>
-          </div>
-      </div>
-
-      <div className="overflow-x-auto shadow-md border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-stone-200 dark:bg-stone-900 text-stone-800 dark:text-stone-200 font-bold border-b border-stone-300 dark:border-stone-700 uppercase text-xs tracking-wider">
-            <tr>
-              <th className="p-4 min-w-[150px]">Produit</th>
-              <th className="p-4 text-stone-600 dark:text-stone-400">Matières</th>
-              <th className="p-4 text-stone-600 dark:text-stone-400">M.O.</th>
-              <th className="p-4 bg-stone-100 dark:bg-stone-800/50 border-l border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100">Coût {isTva ? 'HT' : ''}</th>
-              
-              <th className="p-4 bg-rose-50 dark:bg-rose-900/20 border-l border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300">
-                Prix Min. {isTva ? 'TTC' : ''}
-              </th>
-              {isTva && <th className="p-4 bg-rose-50 dark:bg-rose-900/20 text-rose-800 dark:text-rose-300 text-opacity-60 font-normal">Min. HT</th>}
-              
-              <th className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border-l border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
-                Conseillé {isTva ? 'TTC' : ''}
-              </th>
-              {isTva && <th className="p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 text-opacity-60 font-normal">HT</th>}
-              
-              <th className="p-4">Food Cost %</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-200 dark:divide-stone-700">
-            {products.map(product => {
-              const recipe = recipes.find(r => r.id === product.recipeId);
-              if (!recipe) return null;
-              
-              const metrics = calculateProductMetrics(product, recipe, activeIngredients, settings, products);
-              
-              const fcPercent = (metrics.unitMaterialCost / metrics.priceWithMargin) * 100;
-              let fcColor = "text-emerald-600 dark:text-emerald-400";
-              if (fcPercent > 35) fcColor = "text-orange-600 dark:text-orange-400";
-              if (fcPercent > 45) fcColor = "text-red-600 dark:text-red-400 font-bold";
-
-              return (
-                <tr key={product.id} className="hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors">
-                  <td className="p-4 font-bold text-stone-800 dark:text-stone-200">
-                    {product.name}
-                    {isTva && <span className="block text-[10px] text-stone-400 dark:text-stone-500 font-normal">TVA {metrics.tvaRate}%</span>}
-                  </td>
-                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.unitMaterialCost)}</td>
-                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.laborCost)}</td>
-                  
-                  <td className="p-4 bg-stone-50 dark:bg-stone-800/50 border-l border-stone-200 dark:border-stone-700 font-medium text-stone-900 dark:text-stone-100">
-                    {formatCurrency(metrics.fullCost)}
-                  </td>
-                  
-                  <td className="p-4 bg-rose-50 dark:bg-rose-900/10 border-l border-rose-100 dark:border-rose-900/50 text-rose-700 dark:text-rose-400 font-medium">
-                    {formatCurrency(metrics.minPriceBreakevenTTC)}
-                  </td>
-                  {isTva && (
-                    <td className="p-4 bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400 text-opacity-70 text-xs">
-                       {formatCurrency(metrics.minPriceBreakeven)}
-                    </td>
-                  )}
-                  
-                  <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-l border-emerald-100 dark:border-emerald-900/50">
-                    <div className="flex flex-col">
-                      <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(metrics.priceWithMarginTTC)}</span>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-500">Marge: {product.targetMargin}€</span>
-                    </div>
-                  </td>
-                  {isTva && (
-                    <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400 text-opacity-70 text-xs">
-                       {formatCurrency(metrics.priceWithMargin)}
-                    </td>
-                  )}
-
-                  <td className={`p-4 ${fcColor}`}>
-                    {isNaN(fcPercent) ? '-' : fcPercent.toFixed(1) + '%'}
-                  </td>
-                </tr>
-              );
-            })}
-            {products.length === 0 && (
-              <tr><td colSpan={isTva ? 9 : 7} className="p-8 text-center text-stone-400 dark:text-stone-500">Aucun produit à analyser.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </div>
+      </Card>
     </div>
   );
 };

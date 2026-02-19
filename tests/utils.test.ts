@@ -272,12 +272,11 @@ describe('calculateProductMetrics', () => {
       expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 10 / 100));
     });
 
-    it('product-specific tvaRate overrides default', () => {
+    it('uses global defaultTvaRate (per-product TVA removed)', () => {
       const settingsTva: GlobalSettings = { ...settingsOff, isTvaSubject: true, defaultTvaRate: 10 };
-      const product = { ...base, tvaRate: 20 };
-      const m = calculateProductMetrics(product, recipe, ing, settingsTva, [product]);
-      expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 20 / 100));
-      expect(m.tvaRate).toBe(20);
+      const m = calculateProductMetrics(base, recipe, ing, settingsTva, [base]);
+      expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 10 / 100));
+      expect(m.tvaRate).toBe(10);
     });
   });
 
@@ -325,14 +324,11 @@ describe('calculateProductMetrics', () => {
   });
 
   describe('migration', () => {
-    it('converts TTC ingredient to HT under TVA ON and flags needsPriceReview', () => {
-      // Simulate legacy ingredient with priceBasis='TTC' and vatRate=20
+    it('keeps legacy TTC-looking price as-is (no legacy TTC->HT migration)', () => {
       const legacy = { id: 'i1', name: 'Sucre', unit: Unit.KG, price: 1.2, priceAmount: 1.2, priceBasis: 'TTC', vatRate: 20, quantity: 1, costPerBaseUnit: 0.002 } as any;
       const migrated = normalizeIngredient(legacy, settingsOn);
-      // Price should be converted: 1.2 / 1.2 = 1.0 HT
-      expectEqual(migrated.price, 1.2 / (1 + 20 / 100));
-      expect(migrated.needsPriceReview).toBe(true);
-      expect(migrated.helperVatRate).toBe(20);
+      expectEqual(migrated.price, 1.2);
+      expect(migrated.needsPriceReview).toBeUndefined();
     });
 
     it('keeps price as-is when priceBasis was HT', () => {

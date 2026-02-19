@@ -356,6 +356,8 @@ const App = () => {
           products={products}
           productionBatches={productionBatches}
           setProductionBatches={setProductionBatches}
+          defaultTvaRate={settings.defaultTvaRate}
+          isTvaSubject={settings.isTvaSubject}
         />;
       case 'analysis':
         return <Analysis products={products} recipes={recipes} ingredients={ingredients} settings={settings} purchases={purchases} />;

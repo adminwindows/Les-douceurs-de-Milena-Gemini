@@ -1,54 +1,49 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProductsContent } from '../components/views/Products';
 import { GlobalSettings, Product, Recipe } from '../types';
 
-describe('Products form behavior', () => {
-  it('enables save only when required fields are valid', async () => {
+describe('ProductsContent (new simplified UI)', () => {
+  const recipes: Recipe[] = [
+    { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
+  ];
+  const settings: GlobalSettings = {
+    currency: 'EUR',
+    hourlyRate: 10,
+    includeLaborInCost: true,
+    fixedCostItems: [],
+    taxRate: 0,
+    isTvaSubject: false,
+    defaultTvaRate: 5.5,
+    includePendingOrdersInMonthlyReport: false,
+    pricingMode: 'margin',
+    targetMonthlySalary: 0
+  };
+
+  it('adds a product when required fields are filled', async () => {
     const user = userEvent.setup();
-    const recipes: Recipe[] = [
-      { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
-    ];
-    const products: Product[] = [];
-    const settings: GlobalSettings = {
-      currency: 'EUR',
-      hourlyRate: 10,
-      includeLaborInCost: true,
-      fixedCostItems: [],
-      taxRate: 0,
-      isTvaSubject: false,
-      defaultTvaRate: 5.5,
-      includePendingOrdersInMonthlyReport: false
-    };
+    const setProducts = vi.fn();
 
     render(
       <ProductsContent
-        products={products}
-        setProducts={() => {}}
+        products={[]}
+        setProducts={setProducts}
         recipes={recipes}
         settings={settings}
       />
     );
 
-    const submitButton = screen.getByRole('button', { name: /ajouter au catalogue/i });
-    expect(submitButton).toBeDisabled();
+    const textboxes = screen.getAllByRole('textbox');
+    await user.type(textboxes[0], 'Cookie test');
+    await user.clear(textboxes[1]);
+    await user.type(textboxes[1], '1.2');
+    await user.click(screen.getByRole('button', { name: 'Ajouter produit' }));
 
-    await user.type(screen.getByTestId('product-name-input'), 'Cookie test');
-    await user.selectOptions(screen.getByTestId('product-recipe-select'), 'r1');
-    await user.clear(screen.getByTestId('product-sales-input'));
-    await user.type(screen.getByTestId('product-sales-input'), '10');
-    await user.clear(screen.getByTestId('product-loss-input'));
-    await user.type(screen.getByTestId('product-loss-input'), '5');
-
-    expect(submitButton).toBeEnabled();
+    expect(setProducts).toHaveBeenCalledOnce();
   });
 
-  it('switches form to edit mode from product card', async () => {
-    const user = userEvent.setup();
-    const recipes: Recipe[] = [
-      { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
-    ];
+  it('renders existing products with standard price input', () => {
     const products: Product[] = [{
       id: 'p1',
       name: 'Cookie existant',
@@ -58,21 +53,12 @@ describe('Products form behavior', () => {
       lossRate: 2,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
+      applyLossToPackaging: false,
       targetMargin: 1,
       estimatedMonthlySales: 20,
       category: 'Biscuit',
-      tvaRate: 5.5
+      standardPrice: 3
     }];
-    const settings: GlobalSettings = {
-      currency: 'EUR',
-      hourlyRate: 10,
-      includeLaborInCost: true,
-      fixedCostItems: [],
-      taxRate: 0,
-      isTvaSubject: false,
-      defaultTvaRate: 5.5,
-      includePendingOrdersInMonthlyReport: false
-    };
 
     render(
       <ProductsContent
@@ -83,8 +69,7 @@ describe('Products form behavior', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: '✏️' }));
-    expect(screen.getByText(/modifier le produit/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /enregistrer/i })).toBeInTheDocument();
+    expect(screen.getByText('Cookie existant')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument();
   });
 });

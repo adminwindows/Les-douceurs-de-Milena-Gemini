@@ -41,7 +41,7 @@ export const calculateProductMetrics = (
   allProducts: Product[]
 ) => {
   const isTvaSubject = settings.isTvaSubject;
-  const tvaRate = product.tvaRate ?? settings.defaultTvaRate ?? 0;
+  const tvaRate = settings.defaultTvaRate ?? 0;
 
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
   const unitMaterialCost = batchMaterialCost / (recipe.batchYield ?? 1);
@@ -78,10 +78,20 @@ export const calculateProductMetrics = (
 
   const minPriceBreakevenHT = fullCost / divisor;
 
-  const priceWithMarginHT = (fullCost + product.targetMargin) / divisor;
+  const marginModePriceHT = (fullCost + product.targetMargin) / divisor;
+
+  const totalEstimatedVolumeForSalary = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
+  const salaryShare = (settings.targetMonthlySalary ?? 0) > 0 && totalEstimatedVolumeForSalary > 0
+    ? (settings.targetMonthlySalary ?? 0) / totalEstimatedVolumeForSalary
+    : 0;
+  const salaryModePriceHT = (fullCost + salaryShare) / divisor;
+  const pricingMode = settings.pricingMode ?? 'margin';
+  const priceWithMarginHT = pricingMode === 'salary' ? salaryModePriceHT : marginModePriceHT;
 
   const minPriceBreakevenTTC = isTvaSubject ? minPriceBreakevenHT * (1 + tvaRate / 100) : minPriceBreakevenHT;
   const priceWithMarginTTC = isTvaSubject ? priceWithMarginHT * (1 + tvaRate / 100) : priceWithMarginHT;
+  const salaryModePriceTTC = isTvaSubject ? salaryModePriceHT * (1 + tvaRate / 100) : salaryModePriceHT;
+  const marginModePriceTTC = isTvaSubject ? marginModePriceHT * (1 + tvaRate / 100) : marginModePriceHT;
 
   return {
     unitMaterialCost,
@@ -93,7 +103,13 @@ export const calculateProductMetrics = (
     priceWithMargin: priceWithMarginHT,
     priceWithMarginTTC,
     totalVariableCosts,
-    tvaRate: isTvaSubject ? tvaRate : 0
+    tvaRate: isTvaSubject ? tvaRate : 0,
+    salaryShare,
+    marginModePrice: marginModePriceHT,
+    marginModePriceTTC,
+    salaryModePrice: salaryModePriceHT,
+    salaryModePriceTTC,
+    pricingMode
   };
 };
 
@@ -110,7 +126,9 @@ export const INITIAL_SETTINGS: GlobalSettings = {
   taxRate: 22,
   isTvaSubject: false,
   defaultTvaRate: 5.5,
-  includePendingOrdersInMonthlyReport: false
+  includePendingOrdersInMonthlyReport: false,
+  pricingMode: 'margin',
+  targetMonthlySalary: 0
 };
 
 export const INITIAL_INGREDIENTS: Ingredient[] = [
@@ -165,7 +183,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     applyLossToPackaging: false,
     targetMargin: 1.0,
     estimatedMonthlySales: 50,
-    category: 'biscuit'
+    category: 'biscuit',
+    standardPrice: 0
   },
   {
     id: 'p2',
@@ -180,6 +199,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     applyLossToPackaging: false,
     targetMargin: 10.0,
     estimatedMonthlySales: 10,
-    category: 'entremet'
+    category: 'entremet',
+    standardPrice: 0
   }
 ];

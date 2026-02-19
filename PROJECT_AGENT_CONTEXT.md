@@ -717,3 +717,94 @@ Validation:
 Files modified:
 - `components/views/MonthlyReport.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 34) Latest Turn Update (fix monthly report corruption after TVA mode switch)
+
+User report:
+- Monthly report values became incorrect after toggling TVA mode in Settings.
+- Root issue: saved monthly entries were interpreted using the *current* global TVA mode instead of the mode that was active when each entry was created.
+
+Root cause:
+- `MonthlyEntry.actualPrice` is semantically TTC when TVA is ON and net/HT when TVA is OFF.
+- `computeMonthlyTotals` previously used `settings.isTvaSubject` globally for all entries, so changing TVA mode retroactively changed historical interpretation.
+
+Actions taken:
+- Added an optional per-entry snapshot field on monthly entries: `isTvaSubject` (state at save time).
+- Updated save flow in `components/views/MonthlyReport.tsx` to persist that snapshot on each entry.
+- Updated monthly math in `monthlyReportMath.ts` to use entry-level `isTvaSubject` when present, with fallback to current settings for legacy entries.
+- Updated schemas/types to include the new optional field:
+  - `types.ts`
+  - `dataSchema.ts`
+- Added/updated tests in `tests/monthlyReportMath.test.ts` to validate correct behavior when TVA mode is switched after entries are saved.
+
+Validation:
+- (From agent work in the referenced fix) monthly report math tests updated and passing for the mode-switch scenario.
+
+Files modified:
+- `components/views/MonthlyReport.tsx`
+- `monthlyReportMath.ts`
+- `types.ts`
+- `dataSchema.ts`
+- `tests/monthlyReportMath.test.ts`
+- `PROJECT_AGENT_CONTEXT.md`
+
+## 35) Latest Turn Update (implemented core VAT/pricing/monthly-report redesign baseline)
+
+User request:
+- Implement the previously validated redesign (global TVA simplification, order price+TVA model, monthly report sold/unsold split, duplicate sale lines, frozen loaded lines, pricing mode support) and update project context.
+
+Actions taken:
+- Refactored domain model and schemas to introduce/align:
+  - `product.standardPrice`
+  - `order.tvaRate` + `order.items[].price`
+  - monthly `sales` lines carrying per-line `tvaRate`
+  - separate monthly `unsold` lines
+  - settings pricing-mode fields (`pricingMode`, `targetMonthlySalary`)
+- Reworked monthly totals math to use per-line TVA rate and separate unsold cost contribution.
+- Reworked Orders view to capture one TVA rate per order and per-item selling price.
+- Reworked Monthly Report view with:
+  - duplicate product sale rows support
+  - separate unsold section
+  - frozen loaded rows (read-only) vs new editable rows
+  - save payload storing expanded aggregate snapshots
+- Simplified Products/Analysis views around standard price + pricing mode output.
+- Simplified migration logic (no TTC/HT legacy auto-conversion path retained in normalizer).
+- Added pricing mode controls in Settings.
+
+Validation:
+- `npm run typecheck` — clean
+- `npm run build` — success
+- `npx vitest run` — failing expectations remain in legacy tests tied to removed/changed semantics (per-product TVA, legacy migration behavior, old Products UI selectors, old monthly-entry shape)
+
+Files modified (high level):
+- `types.ts`, `dataSchema.ts`, `dataMigrations.ts`, `utils.ts`, `monthlyReportMath.ts`
+- `components/views/Orders.tsx`, `components/views/MonthlyReport.tsx`, `components/views/Products.tsx`, `components/views/Analysis.tsx`, `components/views/Settings.tsx`
+- `App.tsx`
+- `PROJECT_AGENT_CONTEXT.md`
+
+## 36) Latest Turn Update (adapt tests to redesigned VAT/pricing/monthly model)
+
+User request:
+- Adapt tests to the redesigned architecture after dissatisfaction with the prior patch.
+
+Actions taken:
+- Rewrote `tests/monthlyReportMath.test.ts` to validate the new semantics:
+  - per-line TVA rate handling
+  - mixed TVA lines
+  - separate unsold impact on packaging/food costs
+  - cost mode behavior
+- Updated `tests/utils.test.ts` expectations to match redesign decisions:
+  - global default TVA rate used (no per-product TVA override behavior expected)
+  - no TTC→HT legacy ingredient migration conversion/flagging expected
+- Rewrote `tests/products.test.tsx` to match the simplified Products view interactions and assertions.
+
+Validation:
+- `npx vitest run` — all tests pass (9 files, 74 tests)
+- `npm run typecheck` — clean
+- `npm run build` — success
+
+Files modified:
+- `tests/monthlyReportMath.test.ts`
+- `tests/utils.test.ts`
+- `tests/products.test.tsx`
+- `PROJECT_AGENT_CONTEXT.md`

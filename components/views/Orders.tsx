@@ -1,9 +1,7 @@
-
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Order, Product, ProductionBatch } from '../../types';
-import { Card, Button, Input, InfoTooltip } from '../ui/Common';
-import { usePersistentState } from '../../usePersistentState';
-import { isPositiveNumber, parseOptionalNumber } from '../../validation';
+import { Card, Button, Input } from '../ui/Common';
+import { parseOptionalNumber } from '../../validation';
 
 interface Props {
   orders: Order[];
@@ -11,278 +9,134 @@ interface Props {
   products: Product[];
   productionBatches: ProductionBatch[];
   setProductionBatches: React.Dispatch<React.SetStateAction<ProductionBatch[]>>;
+  defaultTvaRate?: number;
+  isTvaSubject?: boolean;
 }
 
-export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
-  const [newOrder, setNewOrder, resetNewOrder] = usePersistentState<Partial<Order>>('draft:order:newOrder', { customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
-  const [currentItem, setCurrentItem, resetCurrentItem] = usePersistentState<{ productId: string, quantity?: number }>('draft:order:currentItem', { productId: '', quantity: 1 });
-  const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
-  const [orderPendingProductionConfirm, setOrderPendingProductionConfirm] = useState<Order | null>(null);
+export const Orders: React.FC<Props> = ({
+  orders,
+  setOrders,
+  products,
+  productionBatches,
+  setProductionBatches,
+  defaultTvaRate = 0,
+  isTvaSubject = false
+}) => {
+  const initialTva = isTvaSubject ? defaultTvaRate : 0;
+  const [newOrder, setNewOrder] = useState<Partial<Order>>({
+    customerName: '',
+    date: new Date().toISOString().split('T')[0],
+    items: [],
+    status: 'pending',
+    tvaRate: initialTva
+  });
+  const [currentItem, setCurrentItem] = useState<{ productId: string; quantity: number; price: number }>({ productId: '', quantity: 1, price: 0 });
+
+  const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
 
   const addItemToOrder = () => {
-    if (!currentItem.productId || !isCurrentItemQuantityValid) return;
-    const existing = (newOrder.items || []).find(i => i.productId === currentItem.productId);
-    
-    let updatedItems;
+    if (!currentItem.productId || currentItem.quantity <= 0) return;
+    const existing = (newOrder.items || []).find(i => i.productId === currentItem.productId && i.price === currentItem.price);
+    let items = newOrder.items || [];
     if (existing) {
-      updatedItems = (newOrder.items || []).map(i => i.productId === currentItem.productId ? { ...i, quantity: i.quantity + currentItem.quantity } : i);
+      items = items.map(i => i === existing ? { ...i, quantity: i.quantity + currentItem.quantity } : i);
     } else {
-      updatedItems = [...(newOrder.items || []), { ...currentItem }];
+      items = [...items, { ...currentItem }];
     }
-    
-    setNewOrder({ ...newOrder, items: updatedItems });
-    setCurrentItem({ productId: '', quantity: 1 });
+    setNewOrder(prev => ({ ...prev, items }));
+    setCurrentItem({ productId: '', quantity: 1, price: 0 });
   };
 
   const saveOrder = () => {
     if (!newOrder.customerName || !newOrder.date || !newOrder.items?.length) return;
-    
-    setOrders([...orders, {
+    setOrders(prev => [...prev, {
       id: Date.now().toString(),
-      customerName: newOrder.customerName,
-      date: newOrder.date,
-      items: newOrder.items,
+      customerName: newOrder.customerName!,
+      date: newOrder.date!,
+      items: newOrder.items!,
       status: 'pending',
-      notes: newOrder.notes
+      notes: newOrder.notes,
+      tvaRate: newOrder.tvaRate ?? 0
     }]);
-    
-    resetNewOrder();
-    resetCurrentItem();
-  };
-
-  const deleteOrder = (id: string) => {
-    setOrders(orders.filter(o => o.id !== id));
-  };
-
-  const sendToProduction = (order: Order) => {
-    const newBatches: ProductionBatch[] = order.items.map(item => ({
-        id: Date.now().toString() + Math.random().toString(),
-        date: order.date, // Use delivery date as production date default
-        productId: item.productId,
-        quantity: item.quantity
-    }));
-    setProductionBatches(prev => [...prev, ...newBatches]);
-    alert("Produits ajoutés à la file de production !");
+    setNewOrder({ customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending', tvaRate: initialTva });
   };
 
   const toggleStatus = (order: Order) => {
     const nextStatus = order.status === 'pending' ? 'completed' : 'pending';
-
-    if (nextStatus === 'completed') {
-      setOrderPendingProductionConfirm(order);
-      return;
-    }
-
-    setOrders(orders.map(o => o.id === order.id ? { ...o, status: nextStatus } : o));
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: nextStatus } : o));
   };
 
-  const markCompleted = (order: Order, createProduction: boolean) => {
-    if (createProduction) {
-      const newBatches: ProductionBatch[] = order.items.map(item => ({
-        id: Date.now().toString() + Math.random().toString(),
-        date: order.date,
-        productId: item.productId,
-        quantity: item.quantity
-      }));
-      setProductionBatches(prev => [...prev, ...newBatches]);
-      alert('Production enregistrée avec succès.');
-    }
+  const deleteOrder = (id: string) => setOrders(prev => prev.filter(o => o.id !== id));
 
-    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'completed' } : o));
-    setOrderPendingProductionConfirm(null);
-  };
-
-
-  const confirmCancelOrderDraft = () => {
-    const hasDraft = Boolean(newOrder.customerName || (newOrder.items && newOrder.items.length) || newOrder.notes);
-    if (!hasDraft) return;
-    if (window.confirm('Annuler la création de commande ? Les saisies en cours seront perdues.')) {
-      resetNewOrder();
-      resetCurrentItem();
-    }
-  };
-
-  const handleDeleteOrderItem = (productId: string) => {
-    setNewOrder({ ...newOrder, items: (newOrder.items || []).filter(i => i.productId !== productId) });
-  };
-
-  // Warning System: Check if Total Delivered > Total Produced
-  const getProductWarnings = (productId: string) => {
-      const prod = products.find(p => p.id === productId);
-      if(!prod) return null;
-      
-      const totalDelivered = orders
-        .filter(o => o.status === 'completed')
-        .reduce((sum, o) => {
-            const item = o.items.find(i => i.productId === productId);
-            return sum + (item?.quantity || 0);
-        }, 0);
-        
-      const totalProduced = productionBatches
-        .filter(b => b.productId === productId)
-        .reduce((sum, b) => sum + b.quantity, 0);
-
-      if (totalDelivered > totalProduced) {
-          return {
-              type: 'warning',
-              diff: totalDelivered - totalProduced,
-              msg: `Attention: ${totalDelivered} livrés pour seulement ${totalProduced} produits enregistrés !`
-          };
-      }
-      return null;
+  const sendToProduction = (order: Order) => {
+    const newBatches: ProductionBatch[] = order.items.map(item => ({
+      id: `${Date.now()}-${Math.random()}`,
+      date: order.date,
+      productId: item.productId,
+      quantity: item.quantity
+    }));
+    setProductionBatches(prev => [...prev, ...newBatches]);
   };
 
   return (
-    <>
-      {orderPendingProductionConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md border-rose-200 dark:border-stone-700">
-            <h4 className="text-lg font-bold mb-2">Commande livrée ✅</h4>
-            <p className="text-sm text-stone-600 dark:text-stone-300 mb-4">
-              Avez-vous déjà enregistré la production ?
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button variant="secondary" onClick={() => markCompleted(orderPendingProductionConfirm, false)}>
-                Non
-              </Button>
-              <Button onClick={() => markCompleted(orderPendingProductionConfirm, true)}>
-                Oui
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="lg:col-span-5">
+        <Card>
+          <h3 className="text-lg font-bold mb-4">Nouvelle commande</h3>
+          <Input label="Client" value={newOrder.customerName || ''} onChange={e => setNewOrder(prev => ({ ...prev, customerName: e.target.value }))} />
+          <Input label="Date" type="date" value={newOrder.date || ''} onChange={e => setNewOrder(prev => ({ ...prev, date: e.target.value }))} />
+          <Input label="TVA commande (%)" type="number" value={newOrder.tvaRate ?? 0} onChange={e => setNewOrder(prev => ({ ...prev, tvaRate: parseOptionalNumber(e.target.value) ?? 0 }))} helperText="Un seul taux TVA pour toute la commande." />
 
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Order Form */}
-      <div className="lg:col-span-5 space-y-6">
-        <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
-          <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-6">Nouvelle Commande</h3>
-          
-          <div className="space-y-4">
-            <Input 
-              label="Nom Client" 
-              placeholder="Ex: Sophie Martin"
-              value={newOrder.customerName} 
-              onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} 
-            />
-            <Input 
-              label="Date de livraison" 
-              type="date"
-              value={newOrder.date} 
-              onChange={e => setNewOrder({...newOrder, date: e.target.value})} 
-            />
-            
-            <div className="p-4 bg-stone-50 dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700">
-              <h4 className="text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Ajouter des produits</h4>
-              <div className="flex gap-2 mb-2">
-                <select 
-                  className="flex-1 px-2 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-                  value={currentItem.productId}
-                  onChange={e => setCurrentItem({...currentItem, productId: e.target.value})}
-                >
-                  <option value="">Produit...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input 
-                  type="number" 
-                  className="w-16 px-2 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
-                  value={currentItem.quantity ?? ''}
-                  onChange={e => setCurrentItem({...currentItem, quantity: parseOptionalNumber(e.target.value)})}
-                />
-                <Button size="sm" onClick={addItemToOrder} disabled={!currentItem.productId || !isCurrentItemQuantityValid}>+</Button>
-              </div>
-
-              <div className="space-y-1 mt-3">
-                {(newOrder.items || []).map((item, idx) => {
-                  const p = products.find(p => p.id === item.productId);
-                  return (
-                    <div key={idx} className="flex justify-between text-sm bg-white dark:bg-stone-800 p-2 rounded border border-stone-100 dark:border-stone-700">
-                      <span className="dark:text-stone-300">{p?.name}</span>
-                      <div className="flex items-center gap-2"><span className="font-bold dark:text-stone-200">x {item.quantity}</span><button className="text-red-500" onClick={() => handleDeleteOrderItem(item.productId)}>×</button></div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Input 
-              label="Notes" 
-              placeholder="Allergies, message spécial..."
-              value={newOrder.notes || ''} 
-              onChange={e => setNewOrder({...newOrder, notes: e.target.value})} 
-            />
-
-            <div className="flex gap-2">
-              <Button variant="secondary" className="w-1/3 mt-2" onClick={confirmCancelOrderDraft}>Annuler</Button>
-              <Button className="flex-1 mt-2" onClick={saveOrder} disabled={!newOrder.items?.length || !newOrder.customerName}>
-                Enregistrer la commande
-              </Button>
-            </div>
+          <div className="mt-4 grid grid-cols-1 gap-2">
+            <select className="px-3 py-2 rounded border" value={currentItem.productId} onChange={e => {
+              const productId = e.target.value;
+              const product = productById.get(productId);
+              setCurrentItem(prev => ({ ...prev, productId, price: product?.standardPrice ?? 0 }));
+            }}>
+              <option value="">-- Produit --</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <Input label="Quantité" type="number" value={currentItem.quantity} onChange={e => setCurrentItem(prev => ({ ...prev, quantity: parseOptionalNumber(e.target.value) ?? 0 }))} />
+            <Input label="Prix unitaire" type="number" value={currentItem.price} onChange={e => setCurrentItem(prev => ({ ...prev, price: parseOptionalNumber(e.target.value) ?? 0 }))} suffix="€" />
+            <Button size="sm" onClick={addItemToOrder}>Ajouter ligne</Button>
           </div>
+
+          <div className="mt-3 space-y-1">
+            {(newOrder.items || []).map((item, idx) => (
+              <div key={idx} className="text-sm flex justify-between border rounded p-2">
+                <span>{productById.get(item.productId)?.name}</span>
+                <span>x{item.quantity} · {item.price}€</span>
+              </div>
+            ))}
+          </div>
+
+          <Button className="mt-3 w-full" onClick={saveOrder}>Enregistrer la commande</Button>
         </Card>
       </div>
 
-      {/* Order List */}
-      <div className="lg:col-span-7 space-y-6">
-        <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 font-serif">Commandes en cours ({orders.filter(o => o.status === 'pending').length})</h3>
-        
-        <div className="space-y-4">
-          {[...orders].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(order => (
-            <Card key={order.id} className={`transition-all ${order.status === 'completed' ? 'opacity-60 bg-stone-50 dark:bg-stone-900' : 'border-l-4 border-l-[#D45D79] dark:border-l-rose-500'}`}>
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-bold text-lg text-stone-800 dark:text-stone-200">{order.customerName}</h4>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'}`}>
-                      {order.status === 'completed' ? 'Livrée' : 'À faire'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-stone-500 dark:text-stone-400 mb-3">Pour le : {new Date(order.date).toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-2 no-print">
-                   {order.status === 'pending' && (
-                     <button onClick={() => sendToProduction(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-stone-100 dark:bg-stone-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 transition-colors">
-                        👩‍🍳 Produire
-                     </button>
-                   )}
-                   <button onClick={() => toggleStatus(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-emerald-600 dark:hover:text-emerald-400 underline">
-                     {order.status === 'pending' ? 'Marquer livrée' : 'Marquer à faire'}
-                   </button>
-                   <button onClick={() => deleteOrder(order.id)} className="text-xs font-medium text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400">
-                     Suppr.
-                   </button>
-                </div>
+      <div className="lg:col-span-7 space-y-4">
+        {[...orders].sort((a, b) => b.date.localeCompare(a.date)).map(order => (
+          <Card key={order.id} className={order.status === 'completed' ? 'opacity-70' : ''}>
+            <div className="flex justify-between mb-2">
+              <div>
+                <div className="font-bold">{order.customerName}</div>
+                <div className="text-xs">{order.date} · TVA {order.tvaRate}%</div>
               </div>
-
-              <div className="pl-4 border-l-2 border-stone-100 dark:border-stone-700 space-y-1">
-                {order.items.map((item, idx) => {
-                  const p = products.find(prod => prod.id === item.productId);
-                  const warning = getProductWarnings(item.productId);
-                  
-                  return (
-                    <div key={idx} className="flex justify-between items-center text-sm">
-                      <div className="flex items-center gap-2">
-                          <span className="text-stone-700 dark:text-stone-300">{p?.name || 'Produit supprimé'}</span>
-                          {warning && order.status === 'completed' && (
-                              <InfoTooltip text={warning.msg} />
-                          )}
-                          {warning && order.status === 'completed' && (
-                               <span className="text-[10px] bg-red-100 text-red-700 px-1 rounded">Stock ?</span>
-                          )}
-                      </div>
-                      <span className="font-bold text-stone-900 dark:text-stone-100">x{item.quantity}</span>
-                    </div>
-                  );
-                })}
+              <div className="space-x-2">
+                <Button size="sm" variant="ghost" onClick={() => sendToProduction(order)}>Produire</Button>
+                <Button size="sm" variant="secondary" onClick={() => toggleStatus(order)}>{order.status === 'pending' ? 'Marquer livrée' : 'Marquer à faire'}</Button>
+                <Button size="sm" variant="danger" onClick={() => deleteOrder(order.id)}>Suppr.</Button>
               </div>
-              {order.notes && <p className="text-xs text-stone-500 dark:text-stone-400 mt-3 italic bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">Note: {order.notes}</p>}
-            </Card>
-          ))}
-          {orders.length === 0 && <p className="text-stone-400 dark:text-stone-500 italic text-center py-8">Aucune commande enregistrée.</p>}
-        </div>
+            </div>
+            {order.items.map((item, idx) => (
+              <div key={idx} className="text-sm flex justify-between">
+                <span>{productById.get(item.productId)?.name || 'Produit supprimé'}</span>
+                <span>x{item.quantity} · {item.price}€</span>
+              </div>
+            ))}
+          </Card>
+        ))}
       </div>
     </div>
-    </>
   );
 };

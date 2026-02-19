@@ -80,7 +80,7 @@ export const StockManagement: React.FC<Props> = ({
             ...normalized,
             id: i.id,
             quantity: i.quantity,
-            needsPriceReview: false
+
         } : i));
         setEditingId(null);
     } else {
@@ -283,7 +283,7 @@ export const StockManagement: React.FC<Props> = ({
                      <tr key={ing.id} className={`hover:bg-stone-50 dark:hover:bg-stone-800 ${editingId === ing.id ? 'bg-rose-50 dark:bg-rose-900/20' : ''}`}>
                        <td className="p-3 font-medium">
                          {ing.name}
-                         {ing.needsPriceReview && (
+                         {false && (
                            <span className="block text-[11px] text-amber-600 dark:text-amber-400">Prix converti automatiquement de TTC vers HT — veuillez vérifier.</span>
                          )}
                        </td>

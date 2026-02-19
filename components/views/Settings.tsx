@@ -255,6 +255,22 @@ export const Settings: React.FC<Props> = ({
           </div>
         </Card>
       </div>
-    </div>
+    
+      <Card>
+        <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4 border-b border-stone-200 dark:border-stone-700 pb-2">Mode de prix</h3>
+        <div className="space-y-3">
+          <label className="flex items-center gap-2">
+            <input type="radio" name="pricingMode" checked={(settings.pricingMode ?? 'margin') === 'margin'} onChange={() => handleChange('pricingMode', 'margin')} />
+            <span>Mode marge cible</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" name="pricingMode" checked={(settings.pricingMode ?? 'margin') === 'salary'} onChange={() => handleChange('pricingMode', 'salary')} />
+            <span>Mode salaire cible</span>
+          </label>
+          <Input label="Salaire cible mensuel" type="number" suffix="€" value={settings.targetMonthlySalary ?? 0} onChange={e => handleNumberChange('targetMonthlySalary', e.target.value)} />
+          <p className="text-xs text-stone-500">Le prix minimum reste inchangé; le mode salaire impacte uniquement le prix recommandé.</p>
+        </div>
+      </Card>
+</div>
   );
 };

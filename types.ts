@@ -1,4 +1,3 @@
-
 export enum Unit {
   G = 'g',
   KG = 'kg',
@@ -11,28 +10,26 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: Unit;
-  price: number; // Prix HT pour 1 unité de stock (seule base stockée)
-  quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
+  price: number;
+  quantity: number;
   costPerBaseUnit: number;
-  helperVatRate?: number; // UI-only: last TVA rate used in TTC→HT converter (prefill convenience)
-  needsPriceReview?: boolean; // One-time migration flag: price was auto-converted from TTC to HT
+  helperVatRate?: number;
+  needsPriceReview?: boolean;
 }
 
-// Nouveau : Journal des achats pour gérer les variations de prix
 export interface Purchase {
   id: string;
   date: string;
   ingredientId: string;
-  quantity: number; // Quantité achetée (dans l'unité de l'ingrédient)
-  price: number; // Prix TOTAL HT payé pour cette quantité
+  quantity: number;
+  price: number;
 }
 
-// Nouveau : Journal de production pour déstocker les ingrédients
 export interface ProductionBatch {
   id: string;
   date: string;
   productId: string;
-  quantity: number; // Nombre d'unités produites
+  quantity: number;
 }
 
 export interface RecipeIngredient {
@@ -54,14 +51,15 @@ export interface Product {
   recipeId: string;
   laborTimeMinutes: number;
   packagingCost: number;
-  lossRate: number; // Taux de perte fabrication (cassé, raté)
-  unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
-  packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
+  lossRate: number;
+  unsoldEstimate: number;
+  packagingUsedOnUnsold: boolean;
   applyLossToPackaging?: boolean;
   targetMargin: number;
-  estimatedMonthlySales: number; 
+  estimatedMonthlySales: number;
   category: string;
-  tvaRate?: number; // Nouveau: Taux de TVA spécifique au produit
+  standardPrice?: number;
+  tvaRate?: number;
 }
 
 export interface FixedCostItem {
@@ -75,51 +73,69 @@ export interface GlobalSettings {
   hourlyRate: number;
   includeLaborInCost: boolean;
   fixedCostItems: FixedCostItem[];
-  taxRate: number; // Cotisations sociales
-  isTvaSubject: boolean; // Assujetti à la TVA ?
-  defaultTvaRate: number; // Taux TVA ventes par défaut (ex: 5.5)
+  taxRate: number;
+  isTvaSubject: boolean;
+  defaultTvaRate: number;
   includePendingOrdersInMonthlyReport?: boolean;
+  pricingMode?: 'margin' | 'salary';
+  targetMonthlySalary?: number;
 }
-
-// --- Orders & Reporting ---
 
 export interface OrderItem {
   productId: string;
   quantity: number;
+  price: number;
 }
 
 export interface Order {
   id: string;
   customerName: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   items: OrderItem[];
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
+  tvaRate?: number;
 }
 
 export interface MonthlyEntry {
+  id?: string;
   productId: string;
   quantitySold: number;
-  quantityUnsold: number; // Invendus réels du mois
-  actualPrice: number; // Prix de vente unitaire (TTC si assujetti au moment de la saisie)
-  isTvaSubject?: boolean; // Snapshot: TVA mode when this entry was created/saved
+  actualPrice: number;
+  quantityUnsold?: number;
+  tvaRate?: number;
+  isTvaSubject?: boolean;
+  source?: 'loaded' | 'new';
+}
+
+export interface UnsoldEntry {
+  id?: string;
+  productId: string;
+  quantityUnsold: number;
+  source?: 'loaded' | 'new';
 }
 
 export interface InventoryEntry {
   ingredientId: string;
-  startStock: number; // Quantity
-  purchasedQuantity: number; // Quantity added this month
-  endStock: number; // Quantity counted at end of month
+  startStock: number;
+  purchasedQuantity: number;
+  endStock: number;
 }
 
 export interface MonthlyReportData {
   id: string;
-  monthStr: string; // YYYY-MM
+  monthStr: string;
   sales: MonthlyEntry[];
+  unsold: UnsoldEntry[];
   actualFixedCostItems: FixedCostItem[];
-  actualIngredientSpend: number; // Method 2: Total cash spent
-  inventory: InventoryEntry[]; // Method 3: Stock variation
+  actualIngredientSpend: number;
+  inventory: InventoryEntry[];
   totalRevenue: number;
+  totalRevenueHT?: number;
+  totalTvaCollected?: number;
+  finalFoodCost?: number;
+  totalPackagingCost?: number;
+  totalSocialCharges?: number;
   netResult: number;
-  isLocked: boolean; 
+  isLocked: boolean;
 }
