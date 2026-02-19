@@ -639,11 +639,32 @@ Files modified:
 - `docs/formulas-spec.md`
 - `tests/utils.test.ts`, `tests/monthlyReportMath.test.ts`, `tests/products.test.tsx`, `tests/settingsLaborToggle.test.tsx`
 
-## Current Project State Summary (as of turn 30)
+## 34) Latest Turn Update (store TVA snapshot on monthly entries)
+
+User request:
+- Fix bug where toggling `isTvaSubject` in settings retroactively corrupts historical monthly report entries (actualPrice is TTC when TVA is ON, net when OFF — but `computeMonthlyTotals` used the *current* global flag to interpret all entries).
+
+Actions taken:
+- Added optional `isTvaSubject` field to `MonthlyEntry` type (`types.ts`).
+- Updated `MonthlyReport.tsx` to snapshot the current `settings.isTvaSubject` value onto each entry when saved/prefilled.
+- Updated `computeMonthlyTotals` in `monthlyReportMath.ts` to read each entry's own `isTvaSubject` snapshot, falling back to the global setting for legacy entries that lack the field.
+- Updated both Zod schemas (`dataSchema.ts`) to accept the optional field.
+- Added 5 dedicated tests in `tests/monthlyReportMath.test.ts` covering: snapshot present, snapshot absent (fallback), mixed entries with different snapshots, and mode-switch scenarios.
+
+Validation:
+- `npx tsc --noEmit` — clean
+- `npx vitest run` — 94 tests pass (5 new TVA snapshot tests)
+
+Files modified:
+- `types.ts`, `dataSchema.ts`, `monthlyReportMath.ts`
+- `components/views/MonthlyReport.tsx`
+- `tests/monthlyReportMath.test.ts`
+
+## Current Project State Summary (as of turn 34)
 
 ### Architecture
-- **Branch**: `claude/fix-packaging-pricing-reporting-0ywV4` (5 commits ahead of `master`)
-- **Tests**: 9 test files, 89 tests, all passing
+- **Branch**: `claude/fix-packaging-pricing-reporting-0ywV4` (10 commits ahead of `master`)
+- **Tests**: 9 test files, 94 tests, all passing
 - **Build**: clean typecheck + build
 
 ### Domain Model (current)
@@ -652,6 +673,7 @@ Files modified:
 - **Product**: `tvaRate` per product, `packagingUsedOnUnsold`, `applyLossToPackaging` toggles, no `variableDeliveryCost`
 - **Settings**: `isTvaSubject`, `defaultTvaRate` (product-side), `includeLaborInCost`, `includePendingOrdersInMonthlyReport`, `fixedCostItems`
 - **Monthly report**: pure `computeMonthlyTotals` function, order filtering via `shouldIncludeOrder`, 3 cost modes
+- **MonthlyEntry**: optional `isTvaSubject` snapshot — each entry records the TVA mode at save time so toggling TVA later does not retroactively corrupt historical reports
 
 ### Key Frameworks/Tools
 - `validation.ts`: `hasPriceDrift` (strict tolerance = 0), input parsers
