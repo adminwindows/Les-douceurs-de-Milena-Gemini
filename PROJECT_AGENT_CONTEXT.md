@@ -660,26 +660,27 @@ Files modified:
 - `components/views/MonthlyReport.tsx`
 - `tests/monthlyReportMath.test.ts`
 
-## Current Project State Summary (as of turn 34)
+## Current Project State Summary (as of turn 35 — heavy pricing/reporting redesign)
 
 ### Architecture
-- **Branch**: `claude/fix-packaging-pricing-reporting-0ywV4` (10 commits ahead of `master`)
-- **Tests**: 9 test files, 94 tests, all passing
+- **Branch**: `claude/fix-packaging-pricing-reporting-0ywV4`
 - **Build**: clean typecheck + build
 
 ### Domain Model (current)
 - **Ingredient**: `price` always HT, `costPerBaseUnit` computed, optional `helperVatRate` (UI-only) and `needsPriceReview` (migration flag)
 - **Purchase**: `price` always total HT for quantity
-- **Product**: `tvaRate` per product, `packagingUsedOnUnsold`, `applyLossToPackaging` toggles, no `variableDeliveryCost`
-- **Settings**: `isTvaSubject`, `defaultTvaRate` (product-side), `includeLaborInCost`, `includePendingOrdersInMonthlyReport`, `fixedCostItems`
-- **Monthly report**: pure `computeMonthlyTotals` function, order filtering via `shouldIncludeOrder`, 3 cost modes
-- **MonthlyEntry**: optional `isTvaSubject` snapshot — each entry records the TVA mode at save time so toggling TVA later does not retroactively corrupt historical reports
+- **Product**: `standardPrice` (user-defined selling price), `packagingUsedOnUnsold`, `applyLossToPackaging` toggles, no per-product `tvaRate` (uses global `settings.defaultTvaRate`)
+- **Settings**: `pricingMode: 'margin' | 'salary'`, `salaryTarget`, `isTvaSubject`, `defaultTvaRate` (global for all products), `includePendingOrdersInMonthlyReport`, `fixedCostItems`
+- **Order**: `isTvaSubject` snapshot, `OrderItem.unitPrice` snapshot
+- **Monthly report**: separated `SaleLine[]` + `UnsoldLine[]` model, pure `computeMonthlyTotals` function, `FrozenReportTotals` for saved reports, per-line `isTvaSubject` snapshot, `ingredientPriceMode`
+- **Legacy**: `MonthlyEntry` type kept for backward-compatible migration only
 
 ### Key Frameworks/Tools
 - `validation.ts`: `hasPriceDrift` (strict tolerance = 0), input parsers
 - `tests/assertHelpers.ts`: `expectEqual` with configurable `NUMERIC_TOLERANCE` (set to 0)
-- `dataMigrations.ts`: normalizes legacy TVA fields, settings, products on load/import
+- `dataMigrations.ts`: normalizes legacy settings (`includeLaborInCost` → `pricingMode`), products (drops `tvaRate`), reports (`sales` → `saleLines`/`unsoldLines`), TVA fields, on load/import
 - `TtcToHtHelper.tsx`: ephemeral TTC→HT converter for ingredient price entry
+- `simulateMonthlySalary()`: salary simulator for salary mode (displayed in Analysis)
 
 ## 31) Latest Turn Update (fix Analysis explanation when labor is disabled)
 
@@ -739,3 +740,29 @@ Validation:
 Files modified:
 - `components/views/MonthlyReport.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 35) Latest Turn Update (heavy pricing & reporting redesign)
+
+User request:
+- Implement a comprehensive redesign of pricing modes, monthly report data model, and related features.
+
+Actions taken:
+- **Replaced `includeLaborInCost`** boolean with `pricingMode: 'margin' | 'salary'` enum + `salaryTarget: number`.
+- **Removed per-product `tvaRate`**: all products now use global `settings.defaultTvaRate`.
+- **Added `standardPrice`** to Product: user-defined selling price.
+- **Added order snapshots**: `Order.isTvaSubject` and `OrderItem.unitPrice`.
+- **Separated report lines**: replaced `sales: MonthlyEntry[]` with `saleLines: SaleLine[]` + `unsoldLines: UnsoldLine[]`.
+- **Added `FrozenReportTotals`**: computed totals frozen at save time on reports.
+- **Added salary simulator** (`simulateMonthlySalary`): computes achievable salary in salary mode.
+- **Updated all UI components**: Settings (pricing mode radio cards), Products (standardPrice), Orders (TVA/price snapshots), MonthlyReport (SaleLine/UnsoldLine model, frozen totals), Analysis (salary simulator, effectiveMargin), UserGuide (pricing modes section).
+- **Updated demo data**: removed `includeLaborInCost`/`tvaRate`, added `pricingMode`/`salaryTarget`.
+- **Updated all tests**: utils, monthlyReportMath, products, settingsLaborToggle, backupIO.
+- **Updated documentation**: formulas-spec.md (pricing modes, salary sim, separated lines, frozen totals), CHANGELOG.md, PROJECT_AGENT_CONTEXT.md.
+- **Migration support**: normalizeSettings/Product/Report handle all legacy fields.
+
+Files modified:
+- `types.ts`, `dataSchema.ts`, `dataMigrations.ts`, `utils.ts`, `monthlyReportMath.ts`
+- `components/views/Settings.tsx`, `Products.tsx`, `Orders.tsx`, `MonthlyReport.tsx`, `Analysis.tsx`, `UserGuide.tsx`
+- `App.tsx`, `demoData.ts`
+- `tests/utils.test.ts`, `tests/monthlyReportMath.test.ts`, `tests/products.test.tsx`, `tests/settingsLaborToggle.test.tsx`, `tests/backupIO.test.ts`
+- `docs/formulas-spec.md`, `CHANGELOG.md`, `PROJECT_AGENT_CONTEXT.md`

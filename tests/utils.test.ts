@@ -4,7 +4,7 @@ import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
 import { normalizeIngredient } from '../dataMigrations';
 import { expectEqual } from './assertHelpers';
 
-const settingsOff: GlobalSettings = { currency: 'EUR', hourlyRate: 0, includeLaborInCost: true, fixedCostItems: [], taxRate: 0, isTvaSubject: false, defaultTvaRate: 5.5, includePendingOrdersInMonthlyReport: false };
+const settingsOff: GlobalSettings = { currency: 'EUR', hourlyRate: 0, pricingMode: 'margin', salaryTarget: 0, fixedCostItems: [], taxRate: 0, isTvaSubject: false, defaultTvaRate: 5.5, includePendingOrdersInMonthlyReport: false };
 const settingsOn: GlobalSettings = { ...settingsOff, isTvaSubject: true };
 
 // ---------------------------------------------------------------------------
@@ -161,21 +161,28 @@ describe('calculateProductMetrics', () => {
     expectEqual(m.unitMaterialCost, 100 * 0.01 / 10);
   });
 
-  describe('includeLaborInCost toggle', () => {
-    const settingsWithLabor: GlobalSettings = { ...settingsOff, hourlyRate: 60, includeLaborInCost: true };
-    const settingsWithoutLabor: GlobalSettings = { ...settingsOff, hourlyRate: 60, includeLaborInCost: false };
+  describe('pricingMode toggle', () => {
+    const settingsMargin: GlobalSettings = { ...settingsOff, hourlyRate: 60, pricingMode: 'margin' };
+    const settingsSalary: GlobalSettings = { ...settingsOff, hourlyRate: 60, pricingMode: 'salary', salaryTarget: 1000 };
     const product = { ...base, laborTimeMinutes: 30 };
 
-    it('ON: laborCost is included in fullCost', () => {
-      const m = calculateProductMetrics(product, recipe, ing, settingsWithLabor, [product]);
+    it('margin mode: laborCost is included in fullCost', () => {
+      const m = calculateProductMetrics(product, recipe, ing, settingsMargin, [product]);
       // labor = (30/60)*60 = 30
       expectEqual(m.laborCost, (30 / 60) * 60);
       expect(m.fullCost).toBeGreaterThan(m.totalVariableCosts);
     });
 
-    it('OFF: laborCost is 0, fullCost equals variable costs + fixed', () => {
-      const m = calculateProductMetrics(product, recipe, ing, settingsWithoutLabor, [product]);
+    it('salary mode: laborCost is 0, calculatedLaborCost still computed', () => {
+      const m = calculateProductMetrics(product, recipe, ing, settingsSalary, [product]);
       expectEqual(m.laborCost, 0);
+      expectEqual(m.calculatedLaborCost, (30 / 60) * 60);
+    });
+
+    it('salary mode: effectiveMargin is salaryTarget / totalVolume', () => {
+      const m = calculateProductMetrics(product, recipe, ing, settingsSalary, [product]);
+      // totalVolume = 10, salaryTarget = 1000
+      expectEqual(m.effectiveMargin, 1000 / 10);
     });
   });
 
@@ -272,10 +279,9 @@ describe('calculateProductMetrics', () => {
       expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 10 / 100));
     });
 
-    it('product-specific tvaRate overrides default', () => {
-      const settingsTva: GlobalSettings = { ...settingsOff, isTvaSubject: true, defaultTvaRate: 10 };
-      const product = { ...base, tvaRate: 20 };
-      const m = calculateProductMetrics(product, recipe, ing, settingsTva, [product]);
+    it('uses global defaultTvaRate for all products', () => {
+      const settingsTva: GlobalSettings = { ...settingsOff, isTvaSubject: true, defaultTvaRate: 20 };
+      const m = calculateProductMetrics(base, recipe, ing, settingsTva, [base]);
       expectEqual(m.minPriceBreakevenTTC, m.minPriceBreakeven * (1 + 20 / 100));
       expect(m.tvaRate).toBe(20);
     });

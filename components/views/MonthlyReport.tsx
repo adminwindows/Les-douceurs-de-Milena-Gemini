@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { GlobalSettings, Product, Recipe, Ingredient, MonthlyEntry, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch } from '../../types';
+import { GlobalSettings, Product, Recipe, Ingredient, Order, FixedCostItem, MonthlyReportData, InventoryEntry, Unit, ProductionBatch, SaleLine, UnsoldLine } from '../../types';
 import { calculateProductMetrics, formatCurrency } from '../../utils';
-import { computeMonthlyTotals, shouldIncludeOrder } from '../../monthlyReportMath';
+import { computeMonthlyTotals, freezeTotals, shouldIncludeOrder } from '../../monthlyReportMath';
 import { isNonNegativeNumber, parseOptionalNumber } from '../../validation';
 import { Card, Input, Button, InfoTooltip } from '../ui/Common';
 import { BrandLogo } from '../ui/BrandLogo';
@@ -99,56 +99,103 @@ interface Props {
   orders: Order[];
   savedReports: MonthlyReportData[];
   setSavedReports: React.Dispatch<React.SetStateAction<MonthlyReportData[]>>;
-  setSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>; 
+  setSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
   productionBatches: ProductionBatch[];
 }
 
-// Helper: Calculate theoretical consumption for a single ingredient based on sales
+// UI row: combines sale and unsold for a single product (used only in-memory for the form)
+interface SaleRow {
+  productId: string;
+  quantitySold: number;
+  quantityUnsold: number;
+  unitPrice: number;
+}
+
+// Helper: Calculate theoretical consumption for a single ingredient
 const calculateTheoreticalConsumption = (
-  ingId: string, 
-  sales: MonthlyEntry[], 
-  products: Product[], 
+  ingId: string,
+  saleRows: SaleRow[],
+  products: Product[],
   recipes: Recipe[],
-  ingredients: Ingredient[]
+  _ingredients: Ingredient[]
 ): number => {
-  return sales.reduce((total, sale) => {
-    const product = products.find(p => p.id === sale.productId);
+  return saleRows.reduce((total, row) => {
+    const product = products.find(p => p.id === row.productId);
     const recipe = recipes.find(r => r.id === product?.recipeId);
     if (!product || !recipe) return total;
 
-    // Find this ingredient in the recipe
     const recIng = recipe.ingredients.find(ri => ri.ingredientId === ingId);
     if (!recIng) return total;
 
-    // Base quantity per batch
-    const qtyPerBatch = recIng.quantity;
-    
-    // Qty per unit
-    const qtyPerUnit = qtyPerBatch / (recipe.batchYield ?? 1);
+    const qtyPerUnit = recIng.quantity / (recipe.batchYield ?? 1);
+    const lossRate = product.lossRate || 0;
+    const mfgLossMultiplier = lossRate < 100 ? 1 / (1 - lossRate / 100) : 1;
+    const totalUnitsProduced = row.quantitySold + row.quantityUnsold;
 
-    // Apply Manufacturing Loss (product level)
-    const mfgLossMultiplier = 1 / (1 - product.lossRate/100);
-
-    // Total used = (Sold + Unsold) * QtyPerUnit * MfgLoss
-    const totalUnitsProduced = sale.quantitySold + (sale.quantityUnsold || 0);
-    
     return total + (totalUnitsProduced * qtyPerUnit * mfgLossMultiplier);
   }, 0);
 };
 
-export const MonthlyReport: React.FC<Props> = ({ 
+// Convert sale rows to separated SaleLines + UnsoldLines
+const rowsToLines = (rows: SaleRow[], isTva: boolean): { saleLines: SaleLine[]; unsoldLines: UnsoldLine[] } => {
+  const saleLines: SaleLine[] = rows
+    .filter(r => r.quantitySold > 0 || r.unitPrice > 0)
+    .map(r => ({
+      productId: r.productId,
+      quantity: r.quantitySold,
+      unitPrice: r.unitPrice,
+      isTvaSubject: isTva
+    }));
+  const unsoldLines: UnsoldLine[] = rows
+    .filter(r => r.quantityUnsold > 0)
+    .map(r => ({
+      productId: r.productId,
+      quantity: r.quantityUnsold
+    }));
+  return { saleLines, unsoldLines };
+};
+
+// Convert saved SaleLines + UnsoldLines back to sale rows for UI editing
+const linesToRows = (saleLines: SaleLine[], unsoldLines: UnsoldLine[], products: Product[]): SaleRow[] => {
+  // Build maps
+  const soldMap = new Map<string, { qty: number; price: number }>();
+  for (const sl of saleLines) {
+    const existing = soldMap.get(sl.productId);
+    if (existing) {
+      existing.qty += sl.quantity;
+      // Use last price seen (they should be the same for same product)
+      existing.price = sl.unitPrice;
+    } else {
+      soldMap.set(sl.productId, { qty: sl.quantity, price: sl.unitPrice });
+    }
+  }
+  const unsoldMap = new Map<string, number>();
+  for (const ul of unsoldLines) {
+    unsoldMap.set(ul.productId, (unsoldMap.get(ul.productId) ?? 0) + ul.quantity);
+  }
+
+  // Build rows for all products
+  return products.map(p => ({
+    productId: p.id,
+    quantitySold: soldMap.get(p.id)?.qty ?? 0,
+    quantityUnsold: unsoldMap.get(p.id) ?? 0,
+    unitPrice: soldMap.get(p.id)?.price ?? 0
+  }));
+};
+
+export const MonthlyReport: React.FC<Props> = ({
   settings, products, recipes, ingredients, orders, savedReports, setSavedReports, setSettings, productionBatches
 }) => {
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); 
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [viewHistory, setViewHistory] = useState(false);
   const isTva = settings.isTvaSubject;
 
   // Editable State for current report
-  const [sales, setSales] = useState<MonthlyEntry[]>([]);
+  const [saleRows, setSaleRows] = useState<SaleRow[]>([]);
   const [actualFixedItems, setActualFixedItems] = useState<FixedCostItem[]>([]);
-  const [actualIngredientSpend, setActualIngredientSpend] = useState<number>(0); // Method 2
-  const [inventory, setInventory] = useState<InventoryEntry[]>([]); // Method 3
-  
+  const [actualIngredientSpend, setActualIngredientSpend] = useState<number>(0);
+  const [inventory, setInventory] = useState<InventoryEntry[]>([]);
+
   // Cost Calculation Mode: 0 = Calculated, 1 = Cash Spend, 2 = Inventory Variation
   const [costMode, setCostMode] = useState<0 | 1 | 2>(0);
 
@@ -156,20 +203,19 @@ export const MonthlyReport: React.FC<Props> = ({
   useEffect(() => {
     const saved = savedReports.find(r => r.monthStr === selectedMonth);
     if (saved) {
-      setSales(saved.sales);
+      setSaleRows(linesToRows(saved.saleLines, saved.unsoldLines, products));
       setActualFixedItems(saved.actualFixedCostItems);
       setActualIngredientSpend(saved.actualIngredientSpend);
       setInventory(saved.inventory || []);
     } else {
       // Initialize new report
       setActualFixedItems(settings.fixedCostItems.map(i => ({ ...i })));
-      
+
       // Orders Aggregation
-      const relevantCompletedOrders = orders.filter(o => o.date.startsWith(selectedMonth) && shouldIncludeOrder(o, settings.includePendingOrdersInMonthlyReport ?? false));
+      const relevantOrders = orders.filter(o => o.date.startsWith(selectedMonth) && shouldIncludeOrder(o, settings.includePendingOrdersInMonthlyReport ?? false));
 
       const aggregatedSales: Record<string, number> = {};
-      
-      relevantCompletedOrders.forEach(o => {
+      relevantOrders.forEach(o => {
         o.items.forEach(item => {
           aggregatedSales[item.productId] = (aggregatedSales[item.productId] || 0) + item.quantity;
         });
@@ -181,43 +227,43 @@ export const MonthlyReport: React.FC<Props> = ({
           aggregatedProduction[b.productId] = (aggregatedProduction[b.productId] || 0) + b.quantity;
       });
 
-      const initialSales = products.map(p => {
+      const initialRows: SaleRow[] = products.map(p => {
         const sold = aggregatedSales[p.id] || 0;
         const produced = aggregatedProduction[p.id] || 0;
-        // Logic: Unsold is Production - Sold. Cannot be negative (if stock error, 0).
         const calculatedUnsold = Math.max(0, produced - sold);
 
-        // Calculate theoretical price TTC using the same function as Analysis
-        const recipe = recipes.find(r => r.id === p.recipeId);
-        let priceTTC = 0;
-        if (recipe) {
-          const metrics = calculateProductMetrics(p, recipe, ingredients, settings, products);
-          priceTTC = metrics.priceWithMarginTTC;
+        // Default price: standardPrice or calculated recommended price
+        let defaultPrice = p.standardPrice ?? 0;
+        if (defaultPrice <= 0) {
+          const recipe = recipes.find(r => r.id === p.recipeId);
+          if (recipe) {
+            const metrics = calculateProductMetrics(p, recipe, ingredients, settings, products);
+            defaultPrice = metrics.priceWithMarginTTC;
+          }
         }
 
         return {
           productId: p.id,
           quantitySold: sold,
           quantityUnsold: calculatedUnsold,
-          actualPrice: priceTTC, // Always store TTC (or Net if no Tva)
-          isTvaSubject: isTva
+          unitPrice: defaultPrice
         };
       });
-      setSales(initialSales);
+      setSaleRows(initialRows);
 
       // Initialize Inventory from Current Global Ingredients State
       setInventory(ingredients.map(ing => ({
         ingredientId: ing.id,
-        startStock: ing.quantity, 
+        startStock: ing.quantity,
         purchasedQuantity: 0,
-        endStock: ing.quantity 
+        endStock: ing.quantity
       })));
     }
   }, [selectedMonth, orders.length, settings.fixedCostItems.length, isTva, productionBatches.length]);
 
   // --- Handlers ---
-  const handleSaleChange = (productId: string, field: 'quantitySold' | 'actualPrice' | 'quantityUnsold', value: number) => {
-    setSales(prev => prev.map(s => s.productId === productId ? { ...s, [field]: value } : s));
+  const handleSaleChange = (productId: string, field: keyof SaleRow, value: number) => {
+    setSaleRows(prev => prev.map(s => s.productId === productId ? { ...s, [field]: value } : s));
   };
 
   const handleFixedItemChange = (id: string, val: number) => {
@@ -229,6 +275,7 @@ export const MonthlyReport: React.FC<Props> = ({
   };
 
   // --- Calculations ---
+  const { saleLines, unsoldLines } = rowsToLines(saleRows, isTva);
 
   // Method 3: Inventory Variation
   const inventoryVariationCost = inventory.reduce((sum, item) => {
@@ -242,8 +289,9 @@ export const MonthlyReport: React.FC<Props> = ({
   }, 0);
 
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
-  const { totalRevenueTTC, totalRevenueHT, totalTvaCollected, finalFoodCost, totalPackagingCost, totalSocialCharges, netResult } = computeMonthlyTotals({
-    sales,
+  const totals = computeMonthlyTotals({
+    saleLines,
+    unsoldLines,
     products,
     recipes,
     ingredients,
@@ -255,8 +303,11 @@ export const MonthlyReport: React.FC<Props> = ({
     selectedMonth,
     orders
   });
+  const { totalRevenueTTC, totalRevenueHT, totalTvaCollected, finalFoodCost, totalPackagingCost, totalSocialCharges, grossMargin, netResult } = totals;
+
   const calculatedFoodCost = computeMonthlyTotals({
-    sales,
+    saleLines,
+    unsoldLines,
     products,
     recipes,
     ingredients,
@@ -268,12 +319,11 @@ export const MonthlyReport: React.FC<Props> = ({
     selectedMonth,
     orders
   }).finalFoodCost;
-  const grossMargin = totalRevenueHT - (finalFoodCost + totalPackagingCost + totalSocialCharges);
 
-  const isSalesValid = sales.every(s =>
+  const isSalesValid = saleRows.every(s =>
     isNonNegativeNumber(s.quantitySold) &&
     isNonNegativeNumber(s.quantityUnsold) &&
-    isNonNegativeNumber(s.actualPrice)
+    isNonNegativeNumber(s.unitPrice)
   );
   const isInventoryValid = inventory.every(item =>
     isNonNegativeNumber(item.startStock) &&
@@ -290,24 +340,28 @@ export const MonthlyReport: React.FC<Props> = ({
       alert('Impossible de sauvegarder : corrigez les valeurs négatives dans les champs du bilan.');
       return;
     }
-    // Stamp each sale entry with current TVA mode at save time
-    const stampedSales = sales.map(s => ({ ...s, isTvaSubject: isTva }));
+    // Stamp each sale line with current TVA mode
+    const { saleLines: stampedSaleLines, unsoldLines: stampedUnsoldLines } = rowsToLines(saleRows, isTva);
+
+    const frozen = freezeTotals(totals, totalActualFixedCosts, costMode);
+
     const report: MonthlyReportData = {
       id: selectedMonth,
       monthStr: selectedMonth,
-      sales: stampedSales,
+      saleLines: stampedSaleLines,
+      unsoldLines: stampedUnsoldLines,
       actualFixedCostItems: actualFixedItems,
       actualIngredientSpend,
       inventory,
-      totalRevenue: totalRevenueTTC, // Storing TTC as total revenue reference
+      frozenTotals: frozen,
+      totalRevenue: totalRevenueTTC,
       netResult,
       isLocked: true
     };
-    
-    // Save to App state
+
     const others = savedReports.filter(r => r.monthStr !== selectedMonth);
     setSavedReports([...others, report]);
-    
+
     alert('Bilan sauvegardé ! (visible dans Historique)');
   };
 
@@ -337,8 +391,8 @@ export const MonthlyReport: React.FC<Props> = ({
         <div className="flex justify-between items-center bg-white dark:bg-stone-900 p-4 rounded-xl shadow-sm border border-stone-200 dark:border-stone-800">
           <div>
             <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase">Mois</label>
-            <input 
-              type="month" 
+            <input
+              type="month"
               className="font-bold text-stone-800 dark:text-stone-200 bg-transparent focus:outline-none dark:[color-scheme:dark]"
               value={selectedMonth}
               onChange={e => setSelectedMonth(e.target.value)}
@@ -351,19 +405,18 @@ export const MonthlyReport: React.FC<Props> = ({
           <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4 font-serif">1. Ventes & Invendus</h3>
           <p className="text-xs text-stone-500 mb-3">Invendus pré-remplis = Production - Commandes. Modifiable si besoin.</p>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-            {sales.map(s => {
+            {saleRows.map(s => {
               const p = products.find(prod => prod.id === s.productId);
               if (!p) return null;
-              
-              // Warning logic
+
               const realSold = orders
                   .filter(o => o.date.startsWith(selectedMonth) && shouldIncludeOrder(o, settings.includePendingOrdersInMonthlyReport ?? false))
                   .reduce((sum, o) => sum + (o.items.find(i=>i.productId === p.id)?.quantity || 0), 0);
-                  
+
               const realProd = productionBatches
                   .filter(b => b.date.startsWith(selectedMonth) && b.productId === p.id)
                   .reduce((sum, b) => sum + b.quantity, 0);
-                  
+
               const manualEditWarning = s.quantitySold !== realSold || s.quantityUnsold !== Math.max(0, realProd - realSold);
 
               return (
@@ -373,30 +426,30 @@ export const MonthlyReport: React.FC<Props> = ({
                       {manualEditWarning && <InfoTooltip text={`Données réelles: ${realSold} vendus, ${Math.max(0, realProd - realSold)} invendus. Vous avez modifié ces valeurs.`} />}
                   </div>
                   <div className="flex gap-2">
-                    <Input 
+                    <Input
                       className="flex-1"
-                      label="Vendus" 
-                      type="text" 
+                      label="Vendus"
+                      type="text"
                       value={s.quantitySold}
                       error={isNonNegativeNumber(s.quantitySold) ? undefined : '≥ 0'}
                       onChange={e => handleSaleChange(s.productId, 'quantitySold', parseOptionalNumber(e.target.value) ?? 0)}
                     />
-                    <Input 
+                    <Input
                       className="w-20"
-                      label="Invendus" 
-                      type="text" 
+                      label="Invendus"
+                      type="text"
                       value={s.quantityUnsold}
                       error={isNonNegativeNumber(s.quantityUnsold) ? undefined : '≥ 0'}
                       onChange={e => handleSaleChange(s.productId, 'quantityUnsold', parseOptionalNumber(e.target.value) ?? 0)}
                     />
-                    <Input 
+                    <Input
                       className="w-24"
-                      label={`Prix ${isTva ? 'TTC' : ''}`} 
-                      type="text" 
+                      label={`Prix ${isTva ? 'TTC' : ''}`}
+                      type="text"
                       suffix="€"
-                      value={s.actualPrice}
-                      error={isNonNegativeNumber(s.actualPrice) ? undefined : '≥ 0'}
-                      onChange={e => handleSaleChange(s.productId, 'actualPrice', parseOptionalNumber(e.target.value) ?? 0)}
+                      value={s.unitPrice}
+                      error={isNonNegativeNumber(s.unitPrice) ? undefined : '≥ 0'}
+                      onChange={e => handleSaleChange(s.productId, 'unitPrice', parseOptionalNumber(e.target.value) ?? 0)}
                     />
                   </div>
                 </div>
@@ -405,7 +458,6 @@ export const MonthlyReport: React.FC<Props> = ({
           </div>
         </Card>
 
-        {/* ... (Stock section remains same) ... */}
         <Card>
            <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4 font-serif">2. Gestion des Stocks (Ingrédients)</h3>
            <p className="text-xs text-stone-500 dark:text-stone-400 mb-4">Mettez à jour vos stocks pour calculer la consommation réelle.</p>
@@ -465,8 +517,8 @@ export const MonthlyReport: React.FC<Props> = ({
             {actualFixedItems.map(item => (
               <div key={item.id} className="flex justify-between items-center text-sm text-stone-600 dark:text-stone-300">
                 <span>{item.name}</span>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className={`w-20 text-right bg-stone-50 dark:bg-stone-800 border rounded px-1 py-0.5 ${isNonNegativeNumber(item.amount) ? 'border-stone-200 dark:border-stone-700' : 'border-red-400'}`}
                   value={item.amount}
                   onChange={e => handleFixedItemChange(item.id, parseOptionalNumber(e.target.value) ?? 0)}
@@ -579,7 +631,7 @@ export const MonthlyReport: React.FC<Props> = ({
             {/* Variable Costs Group */}
             <div className="py-4 space-y-2">
               <div className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2">Charges Variables</div>
-              
+
               <div className="flex justify-between items-center pl-4">
                 <span className="text-stone-600 dark:text-stone-400 flex items-center">
                   - Matières Premières {isTva ? '(HT)' : ''}
@@ -651,11 +703,11 @@ export const MonthlyReport: React.FC<Props> = ({
                    {inventory.map(item => {
                      const ing = ingredients.find(i => i.id === item.ingredientId);
                      if(!ing) return null;
-                     
-                     const theoreticalQty = calculateTheoreticalConsumption(item.ingredientId, sales, products, recipes, ingredients);
+
+                     const theoreticalQty = calculateTheoreticalConsumption(item.ingredientId, saleRows, products, recipes, ingredients);
                      const realQty = item.startStock + item.purchasedQuantity - item.endStock;
                      const diff = realQty - theoreticalQty;
-                     
+
                      return (
                        <tr key={item.ingredientId} className="dark:text-stone-300">
                          <td className="p-2 font-medium">{ing.name}</td>

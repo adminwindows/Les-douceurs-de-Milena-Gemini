@@ -86,15 +86,26 @@ finalPackagingCost = packagingCost × packagingLossMultiplier × packagingRatio
 - `packagingUsedOnUnsold` (boolean, par produit) : si ON, les invendus sont aussi emballés.
 - `applyLossToPackaging` (boolean, par produit, défaut OFF) : si ON, le multiplicateur de perte s'applique aussi à l'emballage.
 
-### Main d'œuvre
+### Main d'œuvre et mode de tarification
 
 ```
 calculatedLaborCost = (laborTimeMinutes / 60) × hourlyRate
-laborCost = includeLaborInCost ? calculatedLaborCost : 0
 ```
 
-- `includeLaborInCost` (toggle global dans Settings, défaut ON).
-- Le prix suggéré du bilan mensuel respecte ce toggle.
+**Mode Marge** (`pricingMode = 'margin'`) :
+```
+laborCost = calculatedLaborCost
+effectiveMargin = product.targetMargin
+```
+- La main d'œuvre est incluse dans le coût de revient. Marge fixée par produit.
+
+**Mode Objectif Salaire** (`pricingMode = 'salary'`) :
+```
+laborCost = 0
+totalEstimatedVolume = Σ (estimatedMonthlySales de tous les produits)
+effectiveMargin = salaryTarget / totalEstimatedVolume
+```
+- La MO n'est pas dans le coût. La marge est calculée pour atteindre le salaire cible.
 
 ### Charges fixes allouées
 
@@ -141,13 +152,13 @@ minPriceBreakevenHT = fullCost / divisor
 ### Prix avec marge
 
 ```
-priceWithMarginHT = (fullCost + targetMargin) / divisor
+priceWithMarginHT = (fullCost + effectiveMargin) / divisor
 ```
 
 ### Conversion TTC (si TVA activée)
 
 ```
-tvaRate = product.tvaRate ?? settings.defaultTvaRate
+tvaRate = settings.defaultTvaRate
 
 Si isTvaSubject:
   minPriceBreakevenTTC = minPriceBreakevenHT × (1 + tvaRate / 100)
@@ -156,11 +167,38 @@ Sinon:
   TTC = HT (pas de majoration)
 ```
 
-- Seuls les **produits** (prix de vente) ont un taux TVA. Les ingrédients n'en ont pas.
+- Le taux TVA est **global** (`settings.defaultTvaRate`), appliqué uniformément à tous les produits.
+
+### Prix de vente standard
+
+- `product.standardPrice` est un prix TTC (si TVA) ou net (si franchise) fixé manuellement par l'utilisateur.
+- Utilisé comme prix par défaut lors de la création de commandes et du bilan mensuel.
 
 ---
 
-## 5. Bilan mensuel
+## 5. Simulateur de salaire (mode Objectif Salaire)
+
+```
+Pour chaque produit avec standardPrice > 0:
+  sellingPriceHT = isTva ? standardPrice / (1 + tvaRate / 100) : standardPrice
+  totalRevenueHT += sellingPriceHT × estimatedMonthlySales
+  totalVariableCosts += materialCost + packagingCost (par produit)
+
+socialCharges = totalRevenueHT × (taxRate / 100)
+salaire = totalRevenueHT - totalVariableCosts - totalFixedCosts - socialCharges
+```
+
+- Utilisé dans l'onglet Analyse pour estimer le salaire net atteignable.
+
+---
+
+## 6. Bilan mensuel
+
+### Modèle de données : lignes séparées
+
+Le bilan utilise deux listes séparées au lieu d'un tableau combiné :
+- **`SaleLine[]`** : `{ productId, quantity, unitPrice, isTvaSubject? }`
+- **`UnsoldLine[]`** : `{ productId, quantity }`
 
 ### Inclusion des commandes
 
@@ -171,29 +209,33 @@ Sinon:
 ### Chiffre d'affaires
 
 ```
-totalRevenueTTC = Σ (quantitySold × actualPrice)
+totalRevenueTTC = Σ (saleLine.quantity × saleLine.unitPrice)
 
-Si TVA activée:
-  Pour chaque ligne de vente:
-    tvaRate = product.tvaRate ?? settings.defaultTvaRate
+Pour chaque SaleLine:
+  lineIsTva = saleLine.isTvaSubject ?? settings.isTvaSubject  (snapshot prioritaire)
+  tvaRate = settings.defaultTvaRate
+
+  Si lineIsTva:
     lineHT = lineTTC / (1 + tvaRate / 100)
-  totalRevenueHT = Σ lineHT
-  totalTvaCollected = totalRevenueTTC - totalRevenueHT
+  Sinon:
+    lineHT = lineTTC
 
-Si franchise TVA:
-  totalRevenueHT = totalRevenueTTC
-  totalTvaCollected = 0
+totalRevenueHT = Σ lineHT
+totalTvaCollected = totalRevenueTTC - totalRevenueHT
 ```
 
 ### Coût matière (3 modes)
 
 - **Mode 0 (Calculé)** : basé sur les recettes.
   ```
-  Pour chaque produit vendu:
+  Pour chaque produit (agrégé depuis saleLines + unsoldLines):
+    soldQty = Σ saleLines filtrées par productId
+    unsoldQty = Σ unsoldLines filtrées par productId
+    totalProduced = soldQty + unsoldQty
     batchCost = calculateRecipeMaterialCost(recipe, ingredients)
     unitCost = batchCost / batchYield
     mfgLossMultiplier = 1 / (1 - lossRate / 100)
-    foodCost += unitCost × mfgLossMultiplier × (quantitySold + quantityUnsold)
+    foodCost += unitCost × mfgLossMultiplier × totalProduced
   ```
 - **Mode 1 (Dépenses réelles)** : utilise `actualIngredientSpend` saisi.
 - **Mode 2 (Variation de stock)** : utilise la variation d'inventaire calculée.
@@ -202,7 +244,9 @@ Si franchise TVA:
 
 ```
 Pour chaque produit:
-  packagingUnits = quantitySold + (packagingUsedOnUnsold ? quantityUnsold : 0)
+  soldQty = quantités vendues agrégées
+  unsoldQty = quantités invendues agrégées
+  packagingUnits = soldQty + (packagingUsedOnUnsold ? unsoldQty : 0)
   mfgLossMultiplier = 1 / (1 - lossRate / 100)
   packagingLossMultiplier = applyLossToPackaging ? mfgLossMultiplier : 1
   totalPackagingCost += packagingCost × packagingUnits × packagingLossMultiplier
@@ -223,9 +267,21 @@ grossMargin = totalRevenueHT - totalVariableCosts
 netResult = grossMargin - actualFixedCosts
 ```
 
+### Totaux figés (FrozenReportTotals)
+
+Lorsqu'un bilan est sauvegardé, un snapshot des totaux est stocké :
+```
+frozenTotals = {
+  totalRevenueTTC, totalRevenueHT, totalTvaCollected,
+  foodCost, packagingCost, socialCharges,
+  fixedCosts, grossMargin, netResult, costMode
+}
+```
+- Les bilans archivés affichent les totaux figés, insensibles aux modifications ultérieures des ingrédients/recettes.
+
 ---
 
-## 6. Arrondis
+## 7. Arrondis
 
 - **Calculs internes** : flottants sans arrondi intermédiaire.
 - **Arrondi uniquement à l'affichage** : format monnaie (2 décimales) via `Intl.NumberFormat`.

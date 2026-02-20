@@ -1,26 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { computeMonthlyTotals, shouldIncludeOrder, MonthlyTotalsInput } from '../monthlyReportMath';
-import { GlobalSettings, Ingredient, MonthlyEntry, Order, Product, Recipe, Unit } from '../types';
+import { GlobalSettings, Ingredient, SaleLine, UnsoldLine, Order, Product, Recipe, Unit } from '../types';
 import { expectEqual } from './assertHelpers';
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
 // ---------------------------------------------------------------------------
 const baseSettings: GlobalSettings = {
-  currency: 'EUR', hourlyRate: 15, includeLaborInCost: true, fixedCostItems: [], taxRate: 20,
+  currency: 'EUR', hourlyRate: 15, pricingMode: 'margin', salaryTarget: 0, fixedCostItems: [], taxRate: 20,
   isTvaSubject: true, defaultTvaRate: 10, includePendingOrdersInMonthlyReport: false
 };
 
 const product: Product = {
   id: 'p1', name: 'P', recipeId: 'r1', laborTimeMinutes: 0, packagingCost: 1,
   lossRate: 10, unsoldEstimate: 0, packagingUsedOnUnsold: true, applyLossToPackaging: false,
-  targetMargin: 0, estimatedMonthlySales: 10, category: 'c', tvaRate: 10
+  targetMargin: 0, estimatedMonthlySales: 10, category: 'c'
 };
 const recipe: Recipe = { id: 'r1', name: 'R', ingredients: [{ ingredientId: 'i1', quantity: 100 }], batchYield: 10, lossPercentage: 0 };
 const ingredient: Ingredient = { id: 'i1', name: 'I', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 };
 
 const makeInput = (overrides: Partial<MonthlyTotalsInput> = {}): MonthlyTotalsInput => ({
-  sales: [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }],
+  saleLines: [{ productId: 'p1', quantity: 10, unitPrice: 11 }],
+  unsoldLines: [],
   products: [product],
   recipes: [recipe],
   ingredients: [ingredient],
@@ -87,65 +88,65 @@ describe('computeMonthlyTotals – VAT handling', () => {
     expectEqual(totals.totalSocialCharges, 10 * 11 * (20 / 100));
   });
 
-  it('per-product tvaRate is used for HT conversion', () => {
-    // product has tvaRate=10 but let's use 20
-    const prod20 = { ...product, tvaRate: 20 };
-    const totals = computeMonthlyTotals(makeInput({ products: [prod20] }));
+  it('uses global defaultTvaRate for HT conversion', () => {
+    // Use a different defaultTvaRate
+    const settings20 = { ...baseSettings, defaultTvaRate: 20 };
+    const totals = computeMonthlyTotals(makeInput({ settings: settings20 }));
     // 110 TTC / (1 + 20/100)
     expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 20 / 100));
   });
 });
 
 // ---------------------------------------------------------------------------
-// Per-entry TVA snapshot
+// Per-line TVA snapshot
 // ---------------------------------------------------------------------------
-describe('computeMonthlyTotals – per-entry TVA snapshot', () => {
-  it('entry saved with isTvaSubject=true is treated as TTC even when global setting is OFF', () => {
+describe('computeMonthlyTotals – per-line TVA snapshot', () => {
+  it('line saved with isTvaSubject=true is treated as TTC even when global setting is OFF', () => {
     const noTvaSettings = { ...baseSettings, isTvaSubject: false };
-    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: true }];
-    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, sales }));
-    // Entry was saved as TTC → should still extract TVA
+    const saleLines: SaleLine[] = [{ productId: 'p1', quantity: 10, unitPrice: 11, isTvaSubject: true }];
+    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, saleLines }));
+    // Line was saved as TTC → should still extract TVA
     expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100));
     expectEqual(totals.totalTvaCollected, 10 * 11 - 10 * 11 / (1 + 10 / 100));
   });
 
-  it('entry saved with isTvaSubject=false is treated as net even when global setting is ON', () => {
+  it('line saved with isTvaSubject=false is treated as net even when global setting is ON', () => {
     const tvaSettings = { ...baseSettings, isTvaSubject: true };
-    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: false }];
-    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
-    // Entry was saved as net → no TVA extraction
+    const saleLines: SaleLine[] = [{ productId: 'p1', quantity: 10, unitPrice: 11, isTvaSubject: false }];
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, saleLines }));
+    // Line was saved as net → no TVA extraction
     expectEqual(totals.totalRevenueHT, 10 * 11);
     expectEqual(totals.totalTvaCollected, 0);
   });
 
-  it('legacy entry without snapshot falls back to current global setting (TVA ON)', () => {
+  it('legacy line without snapshot falls back to current global setting (TVA ON)', () => {
     const tvaSettings = { ...baseSettings, isTvaSubject: true };
-    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
-    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
+    const saleLines: SaleLine[] = [{ productId: 'p1', quantity: 10, unitPrice: 11 }];
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, saleLines }));
     // No snapshot → uses current isTva=true → extracts TVA
     expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100));
   });
 
-  it('legacy entry without snapshot falls back to current global setting (TVA OFF)', () => {
+  it('legacy line without snapshot falls back to current global setting (TVA OFF)', () => {
     const noTvaSettings = { ...baseSettings, isTvaSubject: false };
-    const sales: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
-    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, sales }));
+    const saleLines: SaleLine[] = [{ productId: 'p1', quantity: 10, unitPrice: 11 }];
+    const totals = computeMonthlyTotals(makeInput({ settings: noTvaSettings, saleLines }));
     // No snapshot → uses current isTva=false → no extraction
     expectEqual(totals.totalRevenueHT, 10 * 11);
     expectEqual(totals.totalTvaCollected, 0);
   });
 
-  it('mixed entries: some TTC, some net in the same report', () => {
+  it('mixed lines: some TTC, some net in the same report', () => {
     const tvaSettings = { ...baseSettings, isTvaSubject: true };
-    const sales: MonthlyEntry[] = [
-      { productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11, isTvaSubject: true },
-      { productId: 'p1', quantitySold: 5, quantityUnsold: 0, actualPrice: 11, isTvaSubject: false }
+    const saleLines: SaleLine[] = [
+      { productId: 'p1', quantity: 10, unitPrice: 11, isTvaSubject: true },
+      { productId: 'p1', quantity: 5, unitPrice: 11, isTvaSubject: false }
     ];
-    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, sales }));
-    // First entry: TTC → HT = 110/1.1 = 100
-    // Second entry: net → HT = 55
+    const totals = computeMonthlyTotals(makeInput({ settings: tvaSettings, saleLines }));
+    // First line: TTC → HT = 110/1.1 = 100
+    // Second line: net → HT = 55
     expectEqual(totals.totalRevenueHT, 10 * 11 / (1 + 10 / 100) + 5 * 11);
-    // TVA only from first entry
+    // TVA only from first line
     expectEqual(totals.totalTvaCollected, 10 * 11 - 10 * 11 / (1 + 10 / 100));
   });
 });
@@ -172,25 +173,26 @@ describe('computeMonthlyTotals – social contributions base', () => {
 // Packaging logic (unsold + loss rule) in monthly report
 // ---------------------------------------------------------------------------
 describe('computeMonthlyTotals – packaging', () => {
-  const salesWithUnsold: MonthlyEntry[] = [{ productId: 'p1', quantitySold: 10, quantityUnsold: 2, actualPrice: 11 }];
+  const saleLines: SaleLine[] = [{ productId: 'p1', quantity: 10, unitPrice: 11 }];
+  const unsoldLines: UnsoldLine[] = [{ productId: 'p1', quantity: 2 }];
 
   it('packagingUsedOnUnsold OFF: packaging only on sold units', () => {
     const prod = { ...product, packagingUsedOnUnsold: false };
-    const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
+    const totals = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [prod] }));
     // packagingCost=1, sold=10, unsold not counted → 1 * 10 * 1 = 10
     expectEqual(totals.totalPackagingCost, 1 * 10 * 1);
   });
 
   it('packagingUsedOnUnsold ON: packaging on sold + unsold', () => {
     const prod = { ...product, packagingUsedOnUnsold: true };
-    const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
+    const totals = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [prod] }));
     // packagingCost=1, sold=10+unsold=2 → 1 * 12 * 1 = 12
     expectEqual(totals.totalPackagingCost, 1 * (10 + 2) * 1);
   });
 
   it('ON → OFF reduces packaging cost', () => {
-    const off = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [{ ...product, packagingUsedOnUnsold: false }] }));
-    const on = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [{ ...product, packagingUsedOnUnsold: true }] }));
+    const off = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [{ ...product, packagingUsedOnUnsold: false }] }));
+    const on = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [{ ...product, packagingUsedOnUnsold: true }] }));
     expect(on.totalPackagingCost).toBeGreaterThan(off.totalPackagingCost);
     // Exact diff = unsold * packagingCost = 2 * 1 = 2
     expectEqual(on.totalPackagingCost - off.totalPackagingCost, 1 * (10 + 2) - 1 * 10);
@@ -198,14 +200,14 @@ describe('computeMonthlyTotals – packaging', () => {
 
   it('applyLossToPackaging OFF: no loss multiplier on packaging', () => {
     const prod = { ...product, packagingUsedOnUnsold: false, applyLossToPackaging: false };
-    const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
+    const totals = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [prod] }));
     // 1 * 10 * 1 = 10
     expectEqual(totals.totalPackagingCost, 1 * 10 * 1);
   });
 
   it('applyLossToPackaging ON: packaging multiplied by mfg loss multiplier', () => {
     const prod = { ...product, packagingUsedOnUnsold: false, applyLossToPackaging: true, lossRate: 10 };
-    const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
+    const totals = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [prod] }));
     // mfgLossMultiplier = 1/(1 - 10/100)
     // 1 * 10 * mfgLossMultiplier
     expectEqual(totals.totalPackagingCost, 1 * 10 * (1 / (1 - 10 / 100)));
@@ -213,7 +215,7 @@ describe('computeMonthlyTotals – packaging', () => {
 
   it('combined: packagingUsedOnUnsold ON + applyLossToPackaging ON', () => {
     const prod = { ...product, packagingUsedOnUnsold: true, applyLossToPackaging: true, lossRate: 10 };
-    const totals = computeMonthlyTotals(makeInput({ sales: salesWithUnsold, products: [prod] }));
+    const totals = computeMonthlyTotals(makeInput({ saleLines, unsoldLines, products: [prod] }));
     // units = 10+2 = 12; multiplier = 1/(1 - 10/100)
     // 1 * 12 * multiplier
     expectEqual(totals.totalPackagingCost, 1 * (10 + 2) * (1 / (1 - 10 / 100)));
@@ -265,10 +267,12 @@ describe('computeMonthlyTotals – net result', () => {
 describe('computeMonthlyTotals – food cost includes unsold', () => {
   it('unsold units increase calculated food cost in mode 0', () => {
     const noUnsold = computeMonthlyTotals(makeInput({
-      sales: [{ productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }]
+      saleLines: [{ productId: 'p1', quantity: 10, unitPrice: 11 }],
+      unsoldLines: []
     }));
     const withUnsold = computeMonthlyTotals(makeInput({
-      sales: [{ productId: 'p1', quantitySold: 10, quantityUnsold: 5, actualPrice: 11 }]
+      saleLines: [{ productId: 'p1', quantity: 10, unitPrice: 11 }],
+      unsoldLines: [{ productId: 'p1', quantity: 5 }]
     }));
     expect(withUnsold.finalFoodCost).toBeGreaterThan(noUnsold.finalFoodCost);
   });
@@ -279,14 +283,18 @@ describe('computeMonthlyTotals – food cost includes unsold', () => {
 // ---------------------------------------------------------------------------
 describe('computeMonthlyTotals – multi-product', () => {
   it('aggregates revenue and costs across products', () => {
-    const p2: Product = { ...product, id: 'p2', packagingCost: 2, lossRate: 0, tvaRate: 20 };
+    const p2: Product = { ...product, id: 'p2', packagingCost: 2, lossRate: 0 };
     const r2: Recipe = { id: 'r2', name: 'R2', ingredients: [{ ingredientId: 'i1', quantity: 200 }], batchYield: 5, lossPercentage: 0 };
-    const sales: MonthlyEntry[] = [
-      { productId: 'p1', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 },
-      { productId: 'p2', quantitySold: 5, quantityUnsold: 1, actualPrice: 24 }
+    const saleLines: SaleLine[] = [
+      { productId: 'p1', quantity: 10, unitPrice: 11 },
+      { productId: 'p2', quantity: 5, unitPrice: 24 }
+    ];
+    const unsoldLines: UnsoldLine[] = [
+      { productId: 'p2', quantity: 1 }
     ];
     const totals = computeMonthlyTotals(makeInput({
-      sales,
+      saleLines,
+      unsoldLines,
       products: [product, { ...p2, recipeId: 'r2' }],
       recipes: [recipe, r2]
     }));
@@ -299,8 +307,8 @@ describe('computeMonthlyTotals – multi-product', () => {
 // Edge cases
 // ---------------------------------------------------------------------------
 describe('computeMonthlyTotals – edge cases', () => {
-  it('empty sales array returns all zeros', () => {
-    const totals = computeMonthlyTotals(makeInput({ sales: [] }));
+  it('empty saleLines array returns all zeros', () => {
+    const totals = computeMonthlyTotals(makeInput({ saleLines: [], unsoldLines: [] }));
     expectEqual(totals.totalRevenueTTC, 0);
     expectEqual(totals.totalRevenueHT, 0);
     expectEqual(totals.totalTvaCollected, 0);
@@ -310,9 +318,9 @@ describe('computeMonthlyTotals – edge cases', () => {
     expectEqual(totals.netResult, 0);
   });
 
-  it('missing product in sales is skipped for packaging/food cost', () => {
-    const sales: MonthlyEntry[] = [{ productId: 'nonexistent', quantitySold: 10, quantityUnsold: 0, actualPrice: 11 }];
-    const totals = computeMonthlyTotals(makeInput({ sales, products: [] }));
+  it('missing product in saleLines is skipped for packaging/food cost', () => {
+    const saleLines: SaleLine[] = [{ productId: 'nonexistent', quantity: 10, unitPrice: 11 }];
+    const totals = computeMonthlyTotals(makeInput({ saleLines, products: [] }));
     expectEqual(totals.totalRevenueTTC, 10 * 11);
     expectEqual(totals.finalFoodCost, 0);
     expectEqual(totals.totalPackagingCost, 0);

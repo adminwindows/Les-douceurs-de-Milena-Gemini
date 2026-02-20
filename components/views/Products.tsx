@@ -23,20 +23,19 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes }) =>
 
 export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = ({ products, setProducts, recipes, settings }) => {
   const isTvaEnabled = settings?.isTvaSubject || false;
-  const defaultTva = settings?.defaultTvaRate || 5.5;
+  const defaultTva = settings?.defaultTvaRate ?? 5.5;
 
   const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', {
     laborTimeMinutes: 15,
     packagingCost: 0.10,
 
-    lossRate: 0, 
-    unsoldEstimate: 0, 
-    packagingUsedOnUnsold: true, 
+    lossRate: 0,
+    unsoldEstimate: 0,
+    packagingUsedOnUnsold: true,
     applyLossToPackaging: false,
     targetMargin: 0,
     estimatedMonthlySales: 0,
     category: 'Gâteau',
-    tvaRate: defaultTva
   });
 
   const [isCustomCategory, setIsCustomCategory, resetIsCustomCategory] = usePersistentState<boolean>('draft:product:isCustomCategory', false);
@@ -49,7 +48,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   const isLaborTimeValid = isNonNegativeNumber(newProduct.laborTimeMinutes);
   const isPackagingCostValid = isNonNegativeNumber(newProduct.packagingCost);
   const isTargetMarginValid = isNonNegativeNumber(newProduct.targetMargin);
-  const isTvaRateValid = !isTvaEnabled || isPercentage(newProduct.tvaRate);
+  const isStandardPriceValid = newProduct.standardPrice == null || newProduct.standardPrice === undefined || isNonNegativeNumber(newProduct.standardPrice);
   const isProductFormValid = Boolean(
     newProduct.name &&
     newProduct.recipeId &&
@@ -59,7 +58,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
     isLaborTimeValid &&
     isPackagingCostValid &&
     isTargetMarginValid &&
-    isTvaRateValid
+    isStandardPriceValid
   );
 
   const handleAddProduct = () => {
@@ -79,14 +78,14 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       targetMargin: Number(newProduct.targetMargin ?? 0),
       estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
       category: newProduct.category || 'Autre',
-      tvaRate: Number(newProduct.tvaRate ?? defaultTva)
+      ...(newProduct.standardPrice != null ? { standardPrice: Number(newProduct.standardPrice) } : {})
     }]);
 
     setNewProduct({
       name: '',
       laborTimeMinutes: 15,
       packagingCost: 0.10,
-  
+
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
@@ -95,7 +94,6 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       estimatedMonthlySales: 0,
       category: 'Gâteau',
       recipeId: '',
-      tvaRate: defaultTva
     });
     setIsCustomCategory(false);
   };
@@ -116,7 +114,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       name: '',
       laborTimeMinutes: 15,
       packagingCost: 0.10,
-  
+
       lossRate: 0,
       unsoldEstimate: 0,
       packagingUsedOnUnsold: true,
@@ -125,7 +123,6 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
       estimatedMonthlySales: 0,
       category: 'Gâteau',
       recipeId: '',
-      tvaRate: defaultTva
     });
     setIsCustomCategory(false);
   };
@@ -141,7 +138,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             recipeId: newProduct.recipeId!,
             laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
             packagingCost: Number(newProduct.packagingCost ?? 0),
-      
+
             lossRate: Number(newProduct.lossRate ?? 0),
             unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
             packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
@@ -149,7 +146,7 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
             targetMargin: Number(newProduct.targetMargin ?? 0),
             estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
             category: newProduct.category || 'Autre',
-            tvaRate: Number(newProduct.tvaRate ?? defaultTva)
+            standardPrice: newProduct.standardPrice != null ? Number(newProduct.standardPrice) : undefined
           }
         : product
     ));
@@ -334,18 +331,19 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
               />
             </div>
 
-            {isTvaEnabled && (
-               <Input 
-                label="Taux TVA" 
-                type="number"
-                step="0.1"
-                suffix="%"
-                value={newProduct.tvaRate ?? ''} 
-                onChange={e => setNewProduct({...newProduct, tvaRate: parseOptionalNumber(e.target.value)})} 
-                helperText={`Par défaut: ${defaultTva}%`}
-                error={isTvaRateValid ? undefined : '< 100%'}
-              />
-            )}
+            <Input
+              label="Prix de vente"
+              type="number"
+              step="0.01"
+              suffix="€"
+              value={newProduct.standardPrice ?? ''}
+              onChange={e => {
+                const val = parseOptionalNumber(e.target.value);
+                setNewProduct({...newProduct, standardPrice: val});
+              }}
+              helperText={isTvaEnabled ? 'TTC (optionnel)' : 'Net (optionnel)'}
+              error={isStandardPriceValid ? undefined : '≥ 0'}
+            />
 
             {editingProductId ? (
               <div className="grid grid-cols-2 gap-2 mt-4">
@@ -393,8 +391,9 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {products.map(product => {
               const recipe = recipes.find(r => r.id === product.recipeId);
-              const tvaDisplay = isTvaEnabled ? `(TVA ${product.tvaRate ?? defaultTva}%)` : '';
-              
+              const tvaDisplay = isTvaEnabled ? `(TVA ${defaultTva}%)` : '';
+              const laborIncluded = settings?.pricingMode === 'margin';
+
               return (
                 <Card key={product.id} className="hover:border-rose-300 dark:hover:border-rose-700 transition-colors group flex flex-col h-full">
                   <div className="flex justify-between items-start mb-3">
@@ -421,19 +420,25 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-y-2 text-sm text-stone-600 dark:text-stone-400 mb-4 flex-1">
                     <div className="col-span-2 flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-1 mb-1">
                        <span className="text-stone-400 dark:text-stone-500">Recette</span>
                        <span className="font-medium truncate max-w-[150px]">{recipe?.name || 'Inconnue'}</span>
                     </div>
+                    {product.standardPrice != null && (
+                      <div className="col-span-2 flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-1 mb-1">
+                        <span className="text-stone-400 dark:text-stone-500">Prix de vente</span>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">{product.standardPrice.toFixed(2)}€{isTvaEnabled ? ' TTC' : ''}</span>
+                      </div>
+                    )}
                     <div className="col-span-2 grid grid-cols-2 gap-2 text-xs text-stone-500 dark:text-stone-400">
                         <div>
                             <span className="block text-stone-400 dark:text-stone-500">Emballage</span>
                             <span className="font-semibold">{product.packagingCost}€</span>
                         </div>
                         <div>
-                            <span className="block text-stone-400 dark:text-stone-500">MO</span>
+                            <span className="block text-stone-400 dark:text-stone-500">MO{laborIncluded ? '' : ' (non incluse)'}</span>
                             <span className="font-semibold">{product.laborTimeMinutes} min</span>
                         </div>
                         <div>
@@ -443,6 +448,10 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                         <div>
                             <span className="block text-stone-400 dark:text-stone-500">Invendus est.</span>
                             <span className="font-semibold">{product.unsoldEstimate} u/mois</span>
+                        </div>
+                        <div>
+                            <span className="block text-stone-400 dark:text-stone-500">Marge cible</span>
+                            <span className="font-semibold">{product.targetMargin}€</span>
                         </div>
                     </div>
                   </div>

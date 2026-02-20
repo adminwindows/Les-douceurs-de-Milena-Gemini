@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Ingredient, Product, Recipe, GlobalSettings, Purchase } from '../../types';
-import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit } from '../../utils';
+import { calculateProductMetrics, formatCurrency, convertToCostPerBaseUnit, simulateMonthlySalary } from '../../utils';
 import { Card, InfoTooltip } from '../ui/Common';
 
 interface Props {
@@ -55,16 +55,39 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
       };
   });
 
+  const isMarginMode = settings.pricingMode === 'margin';
+  const isSalaryMode = settings.pricingMode === 'salary';
+
+  const simulatedSalary = isSalaryMode
+    ? simulateMonthlySalary(products, recipes, activeIngredients, settings)
+    : 0;
+
   return (
     <div className="space-y-6">
+      {isSalaryMode && (
+        <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 rounded-xl flex items-start gap-4 shadow-sm">
+          <span className="text-2xl">💰</span>
+          <div className="text-sm text-purple-900 dark:text-purple-100">
+            <p className="font-bold mb-1 font-serif text-lg">Simulateur de Salaire Mensuel</p>
+            <p className="text-purple-800 dark:text-purple-200">
+              Sur la base de vos prix de vente et volumes estimés, votre <strong>salaire net mensuel estimé</strong> est de{' '}
+              <span className="text-xl font-bold text-purple-700 dark:text-purple-300">{formatCurrency(simulatedSalary)}</span>
+              {' '}(objectif : {formatCurrency(settings.salaryTarget)}).
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 bg-[#FFF0F3] dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-xl flex items-start gap-4 shadow-sm">
             <span className="text-2xl">💡</span>
             <div className="text-sm text-rose-900 dark:text-rose-100">
-              <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? '(Mode Assujetti TVA)' : '(Mode Franchise)'}</p>
+              <p className="font-bold mb-2 font-serif text-lg">Comprendre vos prix {isTva ? `(Mode Assujetti TVA — taux global ${settings.defaultTvaRate}%)` : '(Mode Franchise)'}</p>
               <ul className="list-disc pl-4 space-y-1 text-rose-800 dark:text-rose-200">
-                <li><strong>Coût Complet :</strong> Inclut matières{isTva ? ' (HT)' : ''}, emballage{settings.includeLaborInCost ? `, main d'œuvre (${settings.hourlyRate}€/h)` : ''} et charges fixes.{isTva && " Tous les coûts matière sont HT (TVA récupérable sur les achats)."}{!settings.includeLaborInCost && " Main d'œuvre non incluse (désactivée dans Réglages)."}</li>
-                <li><strong>Prix Min (Rentable){isTva ? ' TTC' : ''} :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.{isTva && ` Inclut la TVA produit (taux par produit, défaut ${settings.defaultTvaRate}%).`}</li>
+                <li><strong>Coût Complet :</strong> Inclut matières{isTva ? ' (HT)' : ''}, emballage{settings.pricingMode === 'margin' ? `, main d'œuvre (${settings.hourlyRate}€/h)` : ''} et charges fixes.{isTva && " Tous les coûts matière sont HT (TVA récupérable sur les achats)."}{settings.pricingMode === 'salary' && " Main d'œuvre non incluse (mode Salaire)."}</li>
+                <li><strong>Prix Min (Rentable){isTva ? ' TTC' : ''} :</strong> Seuil de rentabilité (Profit = 0€). Couvre toutes les dépenses + charges sociales.{isTva && ` Inclut la TVA au taux global de ${settings.defaultTvaRate}%.`}</li>
+                {isMarginMode && <li><strong>Conseillé :</strong> Inclut votre marge cible par produit.</li>}
+                {isSalaryMode && <li><strong>Conseillé :</strong> Calculé pour atteindre votre objectif de salaire ({formatCurrency(settings.salaryTarget)}/mois), réparti sur le volume total estimé.</li>}
               </ul>
             </div>
           </div>
@@ -147,7 +170,6 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
                 <tr key={product.id} className="hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors">
                   <td className="p-4 font-bold text-stone-800 dark:text-stone-200">
                     {product.name}
-                    {isTva && <span className="block text-[10px] text-stone-400 dark:text-stone-500 font-normal">TVA {metrics.tvaRate}%</span>}
                   </td>
                   <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.unitMaterialCost)}</td>
                   <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.laborCost)}</td>
@@ -168,7 +190,7 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
                   <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10 border-l border-emerald-100 dark:border-emerald-900/50">
                     <div className="flex flex-col">
                       <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(metrics.priceWithMarginTTC)}</span>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-500">Marge: {product.targetMargin}€</span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-500">Marge: {formatCurrency(metrics.effectiveMargin)}</span>
                     </div>
                   </td>
                   {isTva && (

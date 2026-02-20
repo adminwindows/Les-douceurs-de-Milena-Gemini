@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Order, Product, ProductionBatch } from '../../types';
+import { Order, Product, ProductionBatch, GlobalSettings } from '../../types';
 import { Card, Button, Input, InfoTooltip } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber } from '../../validation';
@@ -11,9 +11,10 @@ interface Props {
   products: Product[];
   productionBatches: ProductionBatch[];
   setProductionBatches: React.Dispatch<React.SetStateAction<ProductionBatch[]>>;
+  settings: GlobalSettings;
 }
 
-export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches }) => {
+export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches, settings }) => {
   const [newOrder, setNewOrder, resetNewOrder] = usePersistentState<Partial<Order>>('draft:order:newOrder', { customerName: '', date: new Date().toISOString().split('T')[0], items: [], status: 'pending' });
   const [currentItem, setCurrentItem, resetCurrentItem] = usePersistentState<{ productId: string, quantity?: number }>('draft:order:currentItem', { productId: '', quantity: 1 });
   const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
@@ -37,13 +38,19 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
   const saveOrder = () => {
     if (!newOrder.customerName || !newOrder.date || !newOrder.items?.length) return;
     
+    const snapshotItems = (newOrder.items || []).map(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      return { ...item, unitPrice: item.unitPrice ?? p?.standardPrice };
+    });
+
     setOrders([...orders, {
       id: Date.now().toString(),
       customerName: newOrder.customerName,
       date: newOrder.date,
-      items: newOrder.items,
+      items: snapshotItems,
       status: 'pending',
-      notes: newOrder.notes
+      notes: newOrder.notes,
+      isTvaSubject: settings.isTvaSubject
     }]);
     
     resetNewOrder();

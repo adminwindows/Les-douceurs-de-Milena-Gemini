@@ -89,7 +89,8 @@ describe('backup I/O', () => {
     const imported = parseImportedAppData('prefix text\n{"products":[{"id":1,"name":"P","recipeId":2,"laborTimeMinutes":"1","packagingCost":"0","lossRate":"0","unsoldEstimate":"0","packagingUsedOnUnsold":"false","targetMargin":"1","estimatedMonthlySales":"1","category":"X","tvaRate":"5.5"}]}\nsuffix');
 
     expect(imported.products?.[0].id).toBe('1');
-    expect(imported.products?.[0].tvaRate).toBe(5.5);
+    // tvaRate is accepted on import schema (legacy field) and coerced to number
+    expect((imported.products?.[0] as any).tvaRate).toBe(5.5);
   });
 
   it('buildSelectedBackupData only includes requested sections', () => {

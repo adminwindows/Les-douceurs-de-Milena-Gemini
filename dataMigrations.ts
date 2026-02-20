@@ -1,11 +1,34 @@
 import { AppData } from './dataSchema';
-import { GlobalSettings, Ingredient, Product, Purchase } from './types';
+import { GlobalSettings, Ingredient, Product, Purchase, SaleLine, UnsoldLine, MonthlyReportData } from './types';
 import { rebuildIngredientCost } from './utils';
 
-export const normalizeSettings = (settings: GlobalSettings): GlobalSettings => ({
-  ...settings,
-  includePendingOrdersInMonthlyReport: settings.includePendingOrdersInMonthlyReport ?? false
-});
+/**
+ * Normalize settings from any legacy format to current model.
+ * - Converts includeLaborInCost → pricingMode
+ * - Ensures all new fields have defaults
+ */
+export const normalizeSettings = (settings: any): GlobalSettings => {
+  const raw = settings as any;
+
+  // Determine pricingMode: prefer explicit value, else derive from legacy
+  let pricingMode: 'margin' | 'salary' = raw.pricingMode ?? 'margin';
+  if (raw.pricingMode === undefined && raw.includeLaborInCost !== undefined) {
+    // Legacy migration: both cases default to 'margin' (safer)
+    pricingMode = 'margin';
+  }
+
+  return {
+    currency: raw.currency ?? 'EUR',
+    hourlyRate: raw.hourlyRate ?? 0,
+    pricingMode,
+    salaryTarget: raw.salaryTarget ?? 0,
+    fixedCostItems: raw.fixedCostItems ?? [],
+    taxRate: raw.taxRate ?? 0,
+    isTvaSubject: raw.isTvaSubject ?? false,
+    defaultTvaRate: raw.defaultTvaRate ?? raw.defaultIngredientVatRate ?? 5.5,
+    includePendingOrdersInMonthlyReport: raw.includePendingOrdersInMonthlyReport ?? false
+  };
+};
 
 /**
  * Migrate ingredient from legacy TVA-per-ingredient format to HT-only.
@@ -76,19 +99,87 @@ export const normalizePurchase = (purchase: Purchase, settings: GlobalSettings):
   };
 };
 
-export const normalizeProduct = (product: Product): Product => ({
-  ...product,
-  applyLossToPackaging: product.applyLossToPackaging ?? false
-});
+/**
+ * Normalize a product from legacy format.
+ * - Drops per-product tvaRate (now global)
+ * - Preserves standardPrice if present
+ */
+export const normalizeProduct = (product: any): Product => {
+  const p: Product = {
+    id: product.id,
+    name: product.name,
+    recipeId: product.recipeId,
+    laborTimeMinutes: product.laborTimeMinutes ?? 0,
+    packagingCost: product.packagingCost ?? 0,
+    lossRate: product.lossRate ?? 0,
+    unsoldEstimate: product.unsoldEstimate ?? 0,
+    packagingUsedOnUnsold: product.packagingUsedOnUnsold ?? true,
+    applyLossToPackaging: product.applyLossToPackaging ?? false,
+    targetMargin: product.targetMargin ?? 0,
+    estimatedMonthlySales: product.estimatedMonthlySales ?? 0,
+    category: product.category ?? 'Autre'
+  };
 
-export const normalizeAppData = (data: AppData): AppData => {
-  const settings = normalizeSettings(data.settings as GlobalSettings);
+  if (product.standardPrice !== undefined) p.standardPrice = product.standardPrice;
+
+  return p;
+};
+
+/**
+ * Normalize a saved report from legacy format.
+ * - Converts legacy `sales: MonthlyEntry[]` to `saleLines` + `unsoldLines`
+ * - Preserves frozenTotals and ingredientPriceMode if present
+ */
+export const normalizeReport = (report: any): MonthlyReportData => {
+  let saleLines: SaleLine[] = report.saleLines ?? [];
+  let unsoldLines: UnsoldLine[] = report.unsoldLines ?? [];
+
+  // Legacy migration: convert combined MonthlyEntry[] to separated lines
+  if (saleLines.length === 0 && report.sales && report.sales.length > 0) {
+    saleLines = report.sales.map((entry: any) => {
+      const sl: SaleLine = {
+        productId: entry.productId,
+        quantity: entry.quantitySold ?? 0,
+        unitPrice: entry.actualPrice ?? 0
+      };
+      if (entry.isTvaSubject !== undefined) sl.isTvaSubject = entry.isTvaSubject;
+      return sl;
+    });
+    unsoldLines = report.sales
+      .filter((entry: any) => (entry.quantityUnsold ?? 0) > 0)
+      .map((entry: any) => ({
+        productId: entry.productId,
+        quantity: entry.quantityUnsold
+      }));
+  }
 
   return {
-    ...data,
-    settings,
-    ingredients: data.ingredients.map((ingredient) => normalizeIngredient(ingredient as Ingredient, settings)),
-    products: data.products.map(normalizeProduct),
-    purchases: data.purchases.map((purchase) => normalizePurchase(purchase as Purchase, settings))
+    id: report.id,
+    monthStr: report.monthStr,
+    saleLines,
+    unsoldLines,
+    actualFixedCostItems: report.actualFixedCostItems ?? [],
+    actualIngredientSpend: report.actualIngredientSpend ?? 0,
+    inventory: report.inventory ?? [],
+    ingredientPriceMode: report.ingredientPriceMode,
+    frozenTotals: report.frozenTotals,
+    totalRevenue: report.totalRevenue ?? 0,
+    netResult: report.netResult ?? 0,
+    isLocked: report.isLocked ?? false
   };
+};
+
+export const normalizeAppData = (data: any): AppData => {
+  const settings = normalizeSettings(data.settings ?? {});
+
+  return {
+    settings,
+    ingredients: (data.ingredients ?? []).map((ingredient: any) => normalizeIngredient(ingredient as Ingredient, settings)),
+    recipes: data.recipes ?? [],
+    products: (data.products ?? []).map((p: any) => normalizeProduct(p)),
+    orders: data.orders ?? [],
+    savedReports: (data.savedReports ?? []).map((r: any) => normalizeReport(r)),
+    purchases: (data.purchases ?? []).map((purchase: any) => normalizePurchase(purchase as Purchase, settings)),
+    productionBatches: data.productionBatches ?? []
+  } as AppData;
 };

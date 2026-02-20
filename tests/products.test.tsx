@@ -14,7 +14,8 @@ describe('Products form behavior', () => {
     const settings: GlobalSettings = {
       currency: 'EUR',
       hourlyRate: 10,
-      includeLaborInCost: true,
+      pricingMode: 'margin',
+      salaryTarget: 0,
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,
@@ -60,13 +61,13 @@ describe('Products form behavior', () => {
       packagingUsedOnUnsold: true,
       targetMargin: 1,
       estimatedMonthlySales: 20,
-      category: 'Biscuit',
-      tvaRate: 5.5
+      category: 'Biscuit'
     }];
     const settings: GlobalSettings = {
       currency: 'EUR',
       hourlyRate: 10,
-      includeLaborInCost: true,
+      pricingMode: 'margin',
+      salaryTarget: 0,
       fixedCostItems: [],
       taxRate: 0,
       isTvaSubject: false,

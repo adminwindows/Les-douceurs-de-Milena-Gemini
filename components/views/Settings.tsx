@@ -1,16 +1,15 @@
+
 import React, { useState } from 'react';
 import { GlobalSettings, FixedCostItem } from '../../types';
-import { Card, Input, Button } from '../ui/Common';
-import { formatCurrency } from '../../utils';
-import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
-import { DemoDataset } from '../../demoData';
+import { Card } from '../ui/Common';
+import type { DemoDataset } from '../../demoData';
 
 interface Props {
   settings: GlobalSettings;
   setSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>;
   demoDatasets?: DemoDataset[];
   activeDemoDatasetId?: string;
-  onActivateDemo?: (datasetId: string) => void;
+  onActivateDemo?: (id: string) => void;
   onExitDemo?: () => void;
 }
 
@@ -22,239 +21,290 @@ export const Settings: React.FC<Props> = ({
   onActivateDemo,
   onExitDemo
 }) => {
-  const triggerActivateDemo = onActivateDemo ?? (() => undefined);
-  const triggerExitDemo = onExitDemo ?? (() => undefined);
-  const [newCost, setNewCost] = useState({ name: '', amount: '' });
-  const newCostAmount = parseOptionalNumber(newCost.amount);
-  const isNewCostAmountValid = isPositiveNumber(newCostAmount);
-  const isNewCostFormValid = Boolean(newCost.name && isNewCostAmountValid);
+  const isTva = settings.isTvaSubject;
 
-  const isTaxRateValid = isPercentage(settings.taxRate);
-  const isDefaultTvaRateValid = isPercentage(settings.defaultTvaRate);
-  const isHourlyRateValid = isNonNegativeNumber(settings.hourlyRate);
+  const [newFixedCostName, setNewFixedCostName] = useState('');
+  const [newFixedCostAmount, setNewFixedCostAmount] = useState('');
 
-  const handleChange = (key: keyof GlobalSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  const update = (partial: Partial<GlobalSettings>) => {
+    setSettings(prev => ({ ...prev, ...partial }));
   };
 
-  const handleNumberChange = (key: keyof GlobalSettings, value: string) => {
-    const parsed = parseOptionalNumber(value);
-    if (parsed === undefined) return;
-    handleChange(key, parsed);
-  };
+  const addFixedCost = () => {
+    const name = newFixedCostName.trim();
+    const amount = parseFloat(newFixedCostAmount.replace(',', '.'));
+    if (!name || isNaN(amount) || amount <= 0) return;
 
-  const handleAddCost = () => {
-    if (!isNewCostFormValid) return;
     const item: FixedCostItem = {
-      id: Date.now().toString(),
-      name: newCost.name,
-      amount: Number(newCostAmount)
+      id: 'fc_' + Date.now(),
+      name,
+      amount,
     };
-    setSettings(prev => ({
-      ...prev,
-      fixedCostItems: [...prev.fixedCostItems, item]
-    }));
-    setNewCost({ name: '', amount: '' });
+    update({ fixedCostItems: [...settings.fixedCostItems, item] });
+    setNewFixedCostName('');
+    setNewFixedCostAmount('');
   };
 
-  const removeCost = (id: string) => {
-    setSettings(prev => ({
-      ...prev,
-      fixedCostItems: prev.fixedCostItems.filter(i => i.id !== id)
-    }));
-  };
-
-  const totalFixedCosts = settings.fixedCostItems.reduce((sum, i) => sum + i.amount, 0);
+  const removeFixedCost = (id: string) =>
+    update({ fixedCostItems: settings.fixedCostItems.filter(f => f.id !== id) });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-rose-950 dark:text-rose-100 font-serif">Paramètres de l'activité</h2>
-        <p className="text-stone-500 dark:text-stone-400 mt-2">Configuration globale pour vos calculs.</p>
-      </div>
-
-      <Card>
-        <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4 border-b border-stone-200 dark:border-stone-700 pb-2">Mode Démo</h3>
-        <p className="text-sm text-stone-600 dark:text-stone-300 mb-4">
-          Chargez un jeu de données réaliste pour présenter l'application. Vos données actuelles sont sauvegardées temporairement et restaurées à la sortie.
-        </p>
-
-        <div className="space-y-3">
-          {demoDatasets.map(dataset => {
-            const isActive = activeDemoDatasetId === dataset.id;
-            return (
-              <div key={dataset.id} className={`p-3 rounded-lg border ${isActive ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'border-stone-200 dark:border-stone-700'}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-stone-900 dark:text-stone-100">{dataset.label}</p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400">{dataset.description}</p>
-                  </div>
-                  <Button size="sm" variant={isActive ? 'ghost' : 'primary'} onClick={() => triggerActivateDemo(dataset.id)}>
-                    {isActive ? 'Déjà actif' : 'Activer'}
-                  </Button>
-                </div>
+    <div className="space-y-6 max-w-3xl">
+      {/* Demo mode zone */}
+      {demoDatasets.length > 0 && (
+        <Card>
+          <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-3">Mode Démonstration</h3>
+          {activeDemoDatasetId ? (
+            <div className="space-y-3">
+              <div className="bg-indigo-50 dark:bg-indigo-900/30 p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 text-sm text-indigo-800 dark:text-indigo-200">
+                Démo active : <strong>{demoDatasets.find(d => d.id === activeDemoDatasetId)?.label}</strong>. Vos données réelles sont sauvegardées et seront restaurées à la sortie.
               </div>
-            );
-          })}
+              <button
+                onClick={onExitDemo}
+                className="bg-stone-600 hover:bg-stone-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors"
+              >
+                Quitter la Démo (restaurer mes données)
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-3">Chargez un jeu de données pour explorer sans risque.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {demoDatasets.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => onActivateDemo?.(d.id)}
+                    className="p-3 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-indigo-400 dark:hover:border-indigo-600 text-left transition-colors bg-white dark:bg-stone-800"
+                  >
+                    <span className="font-bold text-sm text-stone-800 dark:text-stone-200 block">{d.label}</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400">{d.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Pricing mode */}
+      <Card>
+        <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Mode de Tarification</h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <label
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${settings.pricingMode === 'margin' ? 'border-[#D45D79] bg-rose-50 dark:bg-rose-900/20' : 'border-stone-200 dark:border-stone-700 hover:border-stone-300'}`}
+          >
+            <input
+              type="radio"
+              name="pricingMode"
+              value="margin"
+              checked={settings.pricingMode === 'margin'}
+              onChange={() => update({ pricingMode: 'margin' })}
+              className="sr-only"
+            />
+            <span className="font-bold text-stone-800 dark:text-stone-200 block mb-1">Marge</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              Main d'oeuvre incluse dans le coût. Vous fixez une marge par produit.
+            </span>
+          </label>
+
+          <label
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${settings.pricingMode === 'salary' ? 'border-[#D45D79] bg-rose-50 dark:bg-rose-900/20' : 'border-stone-200 dark:border-stone-700 hover:border-stone-300'}`}
+          >
+            <input
+              type="radio"
+              name="pricingMode"
+              value="salary"
+              checked={settings.pricingMode === 'salary'}
+              onChange={() => update({ pricingMode: 'salary' })}
+              className="sr-only"
+            />
+            <span className="font-bold text-stone-800 dark:text-stone-200 block mb-1">Objectif Salaire</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400">
+              MO exclue du coût. L'app calcule le prix pour atteindre votre salaire cible.
+            </span>
+          </label>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button variant="ghost" onClick={triggerExitDemo} disabled={!activeDemoDatasetId}>Quitter le mode démo et restaurer mes données</Button>
-          {activeDemoDatasetId && <span className="text-xs text-indigo-700 dark:text-indigo-300 font-medium self-center">Démo active : {activeDemoDatasetId}</span>}
+        {settings.pricingMode === 'margin' && (
+          <div className="bg-stone-50 dark:bg-stone-800/50 p-3 rounded-lg text-sm text-stone-600 dark:text-stone-300">
+            La MO est comptée comme un coût de production. Le prix conseillé couvre coûts + marge.
+          </div>
+        )}
+
+        {settings.pricingMode === 'salary' && (
+          <div className="space-y-3">
+            <div className="bg-stone-50 dark:bg-stone-800/50 p-3 rounded-lg text-sm text-stone-600 dark:text-stone-300">
+              La MO n'entre pas dans le coût de revient. Le prix conseillé est calculé pour que votre salaire net mensuel atteigne l'objectif ci-dessous.
+            </div>
+            <div>
+              <label className="text-sm font-medium text-stone-700 dark:text-stone-300 block mb-1">
+                Objectif salaire mensuel net
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="50"
+                  min="0"
+                  value={settings.salaryTarget}
+                  onChange={e => update({ salaryTarget: parseFloat(e.target.value) || 0 })}
+                  className="w-40 px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+                />
+                <span className="text-stone-500 dark:text-stone-400 text-sm">€ / mois</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* General settings */}
+      <Card>
+        <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Paramètres Généraux</h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-stone-700 dark:text-stone-300 block mb-1">Taux horaire (€/h)</label>
+            <input
+              data-testid="settings-hourly-rate"
+              type="number"
+              step="0.5"
+              min="0"
+              value={settings.hourlyRate}
+              onChange={e => update({ hourlyRate: parseFloat(e.target.value) || 0 })}
+              className="w-full px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-stone-700 dark:text-stone-300 block mb-1">
+              Taux cotisations sociales (%)
+            </label>
+            <input
+              data-testid="settings-tax-rate"
+              type="number"
+              step="0.1"
+              min="0"
+              max="99"
+              value={settings.taxRate}
+              onChange={e => update({ taxRate: parseFloat(e.target.value) || 0 })}
+              className="w-full px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+            />
+          </div>
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="h-fit">
-          <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-6 border-b border-stone-200 dark:border-stone-700 pb-2">Fiscalité & TVA</h3>
-          <div className="space-y-6">
-            <div className="p-4 bg-stone-50 dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-stone-800 dark:text-stone-200">Assujetti à la TVA ?</label>
-                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                  <input
-                    type="checkbox"
-                    name="toggle"
-                    id="toggle"
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-stone-300 border-4 appearance-none cursor-pointer"
-                    checked={settings.isTvaSubject}
-                    onChange={e => handleChange('isTvaSubject', e.target.checked)}
-                    style={{ right: settings.isTvaSubject ? '0' : 'auto', left: settings.isTvaSubject ? 'auto' : '0', borderColor: settings.isTvaSubject ? '#D45D79' : '#ccc' }}
-                  />
-                  <label
-                    htmlFor="toggle"
-                    className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.isTvaSubject ? 'bg-[#D45D79]' : 'bg-stone-300 dark:bg-stone-600'}`}
-                  ></label>
-                </div>
-              </div>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                {settings.isTvaSubject
-                  ? 'TVA activée : la TVA sur vos achats est récupérable. Tous les prix ingrédients et charges sont en HT. Un convertisseur TTC → HT est disponible lors de la saisie.'
-                  : 'Franchise de TVA : vous payez vos achats TTC et ne récupérez pas la TVA. Vous ne facturez pas de TVA sur vos ventes.'}
-              </p>
-            </div>
-
-            {settings.isTvaSubject && (
-              <Input
-                label="Taux de TVA ventes par défaut"
-                type="number"
-                suffix="%"
-                value={settings.defaultTvaRate}
-                onChange={e => handleNumberChange('defaultTvaRate', e.target.value)}
-                helperText="Taux TVA appliqué aux prix de vente (ex: 5.5% alimentaire). Aussi utilisé comme taux par défaut dans le convertisseur TTC → HT."
-                error={isDefaultTvaRateValid ? undefined : '< 100%'}
-              />
-            )}
-
-            <div className="p-3 border border-stone-200 dark:border-stone-700 rounded-lg">
-              <label className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center gap-2">
-                <input type="checkbox" checked={settings.includePendingOrdersInMonthlyReport ?? false} onChange={e => handleChange('includePendingOrdersInMonthlyReport', e.target.checked)} />
-                Inclure les commandes en attente dans le bilan mensuel
-              </label>
-              <p className="text-xs text-stone-500 mt-1">Par défaut désactivé : seules les commandes terminées sont comptées.</p>
-            </div>
-
-            <div className="border-t border-stone-100 dark:border-stone-700 pt-4">
-              <Input
-                label="Charges Sociales (URSSAF)"
-                type="number"
-                suffix="%"
-                value={settings.taxRate}
-                onChange={e => handleNumberChange('taxRate', e.target.value)}
-                helperText={settings.isTvaSubject
-                  ? 'Pourcentage prélevé sur votre CA Hors Taxe.'
-                  : 'Pourcentage prélevé sur votre CA Total.'}
-                error={isTaxRateValid ? undefined : '< 100%'}
-              />
-            </div>
-
-            <Input
-              label="Taux horaire cible"
-              type="number"
-              suffix="€/h"
-              value={settings.hourlyRate}
-              onChange={e => handleNumberChange('hourlyRate', e.target.value)}
-              helperText={settings.includeLaborInCost ? 'Utilisé pour calculer le coût.' : 'Utilisé uniquement à titre indicatif.'}
-              error={isHourlyRateValid ? undefined : '≥ 0'}
+      {/* TVA */}
+      <Card>
+        <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">TVA</h3>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm text-stone-700 dark:text-stone-300">Assujetti à la TVA</span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.isTvaSubject}
+              onChange={e => update({ isTvaSubject: e.target.checked })}
+              className="sr-only peer"
             />
+            <div className="w-11 h-6 bg-stone-300 dark:bg-stone-600 peer-checked:bg-[#D45D79] rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#D45D79] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+          </label>
+        </div>
 
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Inclure la Main d'Oeuvre dans les Coûts ?</label>
-                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                  <input
-                    type="checkbox"
-                    id="toggle-labor"
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-stone-300 border-4 appearance-none cursor-pointer"
-                    checked={settings.includeLaborInCost}
-                    onChange={e => handleChange('includeLaborInCost', e.target.checked)}
-                    style={{ right: settings.includeLaborInCost ? '0' : 'auto', left: settings.includeLaborInCost ? 'auto' : '0', borderColor: settings.includeLaborInCost ? '#4f46e5' : '#ccc' }}
-                  />
-                  <label
-                    htmlFor="toggle-labor"
-                    className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.includeLaborInCost ? 'bg-indigo-600' : 'bg-stone-300 dark:bg-stone-600'}`}
-                  ></label>
+        {isTva && (
+          <div>
+            <label className="text-sm font-medium text-stone-700 dark:text-stone-300 block mb-1">
+              Taux TVA par défaut (ventes)
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="30"
+              value={settings.defaultTvaRate}
+              onChange={e => update({ defaultTvaRate: parseFloat(e.target.value) || 0 })}
+              className="w-40 px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+            />
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
+              Appliqué uniformément à tous les produits.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* Order filtering */}
+      <Card>
+        <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Bilan Mensuel</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm text-stone-700 dark:text-stone-300 block">Inclure les commandes en attente</span>
+            <span className="text-xs text-stone-500 dark:text-stone-400">Si activé, les commandes "en attente" sont comptées dans le bilan du mois.</span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.includePendingOrdersInMonthlyReport ?? false}
+              onChange={e => update({ includePendingOrdersInMonthlyReport: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-stone-300 dark:bg-stone-600 peer-checked:bg-[#D45D79] rounded-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#D45D79] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+          </label>
+        </div>
+      </Card>
+
+      {/* Fixed costs */}
+      <Card>
+        <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Charges Fixes Mensuelles {isTva ? '(HT)' : ''}</h3>
+
+        {settings.fixedCostItems.length > 0 ? (
+          <div className="space-y-2 mb-4">
+            {settings.fixedCostItems.map(item => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-3 bg-stone-50 dark:bg-stone-800 rounded-lg border border-stone-200 dark:border-stone-700"
+              >
+                <span className="text-sm text-stone-800 dark:text-stone-200">{item.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{item.amount.toFixed(2)} €</span>
+                  <button
+                    onClick={() => removeFixedCost(item.id)}
+                    className="text-red-500 hover:text-red-700 text-lg font-bold"
+                    title="Supprimer"
+                  >
+                    &times;
+                  </button>
                 </div>
               </div>
-              <p className="text-sm text-indigo-900 dark:text-indigo-200">
-                {settings.includeLaborInCost
-                  ? 'La MO est comptée comme un coût. Votre marge est un profit pur.'
-                  : 'La MO est ignorée dans le coût de revient. Votre marge doit donc couvrir votre salaire.'}
-              </p>
+            ))}
+            <div className="text-right text-sm font-bold text-stone-800 dark:text-stone-200 pr-10">
+              Total : {settings.fixedCostItems.reduce((sum, f) => sum + f.amount, 0).toFixed(2)} € / mois
             </div>
           </div>
-        </Card>
+        ) : (
+          <p className="text-sm text-stone-400 dark:text-stone-500 mb-4">Aucune charge fixe définie.</p>
+        )}
 
-        <Card>
-          <div className="flex justify-between items-center mb-6 border-b border-stone-200 dark:border-stone-700 pb-2">
-            <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100">Charges Fixes Mensuelles</h3>
-            <span className="text-xl font-bold text-[#D45D79] dark:text-rose-400">{formatCurrency(totalFixedCosts)}</span>
-          </div>
-
-          <div className="space-y-4 mb-6">
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-              {settings.fixedCostItems.map(item => (
-                <div key={item.id} className="flex justify-between items-center bg-stone-50 dark:bg-stone-900 p-3 rounded-lg border border-stone-200 dark:border-stone-700">
-                  <span className="font-medium text-stone-700 dark:text-stone-300">{item.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-stone-900 dark:text-stone-100">{formatCurrency(item.amount)}</span>
-                    <button onClick={() => removeCost(item.id)} className="text-stone-400 hover:text-red-500 dark:hover:text-red-400">×</button>
-                  </div>
-                </div>
-              ))}
-              {settings.fixedCostItems.length === 0 && <p className="text-stone-400 italic text-sm">Aucune charge fixe définie.</p>}
-            </div>
-          </div>
-
-          <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700">
-            <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 mb-1">Ajouter une charge</h4>
-            {settings.isTvaSubject && (
-              <p className="text-xs text-stone-500 mb-3">Saisissez vos charges fixes HT (la TVA sur ces charges étant récupérable, seul le montant HT compte).</p>
-            )}
-            <div className="flex gap-2 mb-2">
-              <input
-                className="flex-1 px-3 py-2 rounded border border-rose-200 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:border-[#D45D79]"
-                placeholder="Ex: Assurance"
-                value={newCost.name}
-                onChange={e => setNewCost({ ...newCost, name: e.target.value })}
-              />
-              <input
-                className="w-24 px-3 py-2 rounded border border-rose-200 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:border-[#D45D79]"
-                placeholder="€"
-                type="number"
-                value={newCost.amount}
-                onChange={e => setNewCost({ ...newCost, amount: e.target.value })}
-              />
-            </div>
-            {!isNewCostAmountValid && newCost.amount !== '' && (
-              <p className="text-xs text-red-500">Montant &gt; 0 requis.</p>
-            )}
-            <Button size="sm" onClick={handleAddCost} disabled={!isNewCostFormValid} className="w-full">
-              Ajouter
-            </Button>
-          </div>
-        </Card>
-      </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Nom (ex: Loyer)"
+            value={newFixedCostName}
+            onChange={e => setNewFixedCostName(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Montant"
+            value={newFixedCostAmount}
+            onChange={e => setNewFixedCostAmount(e.target.value)}
+            className="w-28 px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D45D79]"
+          />
+          <button
+            onClick={addFixedCost}
+            className="px-4 py-2 bg-[#D45D79] hover:bg-[#C04B67] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+          >
+            +
+          </button>
+        </div>
+      </Card>
     </div>
   );
 };

@@ -56,12 +56,12 @@ export interface Product {
   packagingCost: number;
   lossRate: number; // Taux de perte fabrication (cassé, raté)
   unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
-  packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
+  packagingUsedOnUnsold: boolean; // Est-ce qu'on emballe les invendus ?
   applyLossToPackaging?: boolean;
   targetMargin: number;
-  estimatedMonthlySales: number; 
+  estimatedMonthlySales: number;
   category: string;
-  tvaRate?: number; // Nouveau: Taux de TVA spécifique au produit
+  standardPrice?: number; // Prix de vente réel fixé par l'utilisateur (TTC si TVA, net sinon)
 }
 
 export interface FixedCostItem {
@@ -70,10 +70,13 @@ export interface FixedCostItem {
   amount: number;
 }
 
+export type PricingMode = 'margin' | 'salary';
+
 export interface GlobalSettings {
   currency: string;
   hourlyRate: number;
-  includeLaborInCost: boolean;
+  pricingMode: PricingMode; // 'margin' = MO incluse + marge, 'salary' = MO exclue + objectif salaire
+  salaryTarget: number; // Objectif salaire mensuel net (mode salary)
   fixedCostItems: FixedCostItem[];
   taxRate: number; // Cotisations sociales
   isTvaSubject: boolean; // Assujetti à la TVA ?
@@ -86,6 +89,7 @@ export interface GlobalSettings {
 export interface OrderItem {
   productId: string;
   quantity: number;
+  unitPrice?: number; // Prix unitaire snapshot au moment de la commande
 }
 
 export interface Order {
@@ -95,31 +99,63 @@ export interface Order {
   items: OrderItem[];
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
+  isTvaSubject?: boolean; // TVA snapshot at order creation
 }
 
+// --- Monthly Report: separated lines ---
+
+export interface SaleLine {
+  productId: string;
+  quantity: number;
+  unitPrice: number; // TTC si TVA au moment du snapshot, net sinon
+  isTvaSubject?: boolean; // TVA mode snapshot
+}
+
+export interface UnsoldLine {
+  productId: string;
+  quantity: number;
+}
+
+// Legacy: kept for backward compatibility during import/migration
 export interface MonthlyEntry {
   productId: string;
   quantitySold: number;
-  quantityUnsold: number; // Invendus réels du mois
-  actualPrice: number; // Prix de vente unitaire (TTC si assujetti au moment de la saisie)
-  isTvaSubject?: boolean; // Snapshot: TVA mode when this entry was created/saved
+  quantityUnsold: number;
+  actualPrice: number;
+  isTvaSubject?: boolean;
 }
 
 export interface InventoryEntry {
   ingredientId: string;
-  startStock: number; // Quantity
-  purchasedQuantity: number; // Quantity added this month
-  endStock: number; // Quantity counted at end of month
+  startStock: number;
+  purchasedQuantity: number;
+  endStock: number;
+}
+
+export interface FrozenReportTotals {
+  totalRevenueTTC: number;
+  totalRevenueHT: number;
+  totalTvaCollected: number;
+  foodCost: number;
+  packagingCost: number;
+  socialCharges: number;
+  fixedCosts: number;
+  grossMargin: number;
+  netResult: number;
+  costMode: 0 | 1 | 2;
 }
 
 export interface MonthlyReportData {
   id: string;
   monthStr: string; // YYYY-MM
-  sales: MonthlyEntry[];
+  saleLines: SaleLine[];
+  unsoldLines: UnsoldLine[];
   actualFixedCostItems: FixedCostItem[];
-  actualIngredientSpend: number; // Method 2: Total cash spent
-  inventory: InventoryEntry[]; // Method 3: Stock variation
-  totalRevenue: number;
+  actualIngredientSpend: number;
+  inventory: InventoryEntry[];
+  ingredientPriceMode?: 'standard' | 'average' | 'last';
+  frozenTotals?: FrozenReportTotals;
+  totalRevenue: number; // Compat: TTC revenue
   netResult: number;
-  isLocked: boolean; 
+  isLocked: boolean;
 }

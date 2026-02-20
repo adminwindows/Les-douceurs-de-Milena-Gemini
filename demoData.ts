@@ -19,7 +19,8 @@ export const DEMO_DATASETS: DemoDataset[] = [
       settings: {
         currency: 'EUR',
         hourlyRate: 18,
-        includeLaborInCost: true,
+        pricingMode: 'margin',
+        salaryTarget: 0,
         fixedCostItems: [
           { id: 'dfc1', name: 'Énergie', amount: 55 },
           { id: 'dfc2', name: 'Assurance', amount: 35 }
@@ -85,7 +86,8 @@ export const DEMO_DATASETS: DemoDataset[] = [
       settings: {
         currency: 'EUR',
         hourlyRate: 24,
-        includeLaborInCost: true,
+        pricingMode: 'margin',
+        salaryTarget: 0,
         fixedCostItems: [
           { id: 'wfc1', name: 'Loyer atelier', amount: 540 },
           { id: 'wfc2', name: 'Électricité / froid', amount: 190 },
@@ -138,8 +140,7 @@ export const DEMO_DATASETS: DemoDataset[] = [
           packagingUsedOnUnsold: true,
           targetMargin: 1.8,
           estimatedMonthlySales: 450,
-          category: 'macaron',
-          tvaRate: 5.5
+          category: 'macaron'
         },
         {
           id: 'wp2',
@@ -152,8 +153,7 @@ export const DEMO_DATASETS: DemoDataset[] = [
           packagingUsedOnUnsold: false,
           targetMargin: 1,
           estimatedMonthlySales: 600,
-          category: 'biscuit',
-          tvaRate: 5.5
+          category: 'biscuit'
         }
       ],
       orders: [
@@ -179,7 +179,8 @@ export const DEMO_DATASETS: DemoDataset[] = [
       settings: {
         currency: 'EUR',
         hourlyRate: 16,
-        includeLaborInCost: false,
+        pricingMode: 'salary',
+        salaryTarget: 1200,
         fixedCostItems: [
           { id: 'tfc1', name: 'Loyer', amount: 250 },
           { id: 'tfc2', name: 'Abonnements', amount: 65 }

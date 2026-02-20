@@ -194,6 +194,32 @@ export const UserGuide: React.FC = () => {
       {activeTab === 'advanced' && (
           <div className="space-y-6">
               <Card>
+                  <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">Modes de Tarification</h3>
+                  <div className="space-y-3 text-sm text-stone-600 dark:text-stone-300">
+                    <p>L'application propose deux modes de calcul des prix :</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-bold text-stone-900 dark:text-stone-100 border-b border-stone-200 dark:border-stone-700 pb-2 mb-2">Mode Marge</h4>
+                        <p className="mb-2">La main d'oeuvre est incluse dans le coût de revient. Vous fixez une marge souhaitée par produit.</p>
+                        <ul className="list-disc pl-5 space-y-1 text-stone-500 dark:text-stone-400">
+                          <li>Coût = Matières + Emballage + MO + Charges fixes</li>
+                          <li>Prix = (Coût + Marge) / (1 - taux cotisations)</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-stone-900 dark:text-stone-100 border-b border-stone-200 dark:border-stone-700 pb-2 mb-2">Mode Objectif Salaire</h4>
+                        <p className="mb-2">La MO n'entre pas dans le coût. L'app distribue votre objectif de salaire mensuel sur le volume total estimé.</p>
+                        <ul className="list-disc pl-5 space-y-1 text-stone-500 dark:text-stone-400">
+                          <li>Coût = Matières + Emballage + Charges fixes (pas de MO)</li>
+                          <li>Marge effective = Salaire cible / Volume total estimé</li>
+                          <li>Le simulateur dans l'onglet Analyse montre le salaire atteignable avec vos prix actuels.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+              </Card>
+
+              <Card>
                   <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 mb-4">TVA (ingrédients & ventes)</h3>
                   <div className="space-y-2 text-sm text-stone-600 dark:text-stone-300">
                     <p>En mode <strong>Franchise de TVA</strong>, vous saisissez le prix tel que payé (TTC) et il est utilisé tel quel dans le coût matière.</p>

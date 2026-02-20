@@ -33,21 +33,40 @@ export const calculateRecipeMaterialCost = (recipe: Recipe, ingredients: Ingredi
   return batchCost * (1 + (recipe.lossPercentage / 100));
 };
 
+// ---------------------------------------------------------------------------
+// Product metrics
+// ---------------------------------------------------------------------------
+export interface ProductMetrics {
+  unitMaterialCost: number;
+  laborCost: number;
+  calculatedLaborCost: number;
+  allocatedFixedCost: number;
+  fullCost: number;
+  effectiveMargin: number;
+  totalVariableCosts: number;
+  minPriceBreakeven: number;
+  minPriceBreakevenTTC: number;
+  priceWithMargin: number;
+  priceWithMarginTTC: number;
+  tvaRate: number;
+}
+
 export const calculateProductMetrics = (
   product: Product,
   recipe: Recipe,
   ingredients: Ingredient[],
   settings: GlobalSettings,
   allProducts: Product[]
-) => {
+): ProductMetrics => {
   const isTvaSubject = settings.isTvaSubject;
-  const tvaRate = product.tvaRate ?? settings.defaultTvaRate ?? 0;
+  const tvaRate = isTvaSubject ? (settings.defaultTvaRate ?? 0) : 0;
 
   const batchMaterialCost = calculateRecipeMaterialCost(recipe, ingredients);
   const unitMaterialCost = batchMaterialCost / (recipe.batchYield ?? 1);
 
   const calculatedLaborCost = (product.laborTimeMinutes / 60) * settings.hourlyRate;
-  const laborCost = settings.includeLaborInCost ? calculatedLaborCost : 0;
+  // Margin mode: labor included in cost. Salary mode: labor excluded (salary covers it).
+  const laborCost = settings.pricingMode === 'margin' ? calculatedLaborCost : 0;
 
   const totalEstimatedVolume = allProducts.reduce((sum, p) => sum + (p.estimatedMonthlySales || 0), 0);
   const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
@@ -56,7 +75,8 @@ export const calculateProductMetrics = (
     ? totalFixedCosts / totalEstimatedVolume
     : 0;
 
-  const manufacturingLossMultiplier = 1 / (1 - (product.lossRate / 100));
+  const lossRate = product.lossRate || 0;
+  const manufacturingLossMultiplier = lossRate < 100 ? 1 / (1 - lossRate / 100) : 1;
 
   const sales = product.estimatedMonthlySales ?? 1;
   const unsold = product.unsoldEstimate || 0;
@@ -76,9 +96,17 @@ export const calculateProductMetrics = (
   const socialRateDecimal = settings.taxRate / 100;
   const divisor = 1 - socialRateDecimal;
 
-  const minPriceBreakevenHT = fullCost / divisor;
+  // Effective margin: per-product targetMargin in margin mode,
+  // salary target distributed evenly per estimated unit in salary mode.
+  let effectiveMargin = product.targetMargin;
+  if (settings.pricingMode === 'salary') {
+    effectiveMargin = totalEstimatedVolume > 0
+      ? settings.salaryTarget / totalEstimatedVolume
+      : 0;
+  }
 
-  const priceWithMarginHT = (fullCost + product.targetMargin) / divisor;
+  const minPriceBreakevenHT = divisor > 0 ? fullCost / divisor : fullCost;
+  const priceWithMarginHT = divisor > 0 ? (fullCost + effectiveMargin) / divisor : fullCost + effectiveMargin;
 
   const minPriceBreakevenTTC = isTvaSubject ? minPriceBreakevenHT * (1 + tvaRate / 100) : minPriceBreakevenHT;
   const priceWithMarginTTC = isTvaSubject ? priceWithMarginHT * (1 + tvaRate / 100) : priceWithMarginHT;
@@ -86,21 +114,81 @@ export const calculateProductMetrics = (
   return {
     unitMaterialCost,
     laborCost,
+    calculatedLaborCost,
     allocatedFixedCost,
     fullCost,
+    effectiveMargin,
+    totalVariableCosts,
     minPriceBreakeven: minPriceBreakevenHT,
     minPriceBreakevenTTC,
     priceWithMargin: priceWithMarginHT,
     priceWithMarginTTC,
-    totalVariableCosts,
-    tvaRate: isTvaSubject ? tvaRate : 0
+    tvaRate
   };
 };
 
+// ---------------------------------------------------------------------------
+// Salary simulator
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulate the monthly net salary achievable given current products,
+ * their standardPrices, and settings.
+ *
+ * salary = totalRevenueHT × (1 − taxRate/100) − totalVariableCosts − totalFixedCosts
+ */
+export const simulateMonthlySalary = (
+  products: Product[],
+  recipes: Recipe[],
+  ingredients: Ingredient[],
+  settings: GlobalSettings
+): number => {
+  const tvaRate = settings.defaultTvaRate ?? 0;
+  const isTva = settings.isTvaSubject;
+  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
+
+  let totalRevenueHT = 0;
+  let totalVariableCosts = 0;
+
+  products.forEach(product => {
+    const recipe = recipes.find(r => r.id === product.recipeId);
+    if (!recipe) return;
+
+    const sellingPrice = product.standardPrice ?? 0;
+    if (sellingPrice <= 0) return;
+
+    const sellingPriceHT = isTva ? sellingPrice / (1 + tvaRate / 100) : sellingPrice;
+    const monthlySales = product.estimatedMonthlySales || 0;
+    totalRevenueHT += sellingPriceHT * monthlySales;
+
+    // Variable costs
+    const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
+    const unitCost = batchCost / (recipe.batchYield || 1);
+    const lossRate = product.lossRate || 0;
+    const mfgLossMultiplier = lossRate < 100 ? 1 / (1 - lossRate / 100) : 1;
+    const unsold = product.unsoldEstimate || 0;
+    const materialProductionRatio = monthlySales > 0 ? (monthlySales + unsold) / monthlySales : 1;
+    const materialCost = unitCost * mfgLossMultiplier * materialProductionRatio * monthlySales;
+
+    const packagingQuantity = monthlySales + (product.packagingUsedOnUnsold ? unsold : 0);
+    const packagingLossMultiplier = product.applyLossToPackaging ? mfgLossMultiplier : 1;
+    const packagingCost = product.packagingCost * packagingLossMultiplier * packagingQuantity;
+
+    totalVariableCosts += materialCost + packagingCost;
+  });
+
+  const socialCharges = totalRevenueHT * (settings.taxRate / 100);
+  return totalRevenueHT - totalVariableCosts - totalFixedCosts - socialCharges;
+};
+
+// ---------------------------------------------------------------------------
+// Initial data
+// ---------------------------------------------------------------------------
 export const INITIAL_SETTINGS: GlobalSettings = {
   currency: 'EUR',
   hourlyRate: 15,
-  includeLaborInCost: true,
+  pricingMode: 'margin',
+  salaryTarget: 0,
   fixedCostItems: [
     { id: 'fc1', name: 'Electricité / Eau (quote-part)', amount: 40 },
     { id: 'fc2', name: 'Assurance', amount: 30 },

@@ -356,6 +356,7 @@ const App = () => {
           products={products}
           productionBatches={productionBatches}
           setProductionBatches={setProductionBatches}
+          settings={settings}
         />;
       case 'analysis':
         return <Analysis products={products} recipes={recipes} ingredients={ingredients} settings={settings} purchases={purchases} />;
