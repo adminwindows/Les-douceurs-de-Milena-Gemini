@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Settings } from '../components/views/Settings';
 import { GlobalSettings } from '../types';
 
 describe('Settings salary field', () => {
   it('updates targetMonthlySalary from input', async () => {
-    const user = userEvent.setup();
     let currentSettings: GlobalSettings = {
       currency: 'EUR',
       fixedCostItems: [],
@@ -24,9 +22,7 @@ describe('Settings salary field', () => {
 
     const { rerender } = render(<Settings settings={currentSettings} setSettings={setSettings} />);
     const input = screen.getByLabelText(/salaire net mensuel cible/i);
-
-    await user.clear(input);
-    await user.type(input, '1500');
+    fireEvent.change(input, { target: { value: '1500' } });
     rerender(<Settings settings={currentSettings} setSettings={setSettings} />);
 
     expect(currentSettings.targetMonthlySalary).toBe(1500);

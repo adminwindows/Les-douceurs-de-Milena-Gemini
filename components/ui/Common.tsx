@@ -48,8 +48,10 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, className = '', ...props }) => {
+  const generatedId = React.useId();
+  const inputId = props.id ?? generatedId;
   const isNumeric = props.type === 'number';
-  const { onChange, type, ...restProps } = props;
+  const { onChange, type, id: _ignoredId, ...restProps } = props;
   const numericProps = isNumeric ? { lang: 'en', inputMode: 'decimal' as const, pattern: '[0-9]*[.]?[0-9]*' } : {};
 
   const handleChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -64,12 +66,13 @@ export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, 
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center justify-between">
+      <label htmlFor={inputId} className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center justify-between">
         {label}
         {error && <span className="text-xs text-red-500 dark:text-red-400">{error}</span>}
       </label>
       <div className="relative flex items-center">
         <input
+          id={inputId}
           type={isNumeric ? "text" : type}
           className={`w-full px-3 py-2.5 rounded-lg border text-sm text-stone-900 dark:text-stone-100 transition-shadow focus:outline-none focus:ring-2 bg-white dark:bg-stone-900 ${
             error 
