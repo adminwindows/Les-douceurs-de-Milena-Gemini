@@ -1,8 +1,9 @@
-import { GlobalSettings, Ingredient, MonthlyEntry, Order, Product, Recipe } from './types';
+import { GlobalSettings, Ingredient, MonthlyEntry, Order, Product, Recipe, UnsoldEntry } from './types';
 import { calculateRecipeMaterialCost } from './utils';
 
 export interface MonthlyTotalsInput {
   sales: MonthlyEntry[];
+  unsold: UnsoldEntry[];
   products: Product[];
   recipes: Recipe[];
   ingredients: Ingredient[];
@@ -11,8 +12,6 @@ export interface MonthlyTotalsInput {
   actualIngredientSpend: number;
   inventoryVariationCost: number;
   actualFixedCosts: number;
-  selectedMonth: string;
-  orders: Order[];
 }
 
 export const shouldIncludeOrder = (order: Order, includePending: boolean): boolean => {
@@ -22,52 +21,77 @@ export const shouldIncludeOrder = (order: Order, includePending: boolean): boole
 };
 
 export const computeMonthlyTotals = (input: MonthlyTotalsInput) => {
-  const { sales, products, recipes, ingredients, settings, costMode, actualIngredientSpend, inventoryVariationCost, actualFixedCosts } = input;
-  const isTva = settings.isTvaSubject;
+  const {
+    sales,
+    unsold,
+    products,
+    recipes,
+    ingredients,
+    settings,
+    costMode,
+    actualIngredientSpend,
+    inventoryVariationCost,
+    actualFixedCosts
+  } = input;
 
-  const totalRevenueTTC = sales.reduce((sum, s) => sum + (s.quantitySold * s.actualPrice), 0);
+  const totalRevenueTTC = sales.reduce((sum, line) => sum + (line.quantitySold * line.actualPrice), 0);
+
   let totalRevenueHT = 0;
   let totalTvaCollected = 0;
 
-  // Per-entry TVA interpretation: use the snapshot stored on each entry,
-  // falling back to the current global setting for legacy entries without snapshot.
-  sales.forEach((s) => {
-    const entryWasTva = s.isTvaSubject ?? isTva;
-    const lineTotal = s.quantitySold * s.actualPrice;
-    if (entryWasTva) {
-      const p = products.find(prod => prod.id === s.productId);
-      const tvaRate = p?.tvaRate ?? settings.defaultTvaRate ?? 0;
-      const lineHT = lineTotal / (1 + tvaRate / 100);
+  sales.forEach((line) => {
+    const lineTotal = line.quantitySold * line.actualPrice;
+    const lineTvaRate = line.tvaRate ?? 0;
+    if (lineTvaRate > 0) {
+      const lineHT = lineTotal / (1 + lineTvaRate / 100);
       totalRevenueHT += lineHT;
-      totalTvaCollected += (lineTotal - lineHT);
+      totalTvaCollected += lineTotal - lineHT;
     } else {
       totalRevenueHT += lineTotal;
     }
   });
 
-  const calculatedFoodCost = sales.reduce((sum, s) => {
-    const product = products.find(p => p.id === s.productId);
-    const recipe = recipes.find(r => r.id === product?.recipeId);
-    if (!product || !recipe) return sum;
+  const soldByProduct = new Map<string, number>();
+  sales.forEach((line) => {
+    soldByProduct.set(line.productId, (soldByProduct.get(line.productId) ?? 0) + line.quantitySold);
+  });
+
+  const unsoldByProduct = new Map<string, number>();
+  unsold.forEach((line) => {
+    unsoldByProduct.set(line.productId, (unsoldByProduct.get(line.productId) ?? 0) + line.quantityUnsold);
+  });
+
+  const calculatedFoodCost = products.reduce((sum, product) => {
+    const recipe = recipes.find(entry => entry.id === product.recipeId);
+    if (!recipe) return sum;
+
+    const soldQuantity = soldByProduct.get(product.id) ?? 0;
+    const unsoldQuantity = unsoldByProduct.get(product.id) ?? 0;
+    const producedQuantity = soldQuantity + unsoldQuantity;
+    if (producedQuantity <= 0) return sum;
+
     const batchCost = calculateRecipeMaterialCost(recipe, ingredients);
     const unitCost = batchCost / (recipe.batchYield ?? 1);
-    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
-    return sum + (unitCost * mfgLossMultiplier * (s.quantitySold + (s.quantityUnsold || 0)));
+    const manufacturingLossMultiplier = 1 / (1 - product.lossRate / 100);
+    return sum + (unitCost * manufacturingLossMultiplier * producedQuantity);
   }, 0);
 
-  const finalFoodCost = costMode === 0 ? calculatedFoodCost : (costMode === 1 ? actualIngredientSpend : inventoryVariationCost);
+  const finalFoodCost = costMode === 0
+    ? calculatedFoodCost
+    : (costMode === 1 ? actualIngredientSpend : inventoryVariationCost);
 
-  const totalPackagingCost = sales.reduce((sum, s) => {
-    const product = products.find(p => p.id === s.productId);
-    if (!product) return sum;
-    const packagingUnits = s.quantitySold + (product.packagingUsedOnUnsold ? (s.quantityUnsold || 0) : 0);
-    const mfgLossMultiplier = 1 / (1 - product.lossRate / 100);
-    const packagingLossMultiplier = product.applyLossToPackaging ? mfgLossMultiplier : 1;
+  const totalPackagingCost = products.reduce((sum, product) => {
+    const soldQuantity = soldByProduct.get(product.id) ?? 0;
+    const unsoldQuantity = unsoldByProduct.get(product.id) ?? 0;
+    const packagingUnits = soldQuantity + (product.packagingUsedOnUnsold ? unsoldQuantity : 0);
+    if (packagingUnits <= 0) return sum;
+
+    const manufacturingLossMultiplier = 1 / (1 - product.lossRate / 100);
+    const packagingLossMultiplier = product.applyLossToPackaging ? manufacturingLossMultiplier : 1;
     return sum + (product.packagingCost * packagingUnits * packagingLossMultiplier);
   }, 0);
 
-  const baseForSocialCharges = totalRevenueHT;
-  const totalSocialCharges = baseForSocialCharges * (settings.taxRate / 100);
+  const totalSocialCharges = totalRevenueHT * (settings.taxRate / 100);
   const totalVariableCosts = finalFoodCost + totalPackagingCost + totalSocialCharges;
   const grossMargin = totalRevenueHT - totalVariableCosts;
   const netResult = grossMargin - actualFixedCosts;

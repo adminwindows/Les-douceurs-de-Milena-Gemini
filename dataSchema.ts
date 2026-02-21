@@ -10,8 +10,7 @@ const ingredientSchema = z.object({
   price: z.number(),
   quantity: z.number(),
   costPerBaseUnit: z.number(),
-  helperVatRate: z.number().optional(),
-  needsPriceReview: z.boolean().optional()
+  helperVatRate: z.number().optional()
 });
 
 const purchaseSchema = z.object({
@@ -46,16 +45,15 @@ const productSchema = z.object({
   id: z.string(),
   name: z.string(),
   recipeId: z.string(),
-  laborTimeMinutes: z.number(),
   packagingCost: z.number(),
   lossRate: z.number(),
   unsoldEstimate: z.number(),
   packagingUsedOnUnsold: z.boolean(),
   applyLossToPackaging: z.boolean().default(false),
   targetMargin: z.number(),
+  standardPrice: z.number().optional(),
   estimatedMonthlySales: z.number(),
-  category: z.string(),
-  tvaRate: z.number().optional()
+  category: z.string()
 });
 
 const fixedCostItemSchema = z.object({
@@ -66,18 +64,19 @@ const fixedCostItemSchema = z.object({
 
 const globalSettingsSchema = z.object({
   currency: z.string(),
-  hourlyRate: z.number(),
-  includeLaborInCost: z.boolean().default(true),
   fixedCostItems: z.array(fixedCostItemSchema),
   taxRate: z.number(),
   isTvaSubject: z.boolean(),
   defaultTvaRate: z.number(),
+  pricingStrategy: z.enum(['margin', 'salary']).default('margin'),
+  targetMonthlySalary: z.number().default(0),
   includePendingOrdersInMonthlyReport: z.boolean().optional()
 });
 
 const orderItemSchema = z.object({
   productId: z.string(),
-  quantity: z.number()
+  quantity: z.number(),
+  price: z.number().default(0)
 });
 
 const orderSchema = z.object({
@@ -85,16 +84,24 @@ const orderSchema = z.object({
   customerName: z.string(),
   date: z.string(),
   items: z.array(orderItemSchema),
+  tvaRate: z.number().default(0),
   status: z.enum(['pending', 'completed', 'cancelled']),
   notes: z.string().optional()
 });
 
 const monthlyEntrySchema = z.object({
+  id: z.string().optional(),
   productId: z.string(),
   quantitySold: z.number(),
-  quantityUnsold: z.number(),
   actualPrice: z.number(),
+  tvaRate: z.number().optional(),
+  quantityUnsold: z.number().optional(),
   isTvaSubject: z.boolean().optional()
+});
+
+const unsoldEntrySchema = z.object({
+  productId: z.string(),
+  quantityUnsold: z.number()
 });
 
 const inventoryEntrySchema = z.object({
@@ -108,10 +115,20 @@ const monthlyReportSchema = z.object({
   id: z.string(),
   monthStr: z.string(),
   sales: z.array(monthlyEntrySchema),
+  unsold: z.array(unsoldEntrySchema).default([]),
   actualFixedCostItems: z.array(fixedCostItemSchema),
   actualIngredientSpend: z.number(),
   inventory: z.array(inventoryEntrySchema),
-  totalRevenue: z.number(),
+  costMode: z.union([z.literal(0), z.literal(1), z.literal(2)]).default(0),
+  ingredientPriceMode: z.enum(['average', 'last']).default('average'),
+  totalRevenue: z.number().optional(),
+  totalRevenueTTC: z.number().default(0),
+  totalRevenueHT: z.number().default(0),
+  totalTvaCollected: z.number().default(0),
+  finalFoodCost: z.number().default(0),
+  totalPackagingCost: z.number().default(0),
+  totalSocialCharges: z.number().default(0),
+  actualFixedCosts: z.number().default(0),
   netResult: z.number(),
   isLocked: z.boolean()
 });
@@ -146,12 +163,7 @@ const legacyIngredientSchema = z.object({
   name: asString,
   unit: legacyUnitSchema.default(Unit.G),
   price: asNumber.catch(0),
-  priceAmount: asNumber.optional(),       // legacy: kept for migration
-  priceBasis: z.enum(['TTC', 'HT']).optional(), // legacy: kept for migration
-  vatRate: asNumber.optional(),            // legacy: kept for migration
   helperVatRate: asNumber.optional(),
-  needsPriceReview: z.coerce.boolean().optional(),
-  needsVatReview: z.coerce.boolean().optional(), // legacy: ignored
   quantity: asNumber.catch(0),
   costPerBaseUnit: asNumber.catch(0)
 }).passthrough();
@@ -173,16 +185,15 @@ const legacyProductSchema = z.object({
   id: asString,
   name: asString,
   recipeId: asString,
-  laborTimeMinutes: asNumber.catch(0),
   packagingCost: asNumber.catch(0),
   lossRate: asNumber.catch(0),
   unsoldEstimate: asNumber.catch(0),
   packagingUsedOnUnsold: z.coerce.boolean().catch(true),
   applyLossToPackaging: z.coerce.boolean().catch(false),
   targetMargin: asNumber.catch(0),
+  standardPrice: asNumber.optional(),
   estimatedMonthlySales: asNumber.catch(0),
-  category: asString.catch('Autre'),
-  tvaRate: asNumber.optional()
+  category: asString.catch('Autre')
 }).passthrough();
 
 const legacyFixedCostSchema = z.object({
@@ -193,13 +204,12 @@ const legacyFixedCostSchema = z.object({
 
 const legacySettingsSchema = z.object({
   currency: asString.catch('EUR'),
-  hourlyRate: asNumber.catch(0),
-  includeLaborInCost: z.coerce.boolean().catch(true),
   fixedCostItems: z.array(legacyFixedCostSchema).default([]),
   taxRate: asNumber.catch(0),
   isTvaSubject: z.coerce.boolean().catch(false),
   defaultTvaRate: asNumber.catch(5.5),
-  defaultIngredientVatRate: asNumber.catch(5.5), // legacy: kept for migration
+  pricingStrategy: z.enum(['margin', 'salary']).catch('margin'),
+  targetMonthlySalary: asNumber.catch(0),
   includePendingOrdersInMonthlyReport: z.coerce.boolean().catch(false)
 }).passthrough();
 
@@ -214,8 +224,10 @@ const legacyOrderSchema = z.object({
   date: asString,
   items: z.array(z.object({
     productId: asString,
-    quantity: asNumber.catch(0)
+    quantity: asNumber.catch(0),
+    price: asNumber.catch(0)
   }).passthrough()).default([]),
+  tvaRate: asNumber.optional(),
   status: legacyOrderStatusSchema,
   notes: asString.optional()
 }).passthrough();
@@ -225,9 +237,7 @@ const legacyPurchaseSchema = z.object({
   date: asString,
   ingredientId: asString,
   quantity: asNumber.catch(0),
-  price: asNumber.catch(0),
-  vatRateSnapshot: asNumber.optional(),               // legacy: kept for migration
-  priceBasisSnapshot: z.enum(['TTC', 'HT']).optional() // legacy: kept for migration
+  price: asNumber.catch(0)
 }).passthrough();
 
 const legacyProductionBatchSchema = z.object({
@@ -241,21 +251,36 @@ const legacyReportSchema = z.object({
   id: asString,
   monthStr: asString,
   sales: z.array(z.object({
+    id: asString.optional(),
     productId: asString,
     quantitySold: asNumber.catch(0),
-    quantityUnsold: asNumber.catch(0),
     actualPrice: asNumber.catch(0),
+    tvaRate: asNumber.optional(),
+    quantityUnsold: asNumber.optional(),
     isTvaSubject: z.boolean().optional()
   }).passthrough()).default([]),
+  unsold: z.array(z.object({
+    productId: asString,
+    quantityUnsold: asNumber.catch(0)
+  }).passthrough()).optional(),
   actualFixedCostItems: z.array(legacyFixedCostSchema).default([]),
   actualIngredientSpend: asNumber.catch(0),
+  costMode: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  ingredientPriceMode: z.enum(['average', 'last']).optional(),
   inventory: z.array(z.object({
     ingredientId: asString,
     startStock: asNumber.catch(0),
     purchasedQuantity: asNumber.catch(0),
     endStock: asNumber.catch(0)
   }).passthrough()).default([]),
-  totalRevenue: asNumber.catch(0),
+  totalRevenue: asNumber.optional(),
+  totalRevenueTTC: asNumber.optional(),
+  totalRevenueHT: asNumber.optional(),
+  totalTvaCollected: asNumber.optional(),
+  finalFoodCost: asNumber.optional(),
+  totalPackagingCost: asNumber.optional(),
+  totalSocialCharges: asNumber.optional(),
+  actualFixedCosts: asNumber.optional(),
   netResult: asNumber.catch(0),
   isLocked: z.coerce.boolean().catch(false)
 }).passthrough();

@@ -16,7 +16,7 @@ To use **your own logo image** in the app shell/report, place your file in `publ
 4. `logo-user.webp`
 5. `logo-user.avif`
 
-If none exists, the app automatically falls back to `logo-milena.svg`, then `favicon.svg`.
+If none exists, the app automatically falls back to `logo-milena.svg`.
 
 ## Run Locally
 
@@ -177,10 +177,12 @@ The scripts live in:
 The application currently includes:
 
 * **Catalog management**: ingredients, recipes, and sellable products with validation.
-* **Costing & pricing analytics**: variable costs, labor toggle, fixed-cost allocation, margin targets, TVA-aware pricing (ingredient HT/TTC basis + per-ingredient VAT), and alternate purchase-price analysis modes.
-  * Note: fixed costs are not auto-converted HT/TTC; enter values consistently with your accounting basis.
+* **Costing & pricing analytics**: fixed-cost allocation, minimum price, dual recommendation modes (**Marge cible** and **Salaire cible**), product standard price, and salary helper simulation (units needed per product mix).
+  * TVA is now global-only (`isTvaSubject` + `defaultTvaRate`), with one TVA rate per order and per monthly-sales line.
+  * No labor-cost toggle in pricing formulas.
 * **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
-* **Monthly reporting**: report archiving with inventory-variation and spend-based costing options, explicit completed-order filtering by default (optional pending inclusion), and PDF export for mobile-friendly sharing.
+* **Monthly reporting**: separate sections for sales lines and unsold quantities, duplicate product lines supported (different price/TVA combinations), report archiving with frozen loaded lines, and PDF export.
+  * Theoretical monthly costing supports ingredient price source selection: `Prix moyen lissé` or `Dernier prix`.
 * **Data safety**: local autosave, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
 * **Branding & UX**: bakery logo integrated in app shell/report visuals, improved mobile header fit, and explicit Oui/Non confirmation modal when validating delivered orders.
 * **Quality tooling**: Vitest test suite, typecheck script, and CI workflow for automated checks.

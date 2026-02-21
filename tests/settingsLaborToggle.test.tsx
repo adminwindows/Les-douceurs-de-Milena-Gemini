@@ -4,17 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { Settings } from '../components/views/Settings';
 import { GlobalSettings } from '../types';
 
-describe('Settings labor toggle', () => {
-  it('toggles includeLaborInCost and updates helper text', async () => {
+describe('Settings salary field', () => {
+  it('updates targetMonthlySalary from input', async () => {
     const user = userEvent.setup();
     let currentSettings: GlobalSettings = {
       currency: 'EUR',
-      hourlyRate: 15,
-      includeLaborInCost: true,
       fixedCostItems: [],
       taxRate: 22,
       isTvaSubject: false,
       defaultTvaRate: 5.5,
+      pricingStrategy: 'margin',
+      targetMonthlySalary: 0,
       includePendingOrdersInMonthlyReport: false
     };
 
@@ -22,16 +22,13 @@ describe('Settings labor toggle', () => {
       currentSettings = typeof updater === 'function' ? updater(currentSettings) : updater;
     };
 
-    const { rerender, container } = render(<Settings settings={currentSettings} setSettings={setSettings} />);
+    const { rerender } = render(<Settings settings={currentSettings} setSettings={setSettings} />);
+    const input = screen.getByLabelText(/salaire net mensuel cible/i);
 
-    expect(screen.getByText(/La MO est comptée comme un coût/i)).toBeInTheDocument();
-
-    const laborToggle = container.querySelector('#toggle-labor') as HTMLInputElement;
-    await user.click(laborToggle);
+    await user.clear(input);
+    await user.type(input, '1500');
     rerender(<Settings settings={currentSettings} setSettings={setSettings} />);
 
-    expect(currentSettings.includeLaborInCost).toBe(false);
-    expect(screen.getByText(/La MO est ignorée dans le coût de revient/i)).toBeInTheDocument();
-    expect(screen.getByText(/Utilisé uniquement à titre indicatif/i)).toBeInTheDocument();
+    expect(currentSettings.targetMonthlySalary).toBe(1500);
   });
 });

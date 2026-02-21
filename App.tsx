@@ -28,7 +28,15 @@ import {
 import { DEMO_DATASETS, cloneAppData, getDemoDatasetById } from './demoData';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
 import { BackupSelection, exportBackupFile, getMobileBackupBridge, parseImportedAppData } from './backupIO';
-import { normalizeAppData, normalizeIngredient, normalizeSettings } from './dataMigrations';
+import {
+  normalizeAppData,
+  normalizeIngredient,
+  normalizeMonthlyReport,
+  normalizeOrder,
+  normalizeProduct,
+  normalizePurchase,
+  normalizeSettings
+} from './dataMigrations';
 
 const DataManagerModal = ({
   isOpen, onClose,
@@ -244,7 +252,7 @@ const App = () => {
     setSettings(prev => {
       const nextRaw = typeof updater === 'function' ? updater(prev) : updater;
       const next = normalizeSettings(nextRaw);
-      setIngredients(current => current.map((ingredient) => normalizeIngredient(ingredient, next)));
+      setIngredients(current => current.map(normalizeIngredient));
       return next;
     });
   };
@@ -252,13 +260,13 @@ const App = () => {
   const setAllData = (data: AppData) => {
     const normalized = normalizeAppData(data);
     setIngredients(normalized.ingredients);
-    setRecipes(data.recipes);
+    setRecipes(normalized.recipes);
     setProducts(normalized.products);
     setSettings(normalized.settings);
-    setOrders(data.orders);
-    setSavedReports(data.savedReports);
-    setPurchases(data.purchases);
-    setProductionBatches(data.productionBatches);
+    setOrders(normalized.orders);
+    setSavedReports(normalized.savedReports);
+    setPurchases(normalized.purchases);
+    setProductionBatches(normalized.productionBatches);
   };
 
   const getCurrentData = (): AppData => ({
@@ -297,19 +305,20 @@ const App = () => {
   };
 
   const setData = (key: string, val: any) => {
+    const productsById = new Map<string, Product>(products.map((product): [string, Product] => [product.id, product]));
     switch (key) {
-      case 'ingredients': setIngredients((val as Ingredient[]).map((ingredient) => normalizeIngredient(ingredient, settings))); break;
+      case 'ingredients': setIngredients((val as Ingredient[]).map(normalizeIngredient)); break;
       case 'recipes': setRecipes(val); break;
-      case 'products': setProducts((val as Product[]).map(product => ({ ...product, applyLossToPackaging: product.applyLossToPackaging ?? false }))); break;
+      case 'products': setProducts((val as Product[]).map(normalizeProduct)); break;
       case 'settings': {
         const normalizedSettings = normalizeSettings(val);
         setSettings(normalizedSettings);
-        setIngredients(prev => prev.map((ingredient) => normalizeIngredient(ingredient, normalizedSettings)));
+        setIngredients(prev => prev.map(normalizeIngredient));
         break;
       }
-      case 'orders': setOrders(val); break;
-      case 'savedReports': setSavedReports(val); break;
-      case 'purchases': setPurchases(val); break;
+      case 'orders': setOrders((val as Order[]).map(order => normalizeOrder(order, settings, productsById))); break;
+      case 'savedReports': setSavedReports((val as MonthlyReportData[]).map(report => normalizeMonthlyReport(report, settings))); break;
+      case 'purchases': setPurchases((val as Purchase[]).map(normalizePurchase)); break;
       case 'productionBatches': setProductionBatches(val); break;
     }
   };
@@ -348,7 +357,7 @@ const App = () => {
           orders={orders}
         />;
       case 'products':
-        return <ProductsContent products={products} setProducts={setProducts} recipes={recipes} settings={settings} />;
+        return <ProductsContent products={products} setProducts={setProducts} recipes={recipes} ingredients={ingredients} settings={settings} />;
       case 'orders':
         return <Orders
           orders={orders}
@@ -356,19 +365,20 @@ const App = () => {
           products={products}
           productionBatches={productionBatches}
           setProductionBatches={setProductionBatches}
+          settings={settings}
         />;
       case 'analysis':
-        return <Analysis products={products} recipes={recipes} ingredients={ingredients} settings={settings} purchases={purchases} />;
+        return <Analysis products={products} recipes={recipes} ingredients={ingredients} settings={settings} setSettings={handleSettingsUpdate} purchases={purchases} />;
       case 'report':
         return <MonthlyReport
           products={products}
           settings={settings}
           recipes={recipes}
           ingredients={ingredients}
+          purchases={purchases}
           orders={orders}
           savedReports={savedReports}
           setSavedReports={setSavedReports}
-          setSettings={setSettings}
           productionBatches={productionBatches}
         />;
       case 'shopping':

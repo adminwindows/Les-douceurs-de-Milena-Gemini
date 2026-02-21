@@ -1,107 +1,123 @@
-
-import React, { useState } from 'react';
-import { Product, Recipe, GlobalSettings } from '../../types';
+import React from 'react';
+import { Product, Recipe, GlobalSettings, Ingredient } from '../../types';
 import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
+import { calculateProductMetrics, formatCurrency } from '../../utils';
 
 interface Props {
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   recipes: Recipe[];
-  settings?: GlobalSettings; 
+  ingredients: Ingredient[];
+  settings: GlobalSettings;
 }
 
-// Default categories + user can type new ones
 const DEFAULT_CATEGORIES = ['Gâteau', 'Biscuit', 'Entremet', 'Tarte', 'Viennoiserie', 'Autre'];
 
-export const Products: React.FC<Props> = ({ products, setProducts, recipes }) => {
-  return (
-      <ProductsContent products={products} setProducts={setProducts} recipes={recipes} />
-  );
-};
+const getDefaultDraft = (): Partial<Product> => ({
+  packagingCost: 0.10,
+  lossRate: 0,
+  unsoldEstimate: 0,
+  packagingUsedOnUnsold: true,
+  applyLossToPackaging: false,
+  targetMargin: 0,
+  standardPrice: undefined,
+  estimatedMonthlySales: 0,
+  category: 'Gâteau'
+});
 
-export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = ({ products, setProducts, recipes, settings }) => {
-  const isTvaEnabled = settings?.isTvaSubject || false;
-  const defaultTva = settings?.defaultTvaRate || 5.5;
+export const Products: React.FC<Props> = ({ products, setProducts, recipes, ingredients, settings }) => (
+  <ProductsContent products={products} setProducts={setProducts} recipes={recipes} ingredients={ingredients} settings={settings} />
+);
 
-  const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', {
-    laborTimeMinutes: 15,
-    packagingCost: 0.10,
-
-    lossRate: 0, 
-    unsoldEstimate: 0, 
-    packagingUsedOnUnsold: true, 
-    applyLossToPackaging: false,
-    targetMargin: 0,
-    estimatedMonthlySales: 0,
-    category: 'Gâteau',
-    tvaRate: defaultTva
-  });
-
+export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipes, ingredients, settings }) => {
+  const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', getDefaultDraft());
   const [isCustomCategory, setIsCustomCategory, resetIsCustomCategory] = usePersistentState<boolean>('draft:product:isCustomCategory', false);
   const [editingProductId, setEditingProductId, resetEditingProductId] = usePersistentState<string | null>('draft:product:editingId', null);
 
-  const lossRate = newProduct.lossRate;
-  const isLossRateValid = isPercentage(lossRate);
+  const isLossRateValid = isPercentage(newProduct.lossRate);
   const isEstimatedSalesValid = isPositiveNumber(newProduct.estimatedMonthlySales);
   const isUnsoldEstimateValid = isNonNegativeNumber(newProduct.unsoldEstimate);
-  const isLaborTimeValid = isNonNegativeNumber(newProduct.laborTimeMinutes);
   const isPackagingCostValid = isNonNegativeNumber(newProduct.packagingCost);
   const isTargetMarginValid = isNonNegativeNumber(newProduct.targetMargin);
-  const isTvaRateValid = !isTvaEnabled || isPercentage(newProduct.tvaRate);
+  const isStandardPriceValid = newProduct.standardPrice === undefined || isNonNegativeNumber(newProduct.standardPrice);
   const isProductFormValid = Boolean(
     newProduct.name &&
     newProduct.recipeId &&
     isLossRateValid &&
     isEstimatedSalesValid &&
     isUnsoldEstimateValid &&
-    isLaborTimeValid &&
     isPackagingCostValid &&
     isTargetMarginValid &&
-    isTvaRateValid
+    isStandardPriceValid
   );
 
-  const handleAddProduct = () => {
-    if (!isProductFormValid) return;
+  const buildDraftProduct = (): Product | undefined => {
+    if (!newProduct.name || !newProduct.recipeId) return undefined;
 
-    setProducts([...products, {
-      id: Date.now().toString(),
+    return {
+      id: editingProductId || 'draft',
       name: newProduct.name,
       recipeId: newProduct.recipeId,
-      laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
       packagingCost: Number(newProduct.packagingCost ?? 0),
-
       lossRate: Number(newProduct.lossRate ?? 0),
       unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
       packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
       applyLossToPackaging: !!newProduct.applyLossToPackaging,
       targetMargin: Number(newProduct.targetMargin ?? 0),
+      standardPrice: newProduct.standardPrice,
       estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
-      category: newProduct.category || 'Autre',
-      tvaRate: Number(newProduct.tvaRate ?? defaultTva)
-    }]);
+      category: newProduct.category || 'Autre'
+    };
+  };
 
+  const getPreviewRecommendedPrice = (): number | undefined => {
+    const draftProduct = buildDraftProduct();
+    if (!draftProduct) return undefined;
+    const recipe = recipes.find(entry => entry.id === draftProduct.recipeId);
+    if (!recipe) return undefined;
+
+    const productsForAllocation = editingProductId
+      ? products.map(product => product.id === editingProductId ? draftProduct : product)
+      : [...products, draftProduct];
+    const metrics = calculateProductMetrics(draftProduct, recipe, ingredients, settings, productsForAllocation);
+    return metrics.recommendedPriceTTC;
+  };
+
+  const recommendedPreview = getPreviewRecommendedPrice();
+  const fillStandardPriceIfMissing = (draft: Product): Product => {
+    if (draft.standardPrice !== undefined) return draft;
+    if (recommendedPreview === undefined) return { ...draft, standardPrice: 0 };
+    return { ...draft, standardPrice: Math.round(recommendedPreview * 100) / 100 };
+  };
+
+  const resetForm = () => {
     setNewProduct({
+      ...getDefaultDraft(),
       name: '',
-      laborTimeMinutes: 15,
-      packagingCost: 0.10,
-  
-      lossRate: 0,
-      unsoldEstimate: 0,
-      packagingUsedOnUnsold: true,
-      applyLossToPackaging: false,
-      targetMargin: 0,
-      estimatedMonthlySales: 0,
-      category: 'Gâteau',
-      recipeId: '',
-      tvaRate: defaultTva
+      recipeId: ''
     });
     setIsCustomCategory(false);
   };
 
+  const handleAddProduct = () => {
+    const draft = buildDraftProduct();
+    if (!draft || !isProductFormValid) return;
+    const finalDraft = fillStandardPriceIfMissing(draft);
+
+    setProducts([
+      ...products,
+      {
+        ...finalDraft,
+        id: Date.now().toString()
+      }
+    ]);
+    resetForm();
+  };
+
   const handleDeleteProduct = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
+    setProducts(products.filter(product => product.id !== id));
   };
 
   const handleStartEditProduct = (product: Product) => {
@@ -112,51 +128,21 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
 
   const handleCancelEdit = () => {
     setEditingProductId(null);
-    setNewProduct({
-      name: '',
-      laborTimeMinutes: 15,
-      packagingCost: 0.10,
-  
-      lossRate: 0,
-      unsoldEstimate: 0,
-      packagingUsedOnUnsold: true,
-      applyLossToPackaging: false,
-      targetMargin: 0,
-      estimatedMonthlySales: 0,
-      category: 'Gâteau',
-      recipeId: '',
-      tvaRate: defaultTva
-    });
-    setIsCustomCategory(false);
+    resetForm();
   };
 
   const handleSaveEditedProduct = () => {
-    if (!editingProductId || !isProductFormValid) return;
+    const draft = buildDraftProduct();
+    if (!editingProductId || !draft || !isProductFormValid) return;
+    const finalDraft = fillStandardPriceIfMissing(draft);
 
-    setProducts(products.map(product =>
+    setProducts(products.map(product => (
       product.id === editingProductId
-        ? {
-            ...product,
-            name: newProduct.name!,
-            recipeId: newProduct.recipeId!,
-            laborTimeMinutes: Number(newProduct.laborTimeMinutes ?? 0),
-            packagingCost: Number(newProduct.packagingCost ?? 0),
-      
-            lossRate: Number(newProduct.lossRate ?? 0),
-            unsoldEstimate: Number(newProduct.unsoldEstimate ?? 0),
-            packagingUsedOnUnsold: !!newProduct.packagingUsedOnUnsold,
-            applyLossToPackaging: !!newProduct.applyLossToPackaging,
-            targetMargin: Number(newProduct.targetMargin ?? 0),
-            estimatedMonthlySales: Number(newProduct.estimatedMonthlySales ?? 0),
-            category: newProduct.category || 'Autre',
-            tvaRate: Number(newProduct.tvaRate ?? defaultTva)
-          }
+        ? { ...finalDraft, id: product.id }
         : product
-    ));
-
+    )));
     handleCancelEdit();
   };
-
 
   const confirmCancelProductDraft = () => {
     const hasDraft = Boolean(newProduct.name || newProduct.recipeId || (newProduct.category && newProduct.category !== 'Gâteau'));
@@ -169,128 +155,156 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
   };
 
   const categoryOptions = [
-    ...DEFAULT_CATEGORIES.map(c => ({ value: c, label: c })),
+    ...DEFAULT_CATEGORIES.map(category => ({ value: category, label: category })),
     { value: 'custom__', label: '+ Autre / Nouveau...' }
   ];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Form */}
       <div className="lg:col-span-4">
         <Card className="lg:sticky lg:top-24 border-rose-200 dark:border-rose-800 shadow-rose-100/50 dark:shadow-none">
           <h3 className="text-xl font-bold text-rose-950 dark:text-rose-100 font-serif mb-6 flex items-center gap-2">
             {editingProductId ? 'Modifier le Produit' : 'Nouveau Produit'}
-            <InfoTooltip text="Un produit est ce que vous vendez au client. Il est basé sur une recette." />
+            <InfoTooltip text="Le prix standard est votre prix de vente habituel. Il est repris automatiquement dans les commandes." />
           </h3>
-          
+
           <div className="space-y-5">
-            <Input 
-              label="Nom commercial" 
+            <Input
+              label="Nom commercial"
               placeholder="Ex: Cookie Géant Pépites"
-              value={newProduct.name || ''} 
-              onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
+              value={newProduct.name || ''}
+              onChange={event => setNewProduct({ ...newProduct, name: event.target.value })}
               data-testid="product-name-input"
             />
-            
+
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-stone-700 dark:text-stone-300">Recette de base</label>
               <select
                 className="px-3 py-2.5 rounded-lg border border-stone-300 dark:border-stone-600 text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900 focus:border-[#D45D79] shadow-sm"
                 value={newProduct.recipeId || ''}
-                onChange={e => setNewProduct({...newProduct, recipeId: e.target.value})}
+                onChange={event => setNewProduct({ ...newProduct, recipeId: event.target.value })}
                 data-testid="product-recipe-select"
               >
                 <option value="">Sélectionner une recette...</option>
-                {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {recipes.map(recipe => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}
               </select>
             </div>
 
             {isCustomCategory ? (
-                <div className="flex flex-col gap-1.5">
-                   <label className="text-sm font-bold text-stone-700 dark:text-stone-300">Catégorie</label>
-                   <div className="flex gap-2">
-                     <input 
-                       className="w-full px-3 py-2.5 rounded-lg border border-stone-300 dark:border-stone-600 text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900 focus:border-[#D45D79] shadow-sm"
-                       value={newProduct.category}
-                       onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                       placeholder="Nom de la catégorie"
-                       autoFocus
-                     />
-                     <Button variant="secondary" onClick={() => { setIsCustomCategory(false); setNewProduct({...newProduct, category: 'Gâteau'}); }}>
-                       Liste
-                     </Button>
-                   </div>
-                </div>
-            ) : (
-                <Select
-                    label="Catégorie"
-                    options={categoryOptions}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-stone-700 dark:text-stone-300">Catégorie</label>
+                <div className="flex gap-2">
+                  <input
+                    className="w-full px-3 py-2.5 rounded-lg border border-stone-300 dark:border-stone-600 text-sm bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900 focus:border-[#D45D79] shadow-sm"
                     value={newProduct.category}
-                    onChange={(e) => {
-                        if (e.target.value === 'custom__') {
-                            setIsCustomCategory(true);
-                            setNewProduct({...newProduct, category: ''});
-                        } else {
-                            setNewProduct({...newProduct, category: e.target.value});
-                        }
-                    }}
-                />
+                    onChange={event => setNewProduct({ ...newProduct, category: event.target.value })}
+                    placeholder="Nom de la catégorie"
+                    autoFocus
+                  />
+                  <Button variant="secondary" onClick={() => { setIsCustomCategory(false); setNewProduct({ ...newProduct, category: 'Gâteau' }); }}>
+                    Liste
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Select
+                label="Catégorie"
+                options={categoryOptions}
+                value={newProduct.category}
+                onChange={(event) => {
+                  if (event.target.value === 'custom__') {
+                    setIsCustomCategory(true);
+                    setNewProduct({ ...newProduct, category: '' });
+                  } else {
+                    setNewProduct({ ...newProduct, category: event.target.value });
+                  }
+                }}
+              />
             )}
 
             <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700 grid grid-cols-2 gap-4">
-               <Input 
-               label="Ventes / mois" 
+              <Input
+                label="Ventes / mois"
                 type="number"
                 suffix="u"
-                value={newProduct.estimatedMonthlySales ?? ''} 
-                onChange={e => setNewProduct({...newProduct, estimatedMonthlySales: parseOptionalNumber(e.target.value)})} 
+                value={newProduct.estimatedMonthlySales ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, estimatedMonthlySales: parseOptionalNumber(event.target.value) })}
                 helperText="Prévision"
                 error={isEstimatedSalesValid ? undefined : '> 0'}
                 data-testid="product-sales-input"
               />
-               <Input 
-                label="Invendus est." 
+              <Input
+                label="Invendus est."
                 type="number"
                 suffix="u"
-                value={newProduct.unsoldEstimate ?? ''} 
-                onChange={e => setNewProduct({...newProduct, unsoldEstimate: parseOptionalNumber(e.target.value)})} 
+                value={newProduct.unsoldEstimate ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, unsoldEstimate: parseOptionalNumber(event.target.value) })}
                 helperText="Pertes produits finis"
                 error={isUnsoldEstimateValid ? undefined : '≥ 0'}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Input 
-                label="Main d'œuvre" 
-                type="number"
-                suffix="min"
-                value={newProduct.laborTimeMinutes ?? ''} 
-                onChange={e => setNewProduct({...newProduct, laborTimeMinutes: parseOptionalNumber(e.target.value)})} 
-                helperText="Temps/unité"
-                error={isLaborTimeValid ? undefined : '≥ 0'}
-              />
-               <Input 
-                label={`Emballage ${isTvaEnabled ? 'HT' : ''}`}
+              <Input
+                label={`Emballage ${settings.isTvaSubject ? 'HT' : ''}`}
                 type="number"
                 step="0.01"
                 suffix="€"
-                value={newProduct.packagingCost ?? ''} 
-                onChange={e => setNewProduct({...newProduct, packagingCost: parseOptionalNumber(e.target.value)})} 
+                value={newProduct.packagingCost ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, packagingCost: parseOptionalNumber(event.target.value) })}
                 error={isPackagingCostValid ? undefined : '≥ 0'}
               />
+              <Input
+                label="Marge cible"
+                type="number"
+                step="0.10"
+                suffix="€"
+                value={newProduct.targetMargin ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, targetMargin: parseOptionalNumber(event.target.value) })}
+                helperText="Mode Marge cible"
+                error={isTargetMarginValid ? undefined : '≥ 0'}
+              />
             </div>
-            
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label={`Prix standard ${settings.isTvaSubject ? 'TTC' : ''}`}
+                type="number"
+                step="0.01"
+                suffix="€"
+                value={newProduct.standardPrice ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, standardPrice: parseOptionalNumber(event.target.value) })}
+                helperText="Laissez vide pour utiliser le prix conseillé."
+                error={isStandardPriceValid ? undefined : '≥ 0'}
+              />
+              <Input
+                label="Perte Fab."
+                type="number"
+                suffix="%"
+                value={newProduct.lossRate ?? ''}
+                onChange={event => setNewProduct({ ...newProduct, lossRate: parseOptionalNumber(event.target.value) })}
+                error={!isLossRateValid ? '< 100%' : undefined}
+                data-testid="product-loss-input"
+              />
+            </div>
+
+            {recommendedPreview !== undefined && (
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Prix conseillé ({settings.pricingStrategy === 'salary' ? 'mode salaire' : 'mode marge'}): <strong>{formatCurrency(recommendedPreview)}</strong>
+              </p>
+            )}
+
             <div className="flex items-center gap-2">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="packagingOnUnsold"
                 className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500"
                 checked={newProduct.packagingUsedOnUnsold}
-                onChange={e => setNewProduct({...newProduct, packagingUsedOnUnsold: e.target.checked})}
+                onChange={event => setNewProduct({ ...newProduct, packagingUsedOnUnsold: event.target.checked })}
               />
               <label htmlFor="packagingOnUnsold" className="text-sm text-stone-600 dark:text-stone-400 cursor-pointer">
-                L'emballage est perdu si invendu ? 
-                <span className="block text-xs text-stone-400 dark:text-stone-500">Si non coché, le coût emballage ne s'applique pas aux invendus.</span>
+                L'emballage est perdu si invendu ?
+                <span className="block text-xs text-stone-400 dark:text-stone-500">Si non coché, l'emballage n'est pas compté sur les invendus.</span>
               </label>
             </div>
             <div className="flex items-center gap-2">
@@ -299,79 +313,27 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                 id="applyLossToPackaging"
                 className="w-4 h-4 text-rose-600 rounded focus:ring-rose-500"
                 checked={newProduct.applyLossToPackaging ?? false}
-                onChange={e => setNewProduct({ ...newProduct, applyLossToPackaging: e.target.checked })}
+                onChange={event => setNewProduct({ ...newProduct, applyLossToPackaging: event.target.checked })}
               />
               <label htmlFor="applyLossToPackaging" className="text-sm text-stone-600 dark:text-stone-400 cursor-pointer">
-                Appliquer la perte de fabrication à l'emballage
-                <span className="block text-xs text-stone-400 dark:text-stone-500">Désactivé par défaut : l'emballage n'est pas majoré par 1/(1-perte).</span>
+                Appliquer la perte fabrication à l'emballage
+                <span className="block text-xs text-stone-400 dark:text-stone-500">Désactivé par défaut.</span>
               </label>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <Input 
-                  label="Perte Fab." 
-                  type="number"
-                  suffix="%"
-                  value={newProduct.lossRate ?? ''} 
-                  onChange={e => setNewProduct({...newProduct, lossRate: parseOptionalNumber(e.target.value)})} 
-                  error={!isLossRateValid ? "< 100%" : undefined}
-                  data-testid="product-loss-input"
-                />
-                <div className="text-[10px] text-stone-400 dark:text-stone-500 leading-tight">
-                  % pâte/gâteaux ratés (fabrication).
-                </div>
-              </div>
-              <Input 
-                label="Marge cible" 
-                type="number"
-                step="0.10"
-                suffix="€"
-                value={newProduct.targetMargin ?? ''} 
-                onChange={e => setNewProduct({...newProduct, targetMargin: parseOptionalNumber(e.target.value)})} 
-                helperText="Profit net souhaité"
-                error={isTargetMarginValid ? undefined : '≥ 0'}
-              />
-            </div>
-
-            {isTvaEnabled && (
-               <Input 
-                label="Taux TVA" 
-                type="number"
-                step="0.1"
-                suffix="%"
-                value={newProduct.tvaRate ?? ''} 
-                onChange={e => setNewProduct({...newProduct, tvaRate: parseOptionalNumber(e.target.value)})} 
-                helperText={`Par défaut: ${defaultTva}%`}
-                error={isTvaRateValid ? undefined : '< 100%'}
-              />
-            )}
-
             {editingProductId ? (
               <div className="grid grid-cols-2 gap-2 mt-4">
-                <Button
-                  variant="secondary"
-                  className="py-3"
-                  onClick={handleCancelEdit}
-                >
+                <Button variant="secondary" className="py-3" onClick={handleCancelEdit}>
                   Annuler
                 </Button>
-                <Button
-                  className="py-3 shadow-md"
-                  onClick={handleSaveEditedProduct}
-                  disabled={!isProductFormValid}
-                >
+                <Button className="py-3 shadow-md" onClick={handleSaveEditedProduct} disabled={!isProductFormValid}>
                   Enregistrer
                 </Button>
               </div>
             ) : (
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={confirmCancelProductDraft}>Annuler</Button>
-                <Button
-                  className="w-full mt-4 py-3 shadow-md"
-                  onClick={handleAddProduct}
-                  disabled={!isProductFormValid}
-                >
+                <Button className="w-full mt-4 py-3 shadow-md" onClick={handleAddProduct} disabled={!isProductFormValid}>
                   Ajouter au Catalogue
                 </Button>
               </div>
@@ -380,10 +342,9 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
         </Card>
       </div>
 
-      {/* List */}
       <div className="lg:col-span-8 space-y-6">
         <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100 font-serif">Catalogue ({products.length})</h3>
-        
+
         {products.length === 0 ? (
           <div className="bg-stone-50 dark:bg-stone-900 border border-dashed border-stone-300 dark:border-stone-700 rounded-xl p-12 text-center">
             <p className="text-stone-500 dark:text-stone-400 mb-2">Votre catalogue est vide.</p>
@@ -392,9 +353,8 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {products.map(product => {
-              const recipe = recipes.find(r => r.id === product.recipeId);
-              const tvaDisplay = isTvaEnabled ? `(TVA ${product.tvaRate ?? defaultTva}%)` : '';
-              
+              const recipe = recipes.find(entry => entry.id === product.recipeId);
+
               return (
                 <Card key={product.id} className="hover:border-rose-300 dark:hover:border-rose-700 transition-colors group flex flex-col h-full">
                   <div className="flex justify-between items-start mb-3">
@@ -421,35 +381,35 @@ export const ProductsContent: React.FC<Props & { settings?: GlobalSettings }> = 
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-y-2 text-sm text-stone-600 dark:text-stone-400 mb-4 flex-1">
                     <div className="col-span-2 flex items-center justify-between border-b border-stone-100 dark:border-stone-700 pb-1 mb-1">
-                       <span className="text-stone-400 dark:text-stone-500">Recette</span>
-                       <span className="font-medium truncate max-w-[150px]">{recipe?.name || 'Inconnue'}</span>
+                      <span className="text-stone-400 dark:text-stone-500">Recette</span>
+                      <span className="font-medium truncate max-w-[150px]">{recipe?.name || 'Inconnue'}</span>
                     </div>
                     <div className="col-span-2 grid grid-cols-2 gap-2 text-xs text-stone-500 dark:text-stone-400">
-                        <div>
-                            <span className="block text-stone-400 dark:text-stone-500">Emballage</span>
-                            <span className="font-semibold">{product.packagingCost}€</span>
-                        </div>
-                        <div>
-                            <span className="block text-stone-400 dark:text-stone-500">MO</span>
-                            <span className="font-semibold">{product.laborTimeMinutes} min</span>
-                        </div>
-                        <div>
-                            <span className="block text-stone-400 dark:text-stone-500">Pertes Fab.</span>
-                            <span className="font-semibold">{product.lossRate}%</span>
-                        </div>
-                        <div>
-                            <span className="block text-stone-400 dark:text-stone-500">Invendus est.</span>
-                            <span className="font-semibold">{product.unsoldEstimate} u/mois</span>
-                        </div>
+                      <div>
+                        <span className="block text-stone-400 dark:text-stone-500">Emballage</span>
+                        <span className="font-semibold">{product.packagingCost}€</span>
+                      </div>
+                      <div>
+                        <span className="block text-stone-400 dark:text-stone-500">Prix standard</span>
+                        <span className="font-semibold">{formatCurrency(product.standardPrice ?? 0)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-stone-400 dark:text-stone-500">Pertes Fab.</span>
+                        <span className="font-semibold">{product.lossRate}%</span>
+                      </div>
+                      <div>
+                        <span className="block text-stone-400 dark:text-stone-500">Invendus est.</span>
+                        <span className="font-semibold">{product.unsoldEstimate} u/mois</span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center text-xs text-[#D45D79] dark:text-rose-400 font-medium mt-2 pt-2 border-t border-stone-50 dark:border-stone-700">
                     <span className="text-stone-400 dark:text-stone-500">Volume: <strong className="text-stone-600 dark:text-stone-300">{product.estimatedMonthlySales}</strong>/mois</span>
-                    <span>Analyse {tvaDisplay} &rarr;</span>
+                    <span>Analyse →</span>
                   </div>
                 </Card>
               );

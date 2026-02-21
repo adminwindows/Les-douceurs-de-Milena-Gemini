@@ -15,7 +15,6 @@ export interface Ingredient {
   quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
   costPerBaseUnit: number;
   helperVatRate?: number; // UI-only: last TVA rate used in TTC→HT converter (prefill convenience)
-  needsPriceReview?: boolean; // One-time migration flag: price was auto-converted from TTC to HT
 }
 
 // Nouveau : Journal des achats pour gérer les variations de prix
@@ -52,16 +51,15 @@ export interface Product {
   id: string;
   name: string;
   recipeId: string;
-  laborTimeMinutes: number;
   packagingCost: number;
   lossRate: number; // Taux de perte fabrication (cassé, raté)
   unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
   packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
   applyLossToPackaging?: boolean;
   targetMargin: number;
+  standardPrice?: number; // Prix de vente standard choisi par l'utilisateur
   estimatedMonthlySales: number; 
   category: string;
-  tvaRate?: number; // Nouveau: Taux de TVA spécifique au produit
 }
 
 export interface FixedCostItem {
@@ -72,12 +70,12 @@ export interface FixedCostItem {
 
 export interface GlobalSettings {
   currency: string;
-  hourlyRate: number;
-  includeLaborInCost: boolean;
   fixedCostItems: FixedCostItem[];
   taxRate: number; // Cotisations sociales
   isTvaSubject: boolean; // Assujetti à la TVA ?
   defaultTvaRate: number; // Taux TVA ventes par défaut (ex: 5.5)
+  pricingStrategy: 'margin' | 'salary';
+  targetMonthlySalary: number;
   includePendingOrdersInMonthlyReport?: boolean;
 }
 
@@ -86,6 +84,7 @@ export interface GlobalSettings {
 export interface OrderItem {
   productId: string;
   quantity: number;
+  price: number;
 }
 
 export interface Order {
@@ -93,16 +92,22 @@ export interface Order {
   customerName: string;
   date: string; // YYYY-MM-DD
   items: OrderItem[];
+  tvaRate: number; // Un seul taux de TVA pour toute la commande
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
 }
 
 export interface MonthlyEntry {
+  id: string;
   productId: string;
-  quantitySold: number;
-  quantityUnsold: number; // Invendus réels du mois
-  actualPrice: number; // Prix de vente unitaire (TTC si assujetti au moment de la saisie)
-  isTvaSubject?: boolean; // Snapshot: TVA mode when this entry was created/saved
+  quantitySold: number; // Quantité vendue sur cette ligne (même produit possible sur plusieurs lignes)
+  actualPrice: number; // Prix de vente unitaire réellement pratiqué
+  tvaRate?: number; // Taux de TVA appliqué à cette ligne; undefined pour anciennes lignes sans info
+}
+
+export interface UnsoldEntry {
+  productId: string;
+  quantityUnsold: number;
 }
 
 export interface InventoryEntry {
@@ -116,10 +121,19 @@ export interface MonthlyReportData {
   id: string;
   monthStr: string; // YYYY-MM
   sales: MonthlyEntry[];
+  unsold: UnsoldEntry[];
   actualFixedCostItems: FixedCostItem[];
   actualIngredientSpend: number; // Method 2: Total cash spent
   inventory: InventoryEntry[]; // Method 3: Stock variation
-  totalRevenue: number;
+  costMode: 0 | 1 | 2;
+  ingredientPriceMode: 'average' | 'last';
+  totalRevenueTTC: number;
+  totalRevenueHT: number;
+  totalTvaCollected: number;
+  finalFoodCost: number;
+  totalPackagingCost: number;
+  totalSocialCharges: number;
+  actualFixedCosts: number;
   netResult: number;
   isLocked: boolean; 
 }

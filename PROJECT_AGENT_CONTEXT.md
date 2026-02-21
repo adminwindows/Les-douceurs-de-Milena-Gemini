@@ -739,3 +739,92 @@ Validation:
 Files modified:
 - `components/views/MonthlyReport.tsx`
 - `PROJECT_AGENT_CONTEXT.md`
+
+## 35) Latest Turn Update (user requested full transcript reconstruction + implementation plan, no code yet)
+
+User request:
+- Provided transcript file: `c:\Users\okyas\Downloads\Nouveau Document texte.txt`.
+- Asked for a full retranscription of the conversation iterations (requests, agent answers, mistakes, corrections).
+- Asked for a detailed final-deliverable plan that any agent can execute without conversation history.
+- Explicitly requested: do **not** implement yet.
+
+Actions taken:
+- Loaded and read the full transcript file in chunks to avoid output truncation.
+- Prepared a turn-by-turn reconstruction and a standalone implementation plan response.
+- Did not modify feature code in this turn.
+
+Validation:
+- Transcript file readability confirmed via PowerShell (`Get-Content`) in 3 chunks.
+
+## 36) Latest Turn Update (full redesign implemented: global TVA, pricing modes, orders/report revamp)
+
+User request:
+- "ok now implement. be careful do not forget anything"
+- Scope from prior transcript confirmations:
+  - remove per-product TVA and labor-cost model,
+  - keep global TVA only,
+  - add product standard price + order-level TVA + per-item order price,
+  - monthly report split (sales vs unsold), frozen loaded lines, duplicate sales lines,
+  - keep minimum price and add salary-based recommendation mode alongside margin mode,
+  - add salary helper in Analysis,
+  - add monthly theoretical ingredient source choice (last vs average),
+  - update docs/guide/context.
+
+Actions implemented:
+- **Domain model + schemas**
+  - Updated `types.ts`:
+    - removed `laborTimeMinutes`, per-product `tvaRate`, ingredient `needsPriceReview`,
+    - added `settings.pricingStrategy`, `settings.targetMonthlySalary`,
+    - added `product.standardPrice`,
+    - updated orders to `order.tvaRate` + `orderItem.price`,
+    - refactored monthly report to `sales` lines + separate `unsold` lines,
+    - expanded saved monthly totals fields (`TTC/HT/TVA/cost buckets`).
+  - Updated `dataSchema.ts` strict+legacy parsing for new shapes, with compatibility defaults for old persisted states.
+- **Migrations / normalization**
+  - Rewrote `dataMigrations.ts`:
+    - simplified ingredient normalization (HT model, keep `helperVatRate` only),
+    - removed old TTC->HT legacy migration behavior tied to `priceBasis/vatRate`,
+    - added normalization for products, orders (default/fallback prices + order TVA),
+    - added monthly report normalization (legacy sales/unsold/totals fallback + id generation).
+- **Core calculations**
+  - Rewrote `utils.ts`:
+    - kept min price,
+    - kept margin recommendation,
+    - added salary recommendation,
+    - added active recommendation selection via `pricingStrategy`,
+    - added ingredient price-mode helper (`standard|average|last`),
+    - added salary helper estimator for units-to-sell projection.
+  - Rewrote `monthlyReportMath.ts`:
+    - per-line TVA decomposition,
+    - separate sold/unsold inputs,
+    - packaging + food costs based on sold + unsold by product.
+- **UI refactors**
+  - `Settings.tsx`: removed labor controls, added salary target, kept global TVA config and monthly pending-order toggle.
+  - `Products.tsx`: removed labor/per-product TVA fields; added standard price with recommended prefill fallback.
+  - `Orders.tsx`: added order TVA input + per-item price input (prefill from standard price).
+  - `Analysis.tsx`: added pricing mode selector (margin/salary), salary helper block (in margin mode), and updated cost basis controls.
+  - `MonthlyReport.tsx`: rebuilt around sales lines + separate unsold section, duplicate product lines, grouped initialization from orders (`product+price+orderTVA`), frozen loaded lines, additive totals on top of frozen saved totals.
+  - `StockManagement.tsx`: removed `needsPriceReview` UI remnants; kept `helperVatRate` memory flow.
+  - `UserGuide.tsx`: updated all guide tabs for new model/flows.
+  - `App.tsx`: rewired props and normalization paths for new contracts.
+- **Demo/test/docs**
+  - Rebuilt `demoData.ts` to new schema (settings/products/orders).
+  - Rewrote/updated tests:
+    - `tests/utils.test.ts`
+    - `tests/monthlyReportMath.test.ts`
+    - `tests/products.test.tsx`
+    - `tests/settingsLaborToggle.test.tsx` (now validates salary setting behavior)
+    - `tests/importSchema.test.ts`
+    - `tests/backupIO.test.ts`
+  - Updated docs:
+    - `docs/formulas-spec.md`
+    - `README.md` (scope text + logo fallback note)
+    - `CHANGELOG.md`
+
+Validation run:
+- `cmd /c npm run typecheck` ✅ pass
+- `cmd /c npm run test -- --run` ❌ blocked in environment (`spawn EPERM` from esbuild/vite startup)
+- `cmd /c npm run build` ❌ blocked in environment (`spawn EPERM` from esbuild/vite startup)
+
+Notes:
+- Due environment `spawn EPERM`, tests/build could not be executed here; typecheck is clean.

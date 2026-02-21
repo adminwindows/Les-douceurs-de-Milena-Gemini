@@ -18,15 +18,16 @@ export const DEMO_DATASETS: DemoDataset[] = [
     data: {
       settings: {
         currency: 'EUR',
-        hourlyRate: 18,
-        includeLaborInCost: true,
         fixedCostItems: [
           { id: 'dfc1', name: 'Énergie', amount: 55 },
           { id: 'dfc2', name: 'Assurance', amount: 35 }
         ],
         taxRate: 22,
         isTvaSubject: false,
-        defaultTvaRate: 5.5
+        defaultTvaRate: 5.5,
+        pricingStrategy: 'margin',
+        targetMonthlySalary: 1200,
+        includePendingOrdersInMonthlyReport: false
       },
       ingredients: [
         { id: 'di1', name: 'Farine T45', unit: Unit.KG, price: 1.35, quantity: 2.5, costPerBaseUnit: 0.00135 },
@@ -53,19 +54,34 @@ export const DEMO_DATASETS: DemoDataset[] = [
           id: 'dp1',
           name: 'Tartelettes nature',
           recipeId: 'dr1',
-          laborTimeMinutes: 7,
           packagingCost: 0.2,
           lossRate: 2,
           unsoldEstimate: 1,
           packagingUsedOnUnsold: false,
+          applyLossToPackaging: false,
           targetMargin: 1.6,
+          standardPrice: 3.8,
           estimatedMonthlySales: 60,
           category: 'tartelette'
         }
       ],
       orders: [
-        { id: 'do1', customerName: 'Claire M.', date: today, items: [{ productId: 'dp1', quantity: 12 }], status: 'pending' },
-        { id: 'do2', customerName: 'Boulangerie Nova', date: today, items: [{ productId: 'dp1', quantity: 20 }], status: 'completed' }
+        {
+          id: 'do1',
+          customerName: 'Claire M.',
+          date: today,
+          items: [{ productId: 'dp1', quantity: 12, price: 3.8 }],
+          tvaRate: 0,
+          status: 'pending'
+        },
+        {
+          id: 'do2',
+          customerName: 'Boulangerie Nova',
+          date: today,
+          items: [{ productId: 'dp1', quantity: 20, price: 3.8 }],
+          tvaRate: 0,
+          status: 'completed'
+        }
       ],
       savedReports: [],
       purchases: [
@@ -84,8 +100,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
     data: {
       settings: {
         currency: 'EUR',
-        hourlyRate: 24,
-        includeLaborInCost: true,
         fixedCostItems: [
           { id: 'wfc1', name: 'Loyer atelier', amount: 540 },
           { id: 'wfc2', name: 'Électricité / froid', amount: 190 },
@@ -93,7 +107,10 @@ export const DEMO_DATASETS: DemoDataset[] = [
         ],
         taxRate: 23,
         isTvaSubject: true,
-        defaultTvaRate: 5.5
+        defaultTvaRate: 5.5,
+        pricingStrategy: 'margin',
+        targetMonthlySalary: 2500,
+        includePendingOrdersInMonthlyReport: false
       },
       ingredients: [
         { id: 'wi1', name: 'Farine', unit: Unit.KG, price: 1.5, quantity: 24, costPerBaseUnit: 0.0015 },
@@ -131,34 +148,48 @@ export const DEMO_DATASETS: DemoDataset[] = [
           id: 'wp1',
           name: 'Macaron prestige',
           recipeId: 'wr1',
-          laborTimeMinutes: 10,
           packagingCost: 0.28,
           lossRate: 7,
           unsoldEstimate: 10,
           packagingUsedOnUnsold: true,
+          applyLossToPackaging: false,
           targetMargin: 1.8,
+          standardPrice: 3.5,
           estimatedMonthlySales: 450,
-          category: 'macaron',
-          tvaRate: 5.5
+          category: 'macaron'
         },
         {
           id: 'wp2',
           name: 'Sablé premium',
           recipeId: 'wr2',
-          laborTimeMinutes: 5,
           packagingCost: 0.12,
           lossRate: 2,
           unsoldEstimate: 8,
           packagingUsedOnUnsold: false,
+          applyLossToPackaging: false,
           targetMargin: 1,
+          standardPrice: 2.9,
           estimatedMonthlySales: 600,
-          category: 'biscuit',
-          tvaRate: 5.5
+          category: 'biscuit'
         }
       ],
       orders: [
-        { id: 'wo1', customerName: 'Mariage Dupont', date: today, items: [{ productId: 'wp1', quantity: 180 }], status: 'pending' },
-        { id: 'wo2', customerName: 'Traiteur Rivière', date: today, items: [{ productId: 'wp2', quantity: 220 }], status: 'completed' }
+        {
+          id: 'wo1',
+          customerName: 'Mariage Dupont',
+          date: today,
+          items: [{ productId: 'wp1', quantity: 180, price: 3.5 }],
+          tvaRate: 5.5,
+          status: 'pending'
+        },
+        {
+          id: 'wo2',
+          customerName: 'Traiteur Rivière',
+          date: today,
+          items: [{ productId: 'wp2', quantity: 220, price: 2.9 }],
+          tvaRate: 5.5,
+          status: 'completed'
+        }
       ],
       savedReports: [],
       purchases: [
@@ -178,15 +209,16 @@ export const DEMO_DATASETS: DemoDataset[] = [
     data: {
       settings: {
         currency: 'EUR',
-        hourlyRate: 16,
-        includeLaborInCost: false,
         fixedCostItems: [
           { id: 'tfc1', name: 'Loyer', amount: 250 },
           { id: 'tfc2', name: 'Abonnements', amount: 65 }
         ],
         taxRate: 21,
         isTvaSubject: false,
-        defaultTvaRate: 5.5
+        defaultTvaRate: 5.5,
+        pricingStrategy: 'margin',
+        targetMonthlySalary: 1400,
+        includePendingOrdersInMonthlyReport: false
       },
       ingredients: [
         { id: 'ti1', name: 'Farine', unit: Unit.KG, price: 1.65, quantity: 4, costPerBaseUnit: 0.00165 },
@@ -211,18 +243,26 @@ export const DEMO_DATASETS: DemoDataset[] = [
           id: 'tp1',
           name: 'Cookie cacao intense',
           recipeId: 'tr1',
-          laborTimeMinutes: 6,
           packagingCost: 0.15,
           lossRate: 6,
           unsoldEstimate: 5,
           packagingUsedOnUnsold: false,
+          applyLossToPackaging: false,
           targetMargin: 0.7,
+          standardPrice: 2.2,
           estimatedMonthlySales: 180,
           category: 'cookie'
         }
       ],
       orders: [
-        { id: 'to1', customerName: 'Salon local', date: today, items: [{ productId: 'tp1', quantity: 60 }], status: 'completed' }
+        {
+          id: 'to1',
+          customerName: 'Salon local',
+          date: today,
+          items: [{ productId: 'tp1', quantity: 60, price: 2.2 }],
+          tvaRate: 0,
+          status: 'completed'
+        }
       ],
       savedReports: [],
       purchases: [
@@ -236,10 +276,6 @@ export const DEMO_DATASETS: DemoDataset[] = [
   }
 ];
 
-export const cloneAppData = (data: AppData): AppData => {
-  return JSON.parse(JSON.stringify(data)) as AppData;
-};
+export const cloneAppData = (data: AppData): AppData => JSON.parse(JSON.stringify(data)) as AppData;
 
-export const getDemoDatasetById = (id: string): DemoDataset | undefined => {
-  return DEMO_DATASETS.find(dataset => dataset.id === id);
-};
+export const getDemoDatasetById = (id: string): DemoDataset | undefined => DEMO_DATASETS.find(dataset => dataset.id === id);

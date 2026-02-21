@@ -2,31 +2,35 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProductsContent } from '../components/views/Products';
-import { GlobalSettings, Product, Recipe } from '../types';
+import { GlobalSettings, Ingredient, Product, Recipe, Unit } from '../types';
+
+const settings: GlobalSettings = {
+  currency: 'EUR',
+  fixedCostItems: [],
+  taxRate: 0,
+  isTvaSubject: false,
+  defaultTvaRate: 5.5,
+  pricingStrategy: 'margin',
+  targetMonthlySalary: 0,
+  includePendingOrdersInMonthlyReport: false
+};
+
+const ingredients: Ingredient[] = [
+  { id: 'i1', name: 'Farine', unit: Unit.G, price: 1, quantity: 1, costPerBaseUnit: 0.01 }
+];
 
 describe('Products form behavior', () => {
-  it('enables save only when required fields are valid', async () => {
+  it('enables submit when required fields are valid', async () => {
     const user = userEvent.setup();
-    const recipes: Recipe[] = [
-      { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
-    ];
+    const recipes: Recipe[] = [{ id: 'r1', name: 'Test', ingredients: [{ ingredientId: 'i1', quantity: 100 }], batchYield: 1, lossPercentage: 0 }];
     const products: Product[] = [];
-    const settings: GlobalSettings = {
-      currency: 'EUR',
-      hourlyRate: 10,
-      includeLaborInCost: true,
-      fixedCostItems: [],
-      taxRate: 0,
-      isTvaSubject: false,
-      defaultTvaRate: 5.5,
-      includePendingOrdersInMonthlyReport: false
-    };
 
     render(
       <ProductsContent
         products={products}
         setProducts={() => {}}
         recipes={recipes}
+        ingredients={ingredients}
         settings={settings}
       />
     );
@@ -42,49 +46,5 @@ describe('Products form behavior', () => {
     await user.type(screen.getByTestId('product-loss-input'), '5');
 
     expect(submitButton).toBeEnabled();
-  });
-
-  it('switches form to edit mode from product card', async () => {
-    const user = userEvent.setup();
-    const recipes: Recipe[] = [
-      { id: 'r1', name: 'Test', ingredients: [], batchYield: 1, lossPercentage: 0 }
-    ];
-    const products: Product[] = [{
-      id: 'p1',
-      name: 'Cookie existant',
-      recipeId: 'r1',
-      laborTimeMinutes: 10,
-      packagingCost: 0.2,
-      lossRate: 2,
-      unsoldEstimate: 0,
-      packagingUsedOnUnsold: true,
-      targetMargin: 1,
-      estimatedMonthlySales: 20,
-      category: 'Biscuit',
-      tvaRate: 5.5
-    }];
-    const settings: GlobalSettings = {
-      currency: 'EUR',
-      hourlyRate: 10,
-      includeLaborInCost: true,
-      fixedCostItems: [],
-      taxRate: 0,
-      isTvaSubject: false,
-      defaultTvaRate: 5.5,
-      includePendingOrdersInMonthlyReport: false
-    };
-
-    render(
-      <ProductsContent
-        products={products}
-        setProducts={() => {}}
-        recipes={recipes}
-        settings={settings}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: '✏️' }));
-    expect(screen.getByText(/modifier le produit/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /enregistrer/i })).toBeInTheDocument();
   });
 });

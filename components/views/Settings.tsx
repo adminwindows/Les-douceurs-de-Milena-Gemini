@@ -25,22 +25,23 @@ export const Settings: React.FC<Props> = ({
   const triggerActivateDemo = onActivateDemo ?? (() => undefined);
   const triggerExitDemo = onExitDemo ?? (() => undefined);
   const [newCost, setNewCost] = useState({ name: '', amount: '' });
+
   const newCostAmount = parseOptionalNumber(newCost.amount);
   const isNewCostAmountValid = isPositiveNumber(newCostAmount);
   const isNewCostFormValid = Boolean(newCost.name && isNewCostAmountValid);
 
   const isTaxRateValid = isPercentage(settings.taxRate);
   const isDefaultTvaRateValid = isPercentage(settings.defaultTvaRate);
-  const isHourlyRateValid = isNonNegativeNumber(settings.hourlyRate);
+  const isTargetSalaryValid = isNonNegativeNumber(settings.targetMonthlySalary);
 
-  const handleChange = (key: keyof GlobalSettings, value: any) => {
+  const handleChange = (key: keyof GlobalSettings, value: GlobalSettings[keyof GlobalSettings]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const handleNumberChange = (key: keyof GlobalSettings, value: string) => {
     const parsed = parseOptionalNumber(value);
     if (parsed === undefined) return;
-    handleChange(key, parsed);
+    handleChange(key, parsed as GlobalSettings[keyof GlobalSettings]);
   };
 
   const handleAddCost = () => {
@@ -60,11 +61,11 @@ export const Settings: React.FC<Props> = ({
   const removeCost = (id: string) => {
     setSettings(prev => ({
       ...prev,
-      fixedCostItems: prev.fixedCostItems.filter(i => i.id !== id)
+      fixedCostItems: prev.fixedCostItems.filter(item => item.id !== id)
     }));
   };
 
-  const totalFixedCosts = settings.fixedCostItems.reduce((sum, i) => sum + i.amount, 0);
+  const totalFixedCosts = settings.fixedCostItems.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -114,94 +115,68 @@ export const Settings: React.FC<Props> = ({
                 <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
                   <input
                     type="checkbox"
-                    name="toggle"
-                    id="toggle"
+                    id="toggle-tva"
                     className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-stone-300 border-4 appearance-none cursor-pointer"
                     checked={settings.isTvaSubject}
-                    onChange={e => handleChange('isTvaSubject', e.target.checked)}
+                    onChange={event => handleChange('isTvaSubject', event.target.checked)}
                     style={{ right: settings.isTvaSubject ? '0' : 'auto', left: settings.isTvaSubject ? 'auto' : '0', borderColor: settings.isTvaSubject ? '#D45D79' : '#ccc' }}
                   />
                   <label
-                    htmlFor="toggle"
+                    htmlFor="toggle-tva"
                     className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.isTvaSubject ? 'bg-[#D45D79]' : 'bg-stone-300 dark:bg-stone-600'}`}
-                  ></label>
+                  />
                 </div>
               </div>
               <p className="text-xs text-stone-500 dark:text-stone-400">
                 {settings.isTvaSubject
-                  ? 'TVA activée : la TVA sur vos achats est récupérable. Tous les prix ingrédients et charges sont en HT. Un convertisseur TTC → HT est disponible lors de la saisie.'
-                  : 'Franchise de TVA : vous payez vos achats TTC et ne récupérez pas la TVA. Vous ne facturez pas de TVA sur vos ventes.'}
+                  ? 'TVA activée : un taux unique global est appliqué aux nouvelles ventes.'
+                  : 'Franchise de TVA : le taux appliqué aux nouvelles ventes est 0%.'}
               </p>
             </div>
 
             {settings.isTvaSubject && (
               <Input
-                label="Taux de TVA ventes par défaut"
+                label="Taux de TVA global"
                 type="number"
                 suffix="%"
                 value={settings.defaultTvaRate}
-                onChange={e => handleNumberChange('defaultTvaRate', e.target.value)}
-                helperText="Taux TVA appliqué aux prix de vente (ex: 5.5% alimentaire). Aussi utilisé comme taux par défaut dans le convertisseur TTC → HT."
+                onChange={event => handleNumberChange('defaultTvaRate', event.target.value)}
+                helperText="Un seul taux TVA global pour toutes les nouvelles ventes."
                 error={isDefaultTvaRateValid ? undefined : '< 100%'}
               />
             )}
 
             <div className="p-3 border border-stone-200 dark:border-stone-700 rounded-lg">
               <label className="text-sm font-bold text-stone-700 dark:text-stone-300 flex items-center gap-2">
-                <input type="checkbox" checked={settings.includePendingOrdersInMonthlyReport ?? false} onChange={e => handleChange('includePendingOrdersInMonthlyReport', e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={settings.includePendingOrdersInMonthlyReport ?? false}
+                  onChange={event => handleChange('includePendingOrdersInMonthlyReport', event.target.checked)}
+                />
                 Inclure les commandes en attente dans le bilan mensuel
               </label>
               <p className="text-xs text-stone-500 mt-1">Par défaut désactivé : seules les commandes terminées sont comptées.</p>
             </div>
 
-            <div className="border-t border-stone-100 dark:border-stone-700 pt-4">
-              <Input
-                label="Charges Sociales (URSSAF)"
-                type="number"
-                suffix="%"
-                value={settings.taxRate}
-                onChange={e => handleNumberChange('taxRate', e.target.value)}
-                helperText={settings.isTvaSubject
-                  ? 'Pourcentage prélevé sur votre CA Hors Taxe.'
-                  : 'Pourcentage prélevé sur votre CA Total.'}
-                error={isTaxRateValid ? undefined : '< 100%'}
-              />
-            </div>
-
             <Input
-              label="Taux horaire cible"
+              label="Charges Sociales (URSSAF)"
               type="number"
-              suffix="€/h"
-              value={settings.hourlyRate}
-              onChange={e => handleNumberChange('hourlyRate', e.target.value)}
-              helperText={settings.includeLaborInCost ? 'Utilisé pour calculer le coût.' : 'Utilisé uniquement à titre indicatif.'}
-              error={isHourlyRateValid ? undefined : '≥ 0'}
+              suffix="%"
+              value={settings.taxRate}
+              onChange={event => handleNumberChange('taxRate', event.target.value)}
+              helperText="Pourcentage prélevé sur votre CA HT."
+              error={isTaxRateValid ? undefined : '< 100%'}
             />
 
-            <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Inclure la Main d'Oeuvre dans les Coûts ?</label>
-                <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                  <input
-                    type="checkbox"
-                    id="toggle-labor"
-                    className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-stone-300 border-4 appearance-none cursor-pointer"
-                    checked={settings.includeLaborInCost}
-                    onChange={e => handleChange('includeLaborInCost', e.target.checked)}
-                    style={{ right: settings.includeLaborInCost ? '0' : 'auto', left: settings.includeLaborInCost ? 'auto' : '0', borderColor: settings.includeLaborInCost ? '#4f46e5' : '#ccc' }}
-                  />
-                  <label
-                    htmlFor="toggle-labor"
-                    className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer ${settings.includeLaborInCost ? 'bg-indigo-600' : 'bg-stone-300 dark:bg-stone-600'}`}
-                  ></label>
-                </div>
-              </div>
-              <p className="text-sm text-indigo-900 dark:text-indigo-200">
-                {settings.includeLaborInCost
-                  ? 'La MO est comptée comme un coût. Votre marge est un profit pur.'
-                  : 'La MO est ignorée dans le coût de revient. Votre marge doit donc couvrir votre salaire.'}
-              </p>
-            </div>
+            <Input
+              label="Salaire net mensuel cible"
+              type="number"
+              suffix="€"
+              value={settings.targetMonthlySalary}
+              onChange={event => handleNumberChange('targetMonthlySalary', event.target.value)}
+              helperText="Utilisé par le mode « Salaire cible » dans l'onglet Prix."
+              error={isTargetSalaryValid ? undefined : '≥ 0'}
+            />
           </div>
         </Card>
 
@@ -228,22 +203,20 @@ export const Settings: React.FC<Props> = ({
 
           <div className="p-4 bg-[#FDF8F6] dark:bg-stone-900 rounded-lg border border-rose-100 dark:border-stone-700">
             <h4 className="text-sm font-bold text-rose-900 dark:text-rose-200 mb-1">Ajouter une charge</h4>
-            {settings.isTvaSubject && (
-              <p className="text-xs text-stone-500 mb-3">Saisissez vos charges fixes HT (la TVA sur ces charges étant récupérable, seul le montant HT compte).</p>
-            )}
+            <p className="text-xs text-stone-500 mb-3">Saisissez vos charges selon votre base comptable habituelle (HT ou TTC) de façon cohérente.</p>
             <div className="flex gap-2 mb-2">
               <input
                 className="flex-1 px-3 py-2 rounded border border-rose-200 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:border-[#D45D79]"
                 placeholder="Ex: Assurance"
                 value={newCost.name}
-                onChange={e => setNewCost({ ...newCost, name: e.target.value })}
+                onChange={event => setNewCost({ ...newCost, name: event.target.value })}
               />
               <input
                 className="w-24 px-3 py-2 rounded border border-rose-200 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:border-[#D45D79]"
                 placeholder="€"
                 type="number"
                 value={newCost.amount}
-                onChange={e => setNewCost({ ...newCost, amount: e.target.value })}
+                onChange={event => setNewCost({ ...newCost, amount: event.target.value })}
               />
             </div>
             {!isNewCostAmountValid && newCost.amount !== '' && (

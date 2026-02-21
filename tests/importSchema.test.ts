@@ -14,15 +14,14 @@ describe('import schema compatibility', () => {
           id: 10,
           name: 'Cookie',
           recipeId: 20,
-          laborTimeMinutes: '12',
           packagingCost: '0.3',
           lossRate: '3',
           unsoldEstimate: '0',
           packagingUsedOnUnsold: 'true',
           targetMargin: '1',
+          standardPrice: '3.5',
           estimatedMonthlySales: '100',
-          category: 'Biscuit',
-          tvaRate: '5.5'
+          category: 'Biscuit'
         }
       ]
     };
