@@ -8,6 +8,7 @@ import {
   Order,
   OrderItem,
   Product,
+  ProductionBatch,
   Purchase,
   UnsoldEntry
 } from './types';
@@ -71,6 +72,14 @@ export const normalizePurchase = (purchase: Purchase): Purchase => ({
   price: asNonNegativeNumber(purchase.price, 0)
 });
 
+export const normalizeProductionBatch = (batch: ProductionBatch): ProductionBatch => ({
+  id: batch.id,
+  date: batch.date,
+  productId: batch.productId,
+  quantity: asNonNegativeNumber(batch.quantity, 0),
+  sourceOrderId: typeof batch.sourceOrderId === 'string' ? batch.sourceOrderId : undefined
+});
+
 export const normalizeProduct = (product: Product): Product => ({
   id: product.id,
   name: product.name,
@@ -113,7 +122,10 @@ export const normalizeOrder = (
     settings.isTvaSubject ? settings.defaultTvaRate : 0
   ),
   status: order.status,
-  notes: order.notes
+  notes: order.notes,
+  productionLaunchedAt: typeof order.productionLaunchedAt === 'string'
+    ? order.productionLaunchedAt
+    : undefined
 });
 
 const aggregateLegacyUnsold = (sales: Array<MonthlyEntry & { quantityUnsold?: number }>): UnsoldEntry[] => {
@@ -233,6 +245,7 @@ export const normalizeAppData = (data: AppData): AppData => {
     products,
     orders: data.orders.map((order) => normalizeOrder(order as Order, settings, productsById)),
     purchases: data.purchases.map((purchase) => normalizePurchase(purchase as Purchase)),
+    productionBatches: data.productionBatches.map((batch) => normalizeProductionBatch(batch as ProductionBatch)),
     savedReports: data.savedReports.map((report) => normalizeMonthlyReport(report as MonthlyReportData, settings))
   };
 };

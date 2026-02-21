@@ -33,6 +33,7 @@ import {
   normalizeIngredient,
   normalizeMonthlyReport,
   normalizeOrder,
+  normalizeProductionBatch,
   normalizeProduct,
   normalizePurchase,
   normalizeSettings
@@ -319,7 +320,7 @@ const App = () => {
       case 'orders': setOrders((val as Order[]).map(order => normalizeOrder(order, settings, productsById))); break;
       case 'savedReports': setSavedReports((val as MonthlyReportData[]).map(report => normalizeMonthlyReport(report, settings))); break;
       case 'purchases': setPurchases((val as Purchase[]).map(normalizePurchase)); break;
-      case 'productionBatches': setProductionBatches(val); break;
+      case 'productionBatches': setProductionBatches((val as ProductionBatch[]).map(normalizeProductionBatch)); break;
     }
   };
 

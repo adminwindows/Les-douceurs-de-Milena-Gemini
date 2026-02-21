@@ -69,6 +69,22 @@ resetNewBatch();
   };
 
   const handleDeleteBatch = (id: string) => {
+    const batch = productionBatches.find(entry => entry.id === id);
+    if (!batch) return;
+
+    const linkedOrder = batch.sourceOrderId
+      ? orders.find(order => order.id === batch.sourceOrderId)
+      : orders.find(order => (
+        Boolean(order.productionLaunchedAt) &&
+        order.date === batch.date &&
+        order.items.some(item => item.productId === batch.productId)
+      ));
+
+    const warningMessage = linkedOrder
+      ? `Cette ligne peut etre liee a la commande \"${linkedOrder.customerName}\" deja marquee comme production lancee.\n\nSupprimer quand meme cette ligne ?`
+      : 'Supprimer cette ligne de production ? Cette action peut desynchroniser une commande marquee comme production lancee.';
+
+    if (!window.confirm(warningMessage)) return;
     setProductionBatches(productionBatches.filter(b => b.id !== id));
   };
 

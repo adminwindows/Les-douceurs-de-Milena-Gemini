@@ -1,4 +1,3 @@
-
 export enum Unit {
   G = 'g',
   KG = 'kg',
@@ -11,27 +10,28 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: Unit;
-  price: number; // Prix HT pour 1 unité de stock (seule base stockée)
-  quantity: number; // Stock théorique actuel (calculé ou saisi manuellement pour l'initialisation)
+  price: number; // Prix HT pour 1 unite de stock (seule base stockee)
+  quantity: number; // Stock theorique actuel (calcule ou saisi manuellement pour l'initialisation)
   costPerBaseUnit: number;
-  helperVatRate?: number; // UI-only: last TVA rate used in TTC→HT converter (prefill convenience)
+  helperVatRate?: number; // UI-only: last TVA rate used in TTC->HT converter (prefill convenience)
 }
 
-// Nouveau : Journal des achats pour gérer les variations de prix
+// Journal des achats pour gerer les variations de prix
 export interface Purchase {
   id: string;
   date: string;
   ingredientId: string;
-  quantity: number; // Quantité achetée (dans l'unité de l'ingrédient)
-  price: number; // Prix TOTAL HT payé pour cette quantité
+  quantity: number; // Quantite achetee (dans l'unite de l'ingredient)
+  price: number; // Prix TOTAL HT paye pour cette quantite
 }
 
-// Nouveau : Journal de production pour déstocker les ingrédients
+// Journal de production pour destocker les ingredients
 export interface ProductionBatch {
   id: string;
   date: string;
   productId: string;
-  quantity: number; // Nombre d'unités produites
+  quantity: number; // Nombre d'unites produites
+  sourceOrderId?: string; // Optionnel: commande d'origine quand lance depuis "Commandes"
 }
 
 export interface RecipeIngredient {
@@ -52,13 +52,13 @@ export interface Product {
   name: string;
   recipeId: string;
   packagingCost: number;
-  lossRate: number; // Taux de perte fabrication (cassé, raté)
-  unsoldEstimate: number; // Nombre d'unités invendues (produits finis)
-  packagingUsedOnUnsold: boolean; // Nouveau: Est-ce qu'on emballe les invendus ?
+  lossRate: number; // Taux de perte fabrication (casse, rate)
+  unsoldEstimate: number; // Nombre d'unites invendues (produits finis)
+  packagingUsedOnUnsold: boolean; // Est-ce qu'on emballe les invendus ?
   applyLossToPackaging?: boolean;
   targetMargin: number;
   standardPrice?: number; // Prix de vente standard choisi par l'utilisateur
-  estimatedMonthlySales: number; 
+  estimatedMonthlySales: number;
   category: string;
 }
 
@@ -72,8 +72,8 @@ export interface GlobalSettings {
   currency: string;
   fixedCostItems: FixedCostItem[];
   taxRate: number; // Cotisations sociales
-  isTvaSubject: boolean; // Assujetti à la TVA ?
-  defaultTvaRate: number; // Taux TVA ventes par défaut (ex: 5.5)
+  isTvaSubject: boolean; // Assujetti a la TVA ?
+  defaultTvaRate: number; // Taux TVA ventes par defaut (ex: 5.5)
   pricingStrategy: 'margin' | 'salary';
   targetMonthlySalary: number;
   includePendingOrdersInMonthlyReport?: boolean;
@@ -95,14 +95,15 @@ export interface Order {
   tvaRate: number; // Un seul taux de TVA pour toute la commande
   status: 'pending' | 'completed' | 'cancelled';
   notes?: string;
+  productionLaunchedAt?: string; // Horodatage du dernier envoi vers la production
 }
 
 export interface MonthlyEntry {
   id: string;
   productId: string;
-  quantitySold: number; // Quantité vendue sur cette ligne (même produit possible sur plusieurs lignes)
-  actualPrice: number; // Prix de vente unitaire réellement pratiqué
-  tvaRate?: number; // Taux de TVA appliqué à cette ligne; undefined pour anciennes lignes sans info
+  quantitySold: number; // Quantite vendue sur cette ligne (meme produit possible sur plusieurs lignes)
+  actualPrice: number; // Prix de vente unitaire reellement pratique
+  tvaRate?: number; // Taux de TVA applique a cette ligne; undefined pour anciennes lignes sans info
 }
 
 export interface UnsoldEntry {
@@ -135,5 +136,5 @@ export interface MonthlyReportData {
   totalSocialCharges: number;
   actualFixedCosts: number;
   netResult: number;
-  isLocked: boolean; 
+  isLocked: boolean;
 }

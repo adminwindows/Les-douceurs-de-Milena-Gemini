@@ -33,6 +33,43 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     }
   }, [defaultTvaRate, newOrder.tvaRate, setNewOrder]);
 
+  const formatLaunchDate = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
+  };
+
+  const canLaunchProductionForOrder = (order: Order): boolean => {
+    if (!order.productionLaunchedAt) return true;
+
+    return window.confirm(
+      `Cette commande a deja ete envoyee en production (${formatLaunchDate(order.productionLaunchedAt)}).\n\n` +
+      'Voulez-vous quand meme ajouter une nouvelle fois les lignes de production ?'
+    );
+  };
+
+  const launchProductionForOrder = (order: Order): boolean => {
+    if (!canLaunchProductionForOrder(order)) return false;
+
+    const launchedAt = new Date().toISOString();
+    const newBatches: ProductionBatch[] = order.items.map(item => ({
+      id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      date: order.date,
+      productId: item.productId,
+      quantity: item.quantity,
+      sourceOrderId: order.id
+    }));
+
+    setProductionBatches(prev => [...prev, ...newBatches]);
+    setOrders(prev => prev.map(entry => (
+      entry.id === order.id
+        ? { ...entry, productionLaunchedAt: launchedAt }
+        : entry
+    )));
+
+    return true;
+  };
+
   const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
   const isCurrentItemPriceValid = isPositiveNumber(currentItem.price);
 
@@ -78,14 +115,8 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
   };
 
   const sendToProduction = (order: Order) => {
-    const newBatches: ProductionBatch[] = order.items.map(item => ({
-      id: Date.now().toString() + Math.random().toString(),
-      date: order.date,
-      productId: item.productId,
-      quantity: item.quantity
-    }));
-    setProductionBatches(prev => [...prev, ...newBatches]);
-    alert('Produits ajoutés à la file de production !');
+    if (!launchProductionForOrder(order)) return;
+    alert('Produits ajoutes a la file de production.');
   };
 
   const toggleStatus = (order: Order) => {
@@ -101,14 +132,8 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
 
   const markCompleted = (order: Order, createProduction: boolean) => {
     if (createProduction) {
-      const newBatches: ProductionBatch[] = order.items.map(item => ({
-        id: Date.now().toString() + Math.random().toString(),
-        date: order.date,
-        productId: item.productId,
-        quantity: item.quantity
-      }));
-      setProductionBatches(prev => [...prev, ...newBatches]);
-      alert('Production enregistrée avec succès.');
+      if (!launchProductionForOrder(order)) return;
+      alert('Production enregistree avec succes.');
     }
 
     setOrders(prev => prev.map(entry => entry.id === order.id ? { ...entry, status: 'completed' } : entry));
@@ -118,7 +143,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
   const confirmCancelOrderDraft = () => {
     const hasDraft = Boolean(newOrder.customerName || (newOrder.items && newOrder.items.length) || newOrder.notes);
     if (!hasDraft) return;
-    if (window.confirm('Annuler la création de commande ? Les saisies en cours seront perdues.')) {
+    if (window.confirm('Annuler la creation de commande ? Les saisies en cours seront perdues.')) {
       resetNewOrder();
       resetCurrentItem();
     }
@@ -149,7 +174,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
 
     if (totalDelivered > totalProduced) {
       return {
-        msg: `Attention: ${totalDelivered} livrés pour seulement ${totalProduced} produits enregistrés !`
+        msg: `Attention: ${totalDelivered} livres pour seulement ${totalProduced} produits enregistres !`
       };
     }
     return null;
@@ -162,9 +187,11 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
       {orderPendingProductionConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-md border-rose-200 dark:border-stone-700">
-            <h4 className="text-lg font-bold mb-2">Commande livrée ✅</h4>
+            <h4 className="text-lg font-bold mb-2">Commande livree</h4>
             <p className="text-sm text-stone-600 dark:text-stone-300 mb-4">
-              Avez-vous déjà enregistré la production ?
+              {orderPendingProductionConfirm.productionLaunchedAt
+                ? `Production deja lancee le ${formatLaunchDate(orderPendingProductionConfirm.productionLaunchedAt)}.`
+                : 'Avez-vous deja enregistre la production ?'}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button variant="secondary" onClick={() => markCompleted(orderPendingProductionConfirm, false)}>
@@ -229,7 +256,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                     className="px-2 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-200"
                     value={currentItem.quantity ?? ''}
                     onChange={event => setCurrentItem({ ...currentItem, quantity: parseOptionalNumber(event.target.value) })}
-                    placeholder="Qté"
+                    placeholder="Qte"
                   />
                   <input
                     type="text"
@@ -256,7 +283,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                         <div className="flex items-center gap-2">
                           <span className="font-bold dark:text-stone-200">x {item.quantity}</span>
                           <span className="text-stone-500">{formatCurrency(item.price)}</span>
-                          <button className="text-red-500" onClick={() => handleDeleteOrderItem(index)}>×</button>
+                          <button className="text-red-500" onClick={() => handleDeleteOrderItem(index)}>x</button>
                         </div>
                       </div>
                     );
@@ -271,7 +298,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
 
               <Input
                 label="Notes"
-                placeholder="Allergies, message spécial..."
+                placeholder="Allergies, message special..."
                 value={newOrder.notes || ''}
                 onChange={event => setNewOrder({ ...newOrder, notes: event.target.value })}
               />
@@ -297,20 +324,30 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-bold text-lg text-stone-800 dark:text-stone-200">{order.customerName}</h4>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'completed' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'}`}>
-                        {order.status === 'completed' ? 'Livrée' : 'À faire'}
+                        {order.status === 'completed' ? 'Livree' : 'A faire'}
                       </span>
+                      {order.productionLaunchedAt && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                          Production lancee
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-stone-500 dark:text-stone-400 mb-1">Pour le : {new Date(order.date).toLocaleDateString()}</p>
                     <p className="text-xs text-stone-500">TVA commande: {order.tvaRate}%</p>
+                    {order.productionLaunchedAt && (
+                      <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-1">
+                        Dernier envoi production: {formatLaunchDate(order.productionLaunchedAt)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2 no-print">
                     {order.status === 'pending' && (
                       <button onClick={() => sendToProduction(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-stone-100 dark:bg-stone-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-1 rounded border border-stone-200 dark:border-stone-700 transition-colors">
-                        👩‍🍳 Produire
+                        {order.productionLaunchedAt ? 'Produire encore' : 'Produire'}
                       </button>
                     )}
                     <button onClick={() => toggleStatus(order)} className="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-emerald-600 dark:hover:text-emerald-400 underline">
-                      {order.status === 'pending' ? 'Marquer livrée' : 'Marquer à faire'}
+                      {order.status === 'pending' ? 'Marquer livree' : 'Marquer a faire'}
                     </button>
                     <button onClick={() => deleteOrder(order.id)} className="text-xs font-medium text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400">
                       Suppr.
@@ -326,7 +363,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                     return (
                       <div key={`${item.productId}-${item.price}-${index}`} className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="text-stone-700 dark:text-stone-300">{product?.name || 'Produit supprimé'}</span>
+                          <span className="text-stone-700 dark:text-stone-300">{product?.name || 'Produit supprime'}</span>
                           {warning && order.status === 'completed' && (
                             <>
                               <InfoTooltip text={warning.msg} />
@@ -335,7 +372,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                           )}
                         </div>
                         <span className="font-bold text-stone-900 dark:text-stone-100">
-                          x{item.quantity} · {formatCurrency(item.price)}
+                          x{item.quantity} � {formatCurrency(item.price)}
                         </span>
                       </div>
                     );
@@ -345,7 +382,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                 {order.notes && <p className="text-xs text-stone-500 dark:text-stone-400 mt-3 italic bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">Note: {order.notes}</p>}
               </Card>
             ))}
-            {orders.length === 0 && <p className="text-stone-400 dark:text-stone-500 italic text-center py-8">Aucune commande enregistrée.</p>}
+            {orders.length === 0 && <p className="text-stone-400 dark:text-stone-500 italic text-center py-8">Aucune commande enregistree.</p>}
           </div>
         </div>
       </div>

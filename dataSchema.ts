@@ -25,7 +25,8 @@ const productionBatchSchema = z.object({
   id: z.string(),
   date: z.string(),
   productId: z.string(),
-  quantity: z.number()
+  quantity: z.number(),
+  sourceOrderId: z.string().optional()
 });
 
 const recipeIngredientSchema = z.object({
@@ -86,7 +87,8 @@ const orderSchema = z.object({
   items: z.array(orderItemSchema),
   tvaRate: z.number().default(0),
   status: z.enum(['pending', 'completed', 'cancelled']),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  productionLaunchedAt: z.string().optional()
 });
 
 const monthlyEntrySchema = z.object({
@@ -229,7 +231,8 @@ const legacyOrderSchema = z.object({
   }).passthrough()).default([]),
   tvaRate: asNumber.optional(),
   status: legacyOrderStatusSchema,
-  notes: asString.optional()
+  notes: asString.optional(),
+  productionLaunchedAt: asString.optional()
 }).passthrough();
 
 const legacyPurchaseSchema = z.object({
@@ -244,7 +247,8 @@ const legacyProductionBatchSchema = z.object({
   id: asString,
   date: asString,
   productId: asString,
-  quantity: asNumber.catch(0)
+  quantity: asNumber.catch(0),
+  sourceOrderId: asString.optional()
 }).passthrough();
 
 const legacyReportSchema = z.object({

@@ -910,3 +910,59 @@ Validation:
 
 Outcome:
 - Test count is now above the prior 94 baseline and broad regression coverage has been restored with deterministic cases.
+
+## 41) Latest Turn Update (orders->production duplicate guard, production delete warning, pricing explanation, monthly report UX)
+
+User concerns:
+- Prevent accidental duplicate production launch from the same order; show a visible launched tag but still allow override.
+- Warn when deleting a production line because it may be linked to an already launched order.
+- Clarify why recommended margin price can be much higher than min price + target margin.
+- Improve readability/contrast in monthly report line editors and add explicit field headers.
+- Hide monthly-report line TVA input/column when TVA is globally disabled.
+
+Actions implemented:
+- **Order launch tracking + duplicate confirmation**
+  - Added optional metadata fields:
+    - `Order.productionLaunchedAt?: string`
+    - `ProductionBatch.sourceOrderId?: string`
+  - Updated schemas/migrations for persistence/import compatibility:
+    - `types.ts`
+    - `dataSchema.ts`
+    - `dataMigrations.ts` (`normalizeProductionBatch`, preserved `productionLaunchedAt` in `normalizeOrder`)
+    - `App.tsx` import path now normalizes `productionBatches` via `normalizeProductionBatch`.
+  - Reworked `components/views/Orders.tsx`:
+    - Added launch helper that records `productionLaunchedAt` and stores `sourceOrderId` on created batches.
+    - If launch already happened, asks explicit confirmation before adding duplicate production lines.
+    - Applied same duplicate guard when launching production from the "mark completed" confirmation modal.
+    - Added visual order tag/badge "Production lancee" and timestamp line.
+    - Kept manual override path (user can confirm and proceed).
+
+- **Production delete warning with possible order linkage**
+  - Updated `components/views/Production.tsx` delete flow:
+    - Before deletion, resolves likely linked order (direct via `sourceOrderId`, fallback heuristic by date/product + launched flag).
+    - Shows warning confirmation mentioning potential launched-order linkage.
+    - Allows user to proceed/cancel.
+
+- **Pricing recommendation explanation improvements**
+  - Updated `components/views/Analysis.tsx`:
+    - Added dedicated explanatory card for margin recommendation formula:
+      1. base HT = full cost + target margin,
+      2. divide by `(1 - social rate)`,
+      3. apply TVA to TTC when active.
+    - Added per-row base hint under "Conseille marge" (`Base HT: cout complet + marge cible`).
+    - Improved low-contrast helper text in dark mode (`HT` lines and active hint now include dark text classes).
+
+- **Monthly report readability + headers + conditional TVA column**
+  - Updated `components/views/MonthlyReport.tsx`:
+    - Added clear column headers for sales and unsold line editors (`Produit`, `Qte`, `Prix`, `TVA %`).
+    - Added consistent styled field classes for dark/light readability.
+    - Conditional TVA column/input with `showTvaRateColumn = settings.isTvaSubject`.
+    - When TVA is OFF, TVA input is hidden for existing and new sales lines.
+    - New sales lines store `tvaRate` as `undefined` when TVA is OFF.
+
+Validation:
+- `cmd /c npm run typecheck` ? pass
+- `cmd /c npm run test -- --run` ? blocked by environment (`spawn EPERM`), same known host limitation.
+
+Notes:
+- `components/views/Orders.tsx` was rewritten to ensure stable integration of launch-tracking and duplicate-guard behavior without partial encoding corruption.

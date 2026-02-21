@@ -21,6 +21,7 @@ interface Props {
 
 export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, settings, setSettings, purchases }) => {
   const isTva = settings.isTvaSubject;
+  const socialRate = settings.taxRate / 100;
   const [ingredientPriceMode, setIngredientPriceMode] = useState<IngredientPriceMode>('standard');
   const [helperUsesStandardPrice, setHelperUsesStandardPrice] = useState(true);
 
@@ -171,6 +172,22 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
         </Card>
       )}
 
+      <Card className="border-stone-200 dark:border-stone-700">
+        <h3 className="font-bold text-lg text-stone-900 dark:text-stone-100 mb-2">Comment est calcule le prix conseille (mode marge)</h3>
+        <div className="text-xs text-stone-600 dark:text-stone-300 space-y-1">
+          <p>1) Base HT: <strong>cout complet + marge cible</strong>.</p>
+          <p>2) Couverture des charges sociales: division par <strong>(1 - {settings.taxRate}%)</strong>.</p>
+          <p>3) Si TVA active: conversion en TTC avec <strong>x (1 + TVA)</strong>.</p>
+          <p className="text-stone-500 dark:text-stone-400">
+            Formule HT: <code>(cout complet + marge cible) / (1 - tauxSocial)</code>.
+            Le resultat peut donc etre superieur a <code>prix min + marge</code> car les charges sociales s'appliquent aussi sur la part de marge.
+          </p>
+          {socialRate >= 1 && (
+            <p className="text-red-600 dark:text-red-400">Attention: taux social {'>='} 100%, la formule est securisee mais ce parametre est incoherent.</p>
+          )}
+        </div>
+      </Card>
+
       <div className="overflow-x-auto shadow-md border border-stone-300 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-800">
         <table className="w-full text-sm text-left">
           <thead className="bg-stone-200 dark:bg-stone-900 text-stone-800 dark:text-stone-200 font-bold border-b border-stone-300 dark:border-stone-700 uppercase text-xs tracking-wider">
@@ -203,25 +220,28 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
                   <td className="p-4 bg-rose-50 dark:bg-rose-900/10 border-l border-rose-100 dark:border-rose-900/50">
                     <div className="flex flex-col">
                       <span className="font-semibold">{formatCurrency(metrics.minPriceBreakevenTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500">HT: {formatCurrency(metrics.minPriceBreakeven)}</span>}
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.minPriceBreakeven)}</span>}
                     </div>
                   </td>
                   <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10">
                     <div className="flex flex-col">
                       <span className="font-semibold">{formatCurrency(metrics.priceWithMarginTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500">HT: {formatCurrency(metrics.priceWithMargin)}</span>}
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithMargin)}</span>}
+                      <span className="text-[11px] text-stone-500 dark:text-stone-300">
+                        Base HT: {formatCurrency(metrics.fullCost)} + {formatCurrency(product.targetMargin)}
+                      </span>
                     </div>
                   </td>
                   <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10">
                     <div className="flex flex-col">
                       <span className="font-semibold">{formatCurrency(metrics.priceWithSalaryTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500">HT: {formatCurrency(metrics.priceWithSalary)}</span>}
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithSalary)}</span>}
                     </div>
                   </td>
                   <td className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border-l border-indigo-100 dark:border-indigo-800">
                     <div className="flex flex-col">
                       <span className="font-bold">{formatCurrency(product.standardPrice ?? activeRecommended)}</span>
-                      <span className="text-[11px] text-stone-500">Actif: {formatCurrency(activeRecommended)}</span>
+                      <span className="text-[11px] text-stone-500 dark:text-stone-300">Actif: {formatCurrency(activeRecommended)}</span>
                     </div>
                   </td>
                 </tr>
