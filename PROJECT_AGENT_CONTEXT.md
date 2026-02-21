@@ -849,6 +849,21 @@ Actions taken:
 Validation:
 - `cmd /c npm run typecheck` ✅ pass
 
+## 39) Latest Turn Update (user asked whether test count was reduced)
+
+User question:
+- "you reduced the number of tests ?"
+
+Verification performed:
+- Counted current explicit test cases (`it`/`test`) across `tests/*.ts(x)`:
+  - current total = **40**.
+- Cross-checked historical context entries:
+  - previous baseline recorded in context: up to **94 tests**.
+
+Conclusion:
+- Yes, the test count is currently reduced versus prior recorded baseline.
+- Reduction happened during the large redesign/refactor where several prior suites were rewritten/simplified.
+
 ## 38) Latest Turn Update (local failing test fixed: targetMonthlySalary test)
 
 User report:
@@ -865,3 +880,33 @@ Actions taken:
 
 Validation:
 - `cmd /c npm run typecheck` ✅ pass
+
+## 40) Latest Turn Update (restore test coverage after user escalation)
+
+User request:
+- User escalated and requested full fix for reduced test coverage: "Why wtf????? Do it" after confirming count had dropped from 94 to 40.
+
+Actions taken:
+- Expanded test coverage substantially across logic, migration, IO, storage bootstrap, and UI helpers.
+- Reworked/extended existing suites:
+  - `tests/utils.test.ts` (major expansion: pricing modes, formula branches, salary-plan branches)
+  - `tests/monthlyReportMath.test.ts` (major expansion: TVA split, unsold/packaging/loss logic, cost modes, net result)
+  - `tests/validation.test.ts`
+  - `tests/storage.test.ts`
+  - `tests/storageBootstrap.test.ts`
+  - `tests/backupIO.test.ts`
+  - `tests/importSchema.test.ts`
+  - `tests/products.test.tsx`
+  - `tests/settingsLaborToggle.test.tsx`
+- Added new dedicated suites:
+  - `tests/dataMigrations.test.ts` (normalization/migration behavior)
+  - `tests/commonInput.test.tsx` (label association + numeric normalization)
+  - `tests/mobileStorageEngine.test.ts` (bridge delegation)
+
+Validation:
+- `cmd /c npm run typecheck` ? pass
+- Counted explicit tests via `rg -n "\\b(it|test)\\(" tests` => **121** tests (up from 40)
+- `cmd /c npm run test -- --run` ? blocked in this environment (`spawn EPERM` from esbuild/vite startup), so runtime execution must be confirmed on user machine/CI.
+
+Outcome:
+- Test count is now above the prior 94 baseline and broad regression coverage has been restored with deterministic cases.

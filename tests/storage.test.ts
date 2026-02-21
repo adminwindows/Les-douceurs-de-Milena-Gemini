@@ -48,6 +48,21 @@ describe('storage helpers', () => {
     expect(loadAppState()).toBeUndefined();
   });
 
+  it('returns undefined for malformed JSON in current storage key', () => {
+    localStorage.setItem(APP_STATE_STORAGE_KEY, '{"broken":');
+    expect(loadAppState()).toBeUndefined();
+  });
+
+  it('falls back to legacy key when current key has invalid envelope', () => {
+    localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({ version: 2, data: { nope: true } }));
+    localStorage.setItem('milena_app_state_v1', JSON.stringify(payload));
+
+    const loaded = loadAppState();
+
+    expect(loaded).toEqual(payload);
+    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
+  });
+
   it('migrates legacy v1 app-state key to versioned v2 envelope', () => {
     localStorage.setItem('milena_app_state_v1', JSON.stringify(payload));
 
@@ -70,6 +85,11 @@ describe('storage helpers', () => {
     expect(loadAppState()).toBeUndefined();
   });
 
+  it('does not persist invalid app state payloads', () => {
+    saveAppState({ bad: true } as any);
+    expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeNull();
+  });
+
   it('round-trips demo backup data', () => {
     saveDemoBackup(payload);
     expect(loadDemoBackup()).toEqual(payload);
@@ -77,10 +97,23 @@ describe('storage helpers', () => {
     expect(loadDemoBackup()).toBeUndefined();
   });
 
+  it('returns undefined for malformed demo backup JSON', () => {
+    localStorage.setItem('milena_demo_backup_v1', '{"bad":');
+    expect(loadDemoBackup()).toBeUndefined();
+  });
+
   it('round-trips demo session metadata', () => {
     saveDemoSession({ datasetId: 'launch-week' });
     expect(loadDemoSession()).toEqual({ datasetId: 'launch-week' });
     clearDemoSession();
+    expect(loadDemoSession()).toBeUndefined();
+  });
+
+  it('returns undefined for malformed demo session payloads', () => {
+    localStorage.setItem('milena_demo_session_v1', JSON.stringify({ datasetId: 42 }));
+    expect(loadDemoSession()).toBeUndefined();
+
+    localStorage.setItem('milena_demo_session_v1', '{"bad":');
     expect(loadDemoSession()).toBeUndefined();
   });
 

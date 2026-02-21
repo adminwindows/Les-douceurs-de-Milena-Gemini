@@ -6,7 +6,11 @@ describe('validation helpers', () => {
     expect(parseOptionalNumber('')).toBeUndefined();
     expect(parseOptionalNumber('   ')).toBeUndefined();
     expect(parseOptionalNumber('12.5')).toBe(12.5);
+    expect(parseOptionalNumber('12,5')).toBe(12.5);
+    expect(parseOptionalNumber(' 42 ')).toBe(42);
     expect(parseOptionalNumber('0')).toBe(0);
+    expect(parseOptionalNumber('1e2')).toBe(100);
+    expect(parseOptionalNumber('1e309')).toBeUndefined();
     expect(parseOptionalNumber('nope')).toBeUndefined();
   });
 
@@ -37,5 +41,10 @@ describe('validation helpers', () => {
     expect(hasPriceDrift(1.20, 1.19)).toBe(true);
     expect(hasPriceDrift(0, 0)).toBe(false);
     expect(hasPriceDrift(0, 0.001)).toBe(true);
+  });
+
+  it('treats NaN price drift comparisons as no drift', () => {
+    expect(hasPriceDrift(Number.NaN, 1)).toBe(false);
+    expect(hasPriceDrift(1, Number.NaN)).toBe(false);
   });
 });

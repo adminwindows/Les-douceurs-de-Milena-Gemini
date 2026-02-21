@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { APP_STATE_STORAGE_KEY, configureStorageEngine, loadAppState, saveAppState } from '../storage';
 import { createDefaultStorageEngine } from '../storageEngine';
-import { configureStorageForCurrentRuntime } from '../storageBootstrap';
+import { configureStorageForCurrentRuntime, isNativeRuntime } from '../storageBootstrap';
 import { INITIAL_SETTINGS } from '../utils';
 
 const payload = {
@@ -39,6 +39,18 @@ describe('storage runtime bootstrap', () => {
     expect(loadAppState()).toEqual(payload);
   });
 
+  it('reports false native runtime when capacitor bridge is absent', () => {
+    expect(isNativeRuntime()).toBe(false);
+  });
+
+  it('reports false native runtime when capacitor says web', () => {
+    window.Capacitor = {
+      isNativePlatform: () => false
+    };
+
+    expect(isNativeRuntime()).toBe(false);
+  });
+
   it('injects mobile storage engine when native runtime bridge exists', () => {
     const memory = new Map<string, string>();
 
@@ -58,6 +70,18 @@ describe('storage runtime bootstrap', () => {
 
     expect(memory.get(APP_STATE_STORAGE_KEY)).toBeTruthy();
     expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeNull();
+    expect(loadAppState()).toEqual(payload);
+  });
+
+  it('keeps default engine when native runtime exists but storage bridge is missing', () => {
+    window.Capacitor = {
+      isNativePlatform: () => true
+    };
+
+    configureStorageForCurrentRuntime();
+    saveAppState(payload);
+
+    expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeTruthy();
     expect(loadAppState()).toEqual(payload);
   });
 });
