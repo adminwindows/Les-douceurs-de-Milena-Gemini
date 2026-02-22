@@ -7,7 +7,7 @@ import {
   formatCurrency,
   IngredientPriceMode
 } from '../../utils';
-import { Card } from '../ui/Common';
+import { Card, Input } from '../ui/Common';
 import { parseOptionalNumber } from '../../validation';
 
 interface Props {
@@ -118,10 +118,9 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
 
           <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] gap-3 mb-3">
             <div>
-              <label className="text-xs font-bold text-stone-600 block mb-1">Salaire cible / mois</label>
-              <input
-                type="text"
-                className="w-full px-3 py-2 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900"
+              <Input
+                label="Salaire cible / mois"
+                type="number"
                 value={settings.targetMonthlySalary}
                 onChange={event => setSettings(prev => ({ ...prev, targetMonthlySalary: parseOptionalNumber(event.target.value) ?? 0 }))}
               />

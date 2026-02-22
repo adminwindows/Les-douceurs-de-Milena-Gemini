@@ -11,9 +11,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "mobile:doctor": "cap doctor",
-    "mobile:add:android": "cap add android",
+    "mobile:add:android": "cap add android && npm run mobile:android:enforce-data-policy",
     "mobile:add:ios": "cap add ios",
-    "mobile:sync": "npm run build && cap sync",
+    "mobile:sync": "npm run build && cap sync && npm run mobile:android:enforce-data-policy",
     "mobile:open:android": "cap open android",
     "mobile:open:ios": "cap open ios",
     "mobile:init:android": "npm run mobile:add:android && npm run mobile:sync",
@@ -31,7 +31,8 @@
     "mobile:apk:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1",
     "mobile:apk:script:debug:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode debug",
     "mobile:apk:script:release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/build-android-apk.ps1 -Mode release",
-    "mobile:icons:android": "node ./scripts/apply-android-logo.mjs"
+    "mobile:icons:android": "node ./scripts/apply-android-logo.mjs",
+    "mobile:android:enforce-data-policy": "node ./scripts/enforce-android-data-policy.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.0.2",

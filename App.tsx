@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { IngredientsRecettes } from './components/views/IngredientsRecettes';
 import { ProductsContent } from './components/views/Products';
 import { Analysis } from './components/views/Analysis';
@@ -14,7 +14,7 @@ import { BrandLogo } from './components/ui/BrandLogo';
 import {
   INITIAL_SETTINGS
 } from './utils';
-import { AppData } from './dataSchema';
+import { appDataSchema, AppData } from './dataSchema';
 import {
   loadAppState,
   saveAppState,
@@ -23,7 +23,8 @@ import {
   clearDemoBackup,
   loadDemoSession,
   saveDemoSession,
-  clearDemoSession
+  clearDemoSession,
+  clearAllPersistedData
 } from './storage';
 import { DEMO_DATASETS, cloneAppData, getDemoDatasetById } from './demoData';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
@@ -38,15 +39,17 @@ import {
   normalizePurchase,
   normalizeSettings
 } from './dataMigrations';
+import { usePersistentState } from './usePersistentState';
 
 const DataManagerModal = ({
   isOpen, onClose,
-  data, setData
+  data, setData, onResetAllData
 }: {
   isOpen: boolean,
   onClose: () => void,
   data: any,
-  setData: (key: string, val: any) => void
+  setData: (key: string, val: any) => void,
+  onResetAllData: () => void
 }) => {
   if (!isOpen) return null;
 
@@ -168,6 +171,16 @@ const DataManagerModal = ({
           </label>
         </div>
 
+        <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/20 p-3">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">Zone sensible</p>
+          <p className="text-xs text-red-700/90 dark:text-red-300/90 mt-1">
+            Supprime toutes les donnees locales: brouillons, commandes, production, bilans, et parametres.
+          </p>
+          <Button size="sm" variant="danger" onClick={onResetAllData} className="w-full mt-3">
+            Reinitialiser toutes les donnees
+          </Button>
+        </div>
+
         <div className="flex gap-3">
           <Button variant="ghost" onClick={onClose} className="flex-1">Fermer</Button>
           {mode === 'export' ? (
@@ -192,6 +205,119 @@ const DataManagerModal = ({
   );
 };
 
+const serializeAppData = (data: AppData): string => JSON.stringify(data);
+
+const createEmptyAppData = (settings: GlobalSettings): AppData => ({
+  ingredients: [],
+  recipes: [],
+  products: [],
+  settings: normalizeSettings(settings),
+  orders: [],
+  savedReports: [],
+  purchases: [],
+  productionBatches: []
+});
+
+const getFirstDomainValidationError = (data: AppData): string | null => {
+  for (const ingredient of data.ingredients) {
+    if (ingredient.price < 0 || ingredient.quantity < 0 || ingredient.costPerBaseUnit < 0) {
+      return `Ingredient invalide: ${ingredient.name}. Les valeurs numeriques doivent etre >= 0.`;
+    }
+  }
+
+  for (const recipe of data.recipes) {
+    if (recipe.batchYield <= 0) {
+      return `Recette invalide: ${recipe.name}. Le rendement de lot doit etre > 0.`;
+    }
+  }
+
+  for (const product of data.products) {
+    if (product.packagingCost < 0 || product.lossRate < 0 || product.lossRate >= 100 || product.unsoldEstimate < 0 || product.targetMargin < 0 || product.estimatedMonthlySales < 0) {
+      return `Produit invalide: ${product.name}. Verifiez les couts/pertes (>=0, perte < 100).`;
+    }
+    if (typeof product.standardPrice === 'number' && product.standardPrice < 0) {
+      return `Produit invalide: ${product.name}. Le prix standard doit etre >= 0.`;
+    }
+  }
+
+  if (data.settings.taxRate < 0 || data.settings.taxRate >= 100) {
+    return 'Parametres invalides: le taux de cotisations sociales doit etre entre 0 et 99.99.';
+  }
+  if (data.settings.defaultTvaRate < 0) {
+    return 'Parametres invalides: le taux TVA par defaut doit etre >= 0.';
+  }
+  if (data.settings.targetMonthlySalary < 0) {
+    return 'Parametres invalides: le salaire cible doit etre >= 0.';
+  }
+  for (const item of data.settings.fixedCostItems) {
+    if (item.amount < 0) {
+      return `Parametres invalides: charge fixe negative (${item.name}).`;
+    }
+  }
+
+  for (const order of data.orders) {
+    if (order.tvaRate < 0) {
+      return `Commande invalide (${order.customerName}): TVA commande < 0.`;
+    }
+    for (const item of order.items) {
+      if (item.quantity <= 0 || item.price < 0) {
+        return `Commande invalide (${order.customerName}): quantite > 0 et prix >= 0 requis.`;
+      }
+    }
+  }
+
+  for (const purchase of data.purchases) {
+    if (purchase.quantity < 0 || purchase.price < 0) {
+      return 'Achat invalide: quantite et prix doivent etre >= 0.';
+    }
+  }
+
+  for (const batch of data.productionBatches) {
+    if (batch.quantity <= 0) {
+      return 'Production invalide: quantite produite doit etre > 0.';
+    }
+  }
+
+  for (const report of data.savedReports) {
+    for (const fixed of report.actualFixedCostItems) {
+      if (fixed.amount < 0) {
+        return `Bilan invalide (${report.monthStr}): charge fixe negative (${fixed.name}).`;
+      }
+    }
+    if (report.actualIngredientSpend < 0 || report.actualFixedCosts < 0 || report.totalRevenueTTC < 0 || report.totalRevenueHT < 0 || report.totalTvaCollected < 0 || report.finalFoodCost < 0 || report.totalPackagingCost < 0 || report.totalSocialCharges < 0) {
+      return `Bilan invalide (${report.monthStr}): valeurs de synthese negatives.`;
+    }
+    for (const stock of report.inventory) {
+      if (stock.startStock < 0 || stock.purchasedQuantity < 0 || stock.endStock < 0) {
+        return `Bilan invalide (${report.monthStr}): inventaire avec valeurs negatives.`;
+      }
+    }
+    for (const line of report.sales) {
+      if (line.quantitySold < 0 || line.actualPrice < 0 || (line.tvaRate !== undefined && line.tvaRate < 0)) {
+        return `Bilan invalide (${report.monthStr}): ventes avec valeurs negatives.`;
+      }
+    }
+    for (const line of report.unsold) {
+      if (line.quantityUnsold < 0) {
+        return `Bilan invalide (${report.monthStr}): invendus avec valeurs negatives.`;
+      }
+    }
+  }
+
+  return null;
+};
+
+const getValidationError = (data: AppData): string | null => {
+  const schemaResult = appDataSchema.safeParse(data);
+  if (!schemaResult.success) {
+    const firstIssue = schemaResult.error.issues[0];
+    const path = firstIssue.path.length > 0 ? firstIssue.path.join('.') : 'racine';
+    return `Validation bloquee (${path}): ${firstIssue.message}`;
+  }
+
+  return getFirstDomainValidationError(schemaResult.data);
+};
+
 const App = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production'>('guide');
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
@@ -206,16 +332,24 @@ const App = () => {
     fixedCostItems: []
   };
 
-  const savedState = loadAppState();
-  const normalizedSavedState = savedState ? normalizeAppData(savedState) : undefined;
-  const [ingredients, setIngredients] = useState<Ingredient[]>(normalizedSavedState?.ingredients ?? []);
-  const [recipes, setRecipes] = useState<Recipe[]>(normalizedSavedState?.recipes ?? []);
-  const [products, setProducts] = useState<Product[]>(normalizedSavedState?.products ?? []);
-  const [settings, setSettings] = useState<GlobalSettings>(normalizedSavedState?.settings ?? normalizeSettings(firstLaunchSettings));
-  const [orders, setOrders] = useState<Order[]>(normalizedSavedState?.orders ?? []);
-  const [savedReports, setSavedReports] = useState<MonthlyReportData[]>(normalizedSavedState?.savedReports ?? []);
-  const [purchases, setPurchases] = useState<Purchase[]>(normalizedSavedState?.purchases ?? []);
-  const [productionBatches, setProductionBatches] = useState<ProductionBatch[]>(normalizedSavedState?.productionBatches ?? []);
+  const initialSavedAppData = useMemo<AppData>(() => {
+    const savedState = loadAppState();
+    if (savedState) {
+      return normalizeAppData(savedState);
+    }
+
+    return createEmptyAppData(firstLaunchSettings);
+  }, []);
+
+  const [savedSnapshot, setSavedSnapshot] = useState<string>(() => serializeAppData(initialSavedAppData));
+  const [ingredients, setIngredients] = usePersistentState<Ingredient[]>('draft:app:ingredients', initialSavedAppData.ingredients);
+  const [recipes, setRecipes] = usePersistentState<Recipe[]>('draft:app:recipes', initialSavedAppData.recipes);
+  const [products, setProducts] = usePersistentState<Product[]>('draft:app:products', initialSavedAppData.products);
+  const [settings, setSettings] = usePersistentState<GlobalSettings>('draft:app:settings', initialSavedAppData.settings);
+  const [orders, setOrders] = usePersistentState<Order[]>('draft:app:orders', initialSavedAppData.orders);
+  const [savedReports, setSavedReports] = usePersistentState<MonthlyReportData[]>('draft:app:savedReports', initialSavedAppData.savedReports);
+  const [purchases, setPurchases] = usePersistentState<Purchase[]>('draft:app:purchases', initialSavedAppData.purchases);
+  const [productionBatches, setProductionBatches] = usePersistentState<ProductionBatch[]>('draft:app:productionBatches', initialSavedAppData.productionBatches);
   const [activeDemoDatasetId, setActiveDemoDatasetId] = useState<string | undefined>(loadDemoSession()?.datasetId);
 
   useEffect(() => {
@@ -226,20 +360,6 @@ const App = () => {
       window.localStorage.setItem('milena_theme', theme);
     }
   }, [theme]);
-
-  useEffect(() => {
-    saveAppState({
-      ingredients,
-      recipes,
-      products,
-      settings,
-      orders,
-      savedReports,
-      purchases,
-      productionBatches
-    });
-  }, [ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches]);
-
 
   useEffect(() => {
     if (!activeDemoDatasetId) {
@@ -258,18 +378,6 @@ const App = () => {
     });
   };
 
-  const setAllData = (data: AppData) => {
-    const normalized = normalizeAppData(data);
-    setIngredients(normalized.ingredients);
-    setRecipes(normalized.recipes);
-    setProducts(normalized.products);
-    setSettings(normalized.settings);
-    setOrders(normalized.orders);
-    setSavedReports(normalized.savedReports);
-    setPurchases(normalized.purchases);
-    setProductionBatches(normalized.productionBatches);
-  };
-
   const getCurrentData = (): AppData => ({
     ingredients,
     recipes,
@@ -281,6 +389,66 @@ const App = () => {
     productionBatches
   });
 
+  const hasPendingChanges = useMemo(() => (
+    serializeAppData(getCurrentData()) !== savedSnapshot
+  ), [ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches, savedSnapshot]);
+
+  const setAllData = (data: AppData, options?: { markAsSaved?: boolean }) => {
+    const normalized = normalizeAppData(data);
+    setIngredients(normalized.ingredients);
+    setRecipes(normalized.recipes);
+    setProducts(normalized.products);
+    setSettings(normalized.settings);
+    setOrders(normalized.orders);
+    setSavedReports(normalized.savedReports);
+    setPurchases(normalized.purchases);
+    setProductionBatches(normalized.productionBatches);
+    if (options?.markAsSaved) {
+      saveAppState(normalized);
+      setSavedSnapshot(serializeAppData(normalized));
+    }
+  };
+
+  const commitPendingChanges = () => {
+    const nextData = getCurrentData();
+    const validationError = getValidationError(nextData);
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    saveAppState(nextData);
+    setSavedSnapshot(serializeAppData(nextData));
+    alert('Modifications validees et sauvegardees.');
+  };
+
+  const discardPendingChanges = () => {
+    if (!hasPendingChanges) return;
+    if (!window.confirm('Annuler toutes les modifications en attente ?')) return;
+
+    try {
+      const parsed = JSON.parse(savedSnapshot) as AppData;
+      setAllData(parsed);
+    } catch {
+      alert('Impossible de restaurer l etat valide le plus recent.');
+    }
+  };
+
+  const resetAllData = () => {
+    const shouldReset = window.confirm(
+      'Reinitialiser toutes les donnees locales ? Cette action est irreversible.'
+    );
+    if (!shouldReset) return;
+
+    clearAllPersistedData();
+    clearDemoBackup();
+    clearDemoSession();
+    setActiveDemoDatasetId(undefined);
+    setAllData(createEmptyAppData(firstLaunchSettings), { markAsSaved: true });
+    setIsDataModalOpen(false);
+    alert('Toutes les donnees locales ont ete supprimees.');
+  };
+
   const activateDemo = (datasetId: string) => {
     const dataset = getDemoDatasetById(datasetId);
     if (!dataset) return;
@@ -290,7 +458,7 @@ const App = () => {
       saveDemoBackup(cloneAppData(getCurrentData()));
     }
 
-    setAllData(cloneAppData(dataset.data));
+    setAllData(cloneAppData(dataset.data), { markAsSaved: true });
     saveDemoSession({ datasetId });
     setActiveDemoDatasetId(datasetId);
   };
@@ -298,7 +466,7 @@ const App = () => {
   const exitDemo = () => {
     const backup = loadDemoBackup();
     if (backup) {
-      setAllData(cloneAppData(backup));
+      setAllData(cloneAppData(backup), { markAsSaved: true });
     }
     clearDemoBackup();
     clearDemoSession();
@@ -397,6 +565,7 @@ const App = () => {
         onClose={() => setIsDataModalOpen(false)}
         data={{ ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches }}
         setData={setData}
+        onResetAllData={resetAllData}
       />
 
       <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 shrink-0 sticky top-0 z-30 shadow-sm no-print transition-colors duration-300">
@@ -460,6 +629,17 @@ const App = () => {
               </button>
             ))}
           </nav>
+          {hasPendingChanges && (
+            <div className="mt-3 mb-2 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-3 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 font-medium">
+                Modifications en attente: rien n est sauvegarde tant que vous ne cliquez pas sur Valider.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={discardPendingChanges}>Annuler</Button>
+                <Button size="sm" onClick={commitPendingChanges}>Valider</Button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 

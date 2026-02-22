@@ -113,6 +113,13 @@ export const MonthlyReport: React.FC<Props> = ({
   const unsoldEditCols = 'grid-cols-[minmax(170px,1fr)_84px_24px] min-w-[324px]';
   const unsoldCreateCols = 'grid-cols-[minmax(170px,1fr)_84px_56px] min-w-[356px]';
   const getProductName = (productId: string) => products.find(p => p.id === productId)?.name || 'Produit supprime';
+  const displayNumericCellValue = (value: number | undefined): number | '' => (
+    typeof value === 'number' && Number.isFinite(value) ? value : ''
+  );
+  const parseEditableNumber = (raw: string): number => {
+    const parsed = parseOptionalNumber(raw);
+    return parsed === undefined ? Number.NaN : parsed;
+  };
 
   useEffect(() => {
     const saved = savedReports.find(r => r.monthStr === selectedMonth);
@@ -178,9 +185,27 @@ export const MonthlyReport: React.FC<Props> = ({
 
   const totalActualFixedCosts = actualFixedItems.reduce((sum, i) => sum + i.amount, 0);
   const effectiveIngredients = costMode === 0 ? applyIngredientPriceMode(ingredients, purchases, ingredientPriceMode) : ingredients;
+  const mathReadyEditableSales = useMemo(
+    () => editableSales.map((line) => ({
+      ...line,
+      quantitySold: Number.isFinite(line.quantitySold) ? line.quantitySold : 0,
+      actualPrice: Number.isFinite(line.actualPrice) ? line.actualPrice : 0,
+      tvaRate: line.tvaRate === undefined
+        ? undefined
+        : (Number.isFinite(line.tvaRate) ? line.tvaRate : 0)
+    })),
+    [editableSales]
+  );
+  const mathReadyEditableUnsold = useMemo(
+    () => editableUnsold.map((line) => ({
+      ...line,
+      quantityUnsold: Number.isFinite(line.quantityUnsold) ? line.quantityUnsold : 0
+    })),
+    [editableUnsold]
+  );
   const editableTotals = computeMonthlyTotals({
-    sales: editableSales,
-    unsold: editableUnsold,
+    sales: mathReadyEditableSales,
+    unsold: mathReadyEditableUnsold,
     products,
     recipes,
     ingredients: effectiveIngredients,
@@ -345,19 +370,19 @@ export const MonthlyReport: React.FC<Props> = ({
                   </select>
                   <input
                     className={lineFieldClass}
-                    value={line.quantitySold}
-                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, quantitySold: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                    value={displayNumericCellValue(line.quantitySold)}
+                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, quantitySold: parseEditableNumber(e.target.value) } : s))}
                   />
                   <input
                     className={lineFieldClass}
-                    value={line.actualPrice}
-                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, actualPrice: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                    value={displayNumericCellValue(line.actualPrice)}
+                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, actualPrice: parseEditableNumber(e.target.value) } : s))}
                   />
                   {showTvaRateColumn && (
                     <input
                       className={lineFieldClass}
-                      value={line.tvaRate ?? settings.defaultTvaRate}
-                      onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                      value={displayNumericCellValue(line.tvaRate)}
+                      onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: parseEditableNumber(e.target.value) } : s))}
                     />
                   )}
                   <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableSales(prev => prev.filter(s => s.id !== line.id))}>x</button>
@@ -379,21 +404,21 @@ export const MonthlyReport: React.FC<Props> = ({
               </select>
               <input
                 className={lineFieldClass}
-                value={newSaleDraft.quantitySold ?? ''}
-                onChange={e => setNewSaleDraft({ ...newSaleDraft, quantitySold: parseOptionalNumber(e.target.value) ?? 0 })}
+                value={displayNumericCellValue(newSaleDraft.quantitySold)}
+                onChange={e => setNewSaleDraft({ ...newSaleDraft, quantitySold: parseEditableNumber(e.target.value) })}
                 placeholder="Qte"
               />
               <input
                 className={lineFieldClass}
-                value={newSaleDraft.actualPrice ?? ''}
-                onChange={e => setNewSaleDraft({ ...newSaleDraft, actualPrice: parseOptionalNumber(e.target.value) ?? 0 })}
+                value={displayNumericCellValue(newSaleDraft.actualPrice)}
+                onChange={e => setNewSaleDraft({ ...newSaleDraft, actualPrice: parseEditableNumber(e.target.value) })}
                 placeholder="Prix"
               />
               {showTvaRateColumn && (
                 <input
                   className={lineFieldClass}
-                  value={newSaleDraft.tvaRate ?? settings.defaultTvaRate}
-                  onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: parseOptionalNumber(e.target.value) ?? 0 })}
+                  value={displayNumericCellValue(newSaleDraft.tvaRate)}
+                  onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: parseEditableNumber(e.target.value) })}
                   placeholder="TVA"
                 />
               )}
@@ -420,8 +445,8 @@ export const MonthlyReport: React.FC<Props> = ({
                 <span className={`${lineReadonlyClass} truncate`} title={getProductName(line.productId)}>{getProductName(line.productId)}</span>
                 <input
                   className={lineFieldClass}
-                  value={line.quantityUnsold}
-                  onChange={e => setEditableUnsold(prev => prev.map(u => u.productId === line.productId ? { ...u, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 } : u))}
+                  value={displayNumericCellValue(line.quantityUnsold)}
+                  onChange={e => setEditableUnsold(prev => prev.map(u => u.productId === line.productId ? { ...u, quantityUnsold: parseEditableNumber(e.target.value) } : u))}
                 />
                 <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableUnsold(prev => prev.filter(u => u.productId !== line.productId))}>x</button>
               </div>
@@ -431,7 +456,7 @@ export const MonthlyReport: React.FC<Props> = ({
                 <option value="">Produit</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input className={lineFieldClass} value={newUnsoldDraft.quantityUnsold ?? ''} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 })} />
+              <input className={lineFieldClass} value={displayNumericCellValue(newUnsoldDraft.quantityUnsold)} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, quantityUnsold: parseEditableNumber(e.target.value) })} />
               <Button size="sm" onClick={addUnsoldLine}>+</Button>
             </div>
           </div>

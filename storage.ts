@@ -8,6 +8,8 @@ const CURRENT_APP_STATE_SCHEMA_VERSION = 2;
 
 const DEMO_BACKUP_KEY = 'milena_demo_backup_v1';
 const DEMO_SESSION_KEY = 'milena_demo_session_v1';
+const DRAFT_STORAGE_KEY_PREFIX = 'draft:';
+const THEME_STORAGE_KEY = 'milena_theme';
 
 const versionedAppStateSchema = z.object({
   version: z.number(),
@@ -127,4 +129,32 @@ export const saveDemoSession = (session: DemoSession): void => {
 
 export const clearDemoSession = (): void => {
   getStorageEngine().removeItem(DEMO_SESSION_KEY);
+};
+
+export const clearAllPersistedData = (): void => {
+  const engine = getStorageEngine();
+  const appScopedKeys = [
+    APP_STATE_STORAGE_KEY,
+    ...LEGACY_APP_STATE_STORAGE_KEYS,
+    DEMO_BACKUP_KEY,
+    DEMO_SESSION_KEY
+  ];
+
+  appScopedKeys.forEach(key => engine.removeItem(key));
+
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return;
+  }
+
+  const draftKeys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key) continue;
+    if (key.startsWith(DRAFT_STORAGE_KEY_PREFIX)) {
+      draftKeys.push(key);
+    }
+  }
+
+  draftKeys.forEach(key => window.localStorage.removeItem(key));
+  window.localStorage.removeItem(THEME_STORAGE_KEY);
 };

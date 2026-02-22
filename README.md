@@ -164,7 +164,14 @@ The scripts live in:
 
 ## Data Persistence
 
-* The app auto-saves data to your browser's local storage, with automatic cleanup of stale draft entries to avoid storage bloat on mobile.
+* The app keeps edits in persistent local drafts (`draft:app:*`) and now requires an explicit **Valider** action (header banner) to save to main app state.
+* A global **Annuler** action restores the last validated snapshot while keeping cross-section draft continuity.
+* Automatic cleanup of stale draft entries remains enabled to avoid storage bloat on mobile.
+* Android native builds now enforce `android:allowBackup="true"` (via `mobile:android:enforce-data-policy`, called by `mobile:add:android` and `mobile:sync`) for classic Android backup/restore behavior.
+* Normal app updates still keep data.
+* With backup enabled, uninstall + reinstall can restore prior data from Android backup.
+* Use the `Sauvegardes / Donnees` modal action `Reinitialiser toutes les donnees` to wipe all local state (app snapshot, demo session, drafts, and theme preference).
+* Browser/PWA uninstall does not always clear origin storage; for web resets, use the reset action above or clear site data in browser settings.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
 * Backup import/export supports a native mobile bridge when available (device picker/save flow), with browser file input/download fallback.
 * Storage is abstracted behind a storage engine interface (web localStorage default) with runtime bootstrap support for injecting native mobile adapters.
@@ -183,6 +190,6 @@ The application currently includes:
 * **Operations flow**: customer orders, shopping list generation, production batch logging, and stock/purchase tracking.
 * **Monthly reporting**: separate sections for sales lines and unsold quantities, duplicate product lines supported (different price/TVA combinations), report archiving with frozen loaded lines, and PDF export.
   * Theoretical monthly costing supports ingredient price source selection: `Prix moyen lissé` or `Dernier prix`.
-* **Data safety**: local autosave, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
+* **Data safety**: explicit local validation/save workflow with persistent drafts, selective import/export backup, and a reversible **Mode Démo** (multiple sample datasets + safe restore of original user data on exit).
 * **Branding & UX**: bakery logo integrated in app shell/report visuals, improved mobile header fit, and explicit Oui/Non confirmation modal when validating delivered orders.
 * **Quality tooling**: Vitest test suite, typecheck script, and CI workflow for automated checks.

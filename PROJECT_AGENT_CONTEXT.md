@@ -1055,3 +1055,124 @@ Actions implemented:
 Validation:
 - cmd /c npm run typecheck ✅ pass.
 - cmd /c npm run test -- --run ❌ blocked by environment spawn EPERM (vite/esbuild startup), same host limitation as prior turns.
+
+## 44) Latest Turn Update (global explicit validation workflow + sticky numeric input fix)
+
+User request:
+- Stop implicit autosave behavior across sections; require explicit validation/save action.
+- Show clear pending-modification state and allow cancel/discard when edits are in progress.
+- Keep unsaved edits visible when user switches sections and comes back.
+- Fix "sticky 0" (or sticky digit) behavior when clearing numeric cells before retyping.
+
+Actions implemented:
+- Global staged-edit workflow in App.tsx
+  - Replaced top-level app datasets (ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches) from transient useState to persistent draft state via usePersistentState('draft:app:*', ...).
+  - Removed automatic persistence saveAppState(...) on every state change.
+  - Added explicit global validation + save action:
+    - commitPendingChanges() validates current data then persists to app storage.
+  - Added explicit global discard action:
+    - discardPendingChanges() restores the last validated snapshot.
+  - Added snapshot/diff tracking (savedSnapshot) and hasPendingChanges detection so unsaved state is visible.
+  - Added strict validation gate before save:
+    - schema validation through appDataSchema.safeParse(...),
+    - domain checks (non-negative costs/prices, sane rates, positive recipe yield, positive order/production quantities, etc.).
+  - Added visible pending banner in header with explicit Annuler / Valider buttons.
+  - Kept demo activation/exit aligned by marking those transitions as saved snapshots (markAsSaved: true).
+
+- Sticky numeric input fix in shared UI (components/ui/Common.tsx)
+  - Updated shared Input numeric mode to keep local transient draft text while focused (numericDraft).
+  - Clearing a numeric field no longer instantly snaps back to 0 during typing.
+  - On blur, display returns to canonical persisted value if not committed by parent.
+
+- Sticky numeric input fix in table-like raw inputs (components/views/MonthlyReport.tsx)
+  - Added editable numeric parser/render helpers:
+    - parseEditableNumber(...) stores temporary invalid/empty edits as NaN instead of coercing to 0.
+    - displayNumericCellValue(...) displays invalid intermediate numeric states as empty text.
+  - Sanitized calculations while editing:
+    - mathReadyEditableSales / mathReadyEditableUnsold convert non-finite values to safe 0 only for live math display.
+  - Save remains blocked when invalid values exist via existing canSave checks (isNonNegativeNumber(...)).
+
+- Analysis salary input alignment (components/views/Analysis.tsx)
+  - Switched salary helper numeric control to shared Input component so the sticky numeric UX fix applies there too.
+
+- Documentation sync
+  - Updated README data persistence section to document the new explicit Valider/Annuler workflow and persistent drafts behavior.
+
+Validation:
+- cmd /c npm run typecheck passed.
+- cmd /c npm run test -- --run blocked by environment spawn EPERM (vite/esbuild startup), same host limitation as prior turns.
+
+## 45) Latest Turn Update (storage persistence semantics: uninstall vs update + full reset)
+
+User question/request:
+- Asked why data can still appear after uninstall/reinstall on phone and in browser reinstall/open scenarios.
+- Requested "classic app" behavior:
+  - uninstall should remove app data,
+  - update should keep data,
+  - explicit in-app "reset all data" capability.
+
+Diagnosis:
+- Runtime storage remains web-local (`localStorage`) unless a native bridge is injected.
+- Android native code currently has no custom storage bridge injection (`MainActivity` is plain `BridgeActivity`), so app relies on webview storage path.
+- Reinstall persistence can come from Android auto-backup restore when `android:allowBackup="true"`.
+- Browser/PWA uninstall does not reliably clear origin storage by design.
+
+Actions implemented:
+- Storage API:
+  - Added `clearAllPersistedData()` in `storage.ts`.
+  - It clears:
+    - app state keys (`milena_app_state_v2`, legacy `milena_app_state_v1`),
+    - demo keys (`milena_demo_backup_v1`, `milena_demo_session_v1`),
+    - all draft keys prefixed with `draft:`,
+    - theme preference key (`milena_theme`).
+- UI integration:
+  - Added destructive reset zone in backup/data modal (`App.tsx` DataManagerModal):
+    - button: `Reinitialiser toutes les donnees`.
+  - Added app-level `resetAllData()` flow:
+    - confirms irreversible action,
+    - clears persisted data,
+    - exits demo session,
+    - reinitializes to clean default app state and marks it as saved.
+- Tests:
+  - Extended `tests/storage.test.ts` with cases validating full wipe behavior for:
+    - default browser storage,
+    - injected custom storage engine + browser draft cleanup.
+- Android behavior:
+  - Set `android:allowBackup="false"` in local generated manifest (`android/app/src/main/AndroidManifest.xml`) to prevent auto-restore after reinstall.
+  - Added durable automation:
+    - new script `scripts/enforce-android-data-policy.mjs`,
+    - npm script `mobile:android:enforce-data-policy`,
+    - wired into `mobile:add:android` and `mobile:sync` so policy is re-applied after Android regeneration/sync.
+- Documentation:
+  - Updated `README.md` Data Persistence section to document:
+    - uninstall vs update behavior target on Android,
+    - reset-all action,
+    - browser/PWA storage caveat.
+
+Validation this turn:
+- `npm.cmd run typecheck` passed.
+- `npx.cmd vitest run tests/storage.test.ts tests/storageBootstrap.test.ts tests/mobileStorageEngine.test.ts` blocked in host environment (`spawn EPERM` from vite/esbuild startup).
+- `npm.cmd run build` blocked in same host environment (`spawn EPERM`).
+- Initial `npm`/`npx` PowerShell alias calls were blocked by execution policy (`*.ps1`), then rerun successfully via `npm.cmd`/`npx.cmd`.
+
+## 46) Latest Turn Update (user chose classic Android backup behavior)
+
+User request:
+- Asked whether Android backup/restore is a classic app behavior and requested to switch it back on for best UX.
+- Stated concerns about avoiding opaque storage growth and inaccessible data.
+
+Actions implemented:
+- Switched Android policy back to backup-enabled behavior:
+  - `android:allowBackup="true"` in `android/app/src/main/AndroidManifest.xml`.
+- Updated durable enforcement script:
+  - `scripts/enforce-android-data-policy.mjs` now enforces `android:allowBackup="true"` (instead of false), including replacement for either prior boolean state.
+- Kept automation wiring intact:
+  - `mobile:add:android` and `mobile:sync` still call `mobile:android:enforce-data-policy`.
+- Updated README persistence notes:
+  - documents backup-enabled classic behavior,
+  - clarifies that uninstall+reinstall may restore data from Android backup,
+  - keeps explicit reset-all-data guidance.
+
+Validation this turn:
+- `npm.cmd run mobile:android:enforce-data-policy` => reports `allowBackup is already true`.
+- `npm.cmd run typecheck` => pass.

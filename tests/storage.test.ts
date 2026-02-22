@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
   APP_STATE_STORAGE_KEY,
+  clearAllPersistedData,
   clearDemoBackup,
   clearDemoSession,
   configureStorageEngine,
@@ -130,5 +131,45 @@ describe('storage helpers', () => {
 
     expect(loadAppState()).toEqual(payload);
     expect(localStorage.getItem(APP_STATE_STORAGE_KEY)).toBeNull();
+  });
+
+  it('clears app state, demo keys, and all draft entries', () => {
+    saveAppState(payload);
+    saveDemoBackup(payload);
+    saveDemoSession({ datasetId: 'launch-week' });
+    localStorage.setItem('draft:app:orders', JSON.stringify({ value: [], savedAt: '2026-01-01T00:00:00.000Z' }));
+    localStorage.setItem('draft:legacy:products', JSON.stringify({ value: [], savedAt: '2026-01-01T00:00:00.000Z' }));
+    localStorage.setItem('milena_theme', 'dark');
+
+    clearAllPersistedData();
+
+    expect(loadAppState()).toBeUndefined();
+    expect(loadDemoBackup()).toBeUndefined();
+    expect(loadDemoSession()).toBeUndefined();
+    expect(localStorage.getItem('draft:app:orders')).toBeNull();
+    expect(localStorage.getItem('draft:legacy:products')).toBeNull();
+    expect(localStorage.getItem('milena_theme')).toBeNull();
+  });
+
+  it('clears persisted data with injected storage engine and browser drafts', () => {
+    const memory = new Map<string, string>();
+    const engine: StorageEngine = {
+      getItem: key => memory.get(key) ?? null,
+      setItem: (key, value) => memory.set(key, value),
+      removeItem: key => memory.delete(key)
+    };
+    configureStorageEngine(engine);
+
+    saveAppState(payload);
+    saveDemoBackup(payload);
+    saveDemoSession({ datasetId: 'launch-week' });
+    localStorage.setItem('draft:app:settings', JSON.stringify({ value: {}, savedAt: '2026-01-01T00:00:00.000Z' }));
+
+    clearAllPersistedData();
+
+    expect(memory.has(APP_STATE_STORAGE_KEY)).toBe(false);
+    expect(memory.has('milena_demo_backup_v1')).toBe(false);
+    expect(memory.has('milena_demo_session_v1')).toBe(false);
+    expect(localStorage.getItem('draft:app:settings')).toBeNull();
   });
 });

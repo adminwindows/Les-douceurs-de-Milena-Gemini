@@ -51,7 +51,9 @@ export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, 
   const generatedId = React.useId();
   const inputId = props.id ?? generatedId;
   const isNumeric = props.type === 'number';
-  const { onChange, type, id: _ignoredId, ...restProps } = props;
+  const { onChange, onBlur, onFocus, type, id: _ignoredId, value, ...restProps } = props;
+  const [numericDraft, setNumericDraft] = React.useState<string | null>(null);
+  const inputValue = isNumeric ? (numericDraft ?? (value ?? '')) : value;
   const numericProps = isNumeric ? { lang: 'en', inputMode: 'decimal' as const, pattern: '[0-9]*[.]?[0-9]*' } : {};
 
   const handleChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -60,8 +62,28 @@ export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, 
       if (normalized !== event.currentTarget.value) {
         event.currentTarget.value = normalized;
       }
+      setNumericDraft(normalized);
     }
     onChange?.(event);
+  };
+
+  const handleFocus: React.FocusEventHandler<HTMLInputElement> = (event) => {
+    if (isNumeric) {
+      const currentValue = value;
+      setNumericDraft(
+        currentValue === undefined || currentValue === null
+          ? ''
+          : String(currentValue)
+      );
+    }
+    onFocus?.(event);
+  };
+
+  const handleBlur: React.FocusEventHandler<HTMLInputElement> = (event) => {
+    if (isNumeric) {
+      setNumericDraft(null);
+    }
+    onBlur?.(event);
   };
 
   return (
@@ -74,12 +96,15 @@ export const Input: React.FC<InputProps> = ({ label, error, helperText, suffix, 
         <input
           id={inputId}
           type={isNumeric ? "text" : type}
+          value={inputValue}
           className={`w-full px-3 py-2.5 rounded-lg border text-sm text-stone-900 dark:text-stone-100 transition-shadow focus:outline-none focus:ring-2 bg-white dark:bg-stone-900 ${
             error 
               ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-200 dark:focus:ring-red-900' 
               : 'border-stone-300 dark:border-stone-600 focus:border-[#D45D79] focus:ring-rose-100 dark:focus:ring-rose-900 shadow-sm'
           } ${suffix ? 'pr-12' : ''} placeholder:text-stone-400 dark:placeholder:text-stone-600`}
           {...numericProps}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           onChange={handleChange}
           {...restProps}
         />
