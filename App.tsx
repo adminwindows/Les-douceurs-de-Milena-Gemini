@@ -24,7 +24,9 @@ import {
   loadDemoSession,
   saveDemoSession,
   clearDemoSession,
-  clearAllPersistedData
+  clearAllPersistedData,
+  getLocalStorageStats,
+  type LocalStorageStats
 } from './storage';
 import { DEMO_DATASETS, cloneAppData, getDemoDatasetById } from './demoData';
 import { Ingredient, Recipe, Product, GlobalSettings, Order, MonthlyReportData, Purchase, ProductionBatch } from './types';
@@ -39,20 +41,22 @@ import {
   normalizePurchase,
   normalizeSettings
 } from './dataMigrations';
-import { usePersistentState } from './usePersistentState';
+import { runDraftStorageMaintenance, usePersistentState } from './usePersistentState';
 
 const DataManagerModal = ({
   isOpen, onClose,
-  data, setData, onResetAllData
+  data, setData, onResetAllData,
+  storageStats,
+  onCleanupDraftStorage
 }: {
   isOpen: boolean,
   onClose: () => void,
   data: any,
   setData: (key: string, val: any) => void,
-  onResetAllData: () => void
+  onResetAllData: () => void,
+  storageStats: LocalStorageStats,
+  onCleanupDraftStorage: () => void
 }) => {
-  if (!isOpen) return null;
-
   const [mode, setMode] = useState<'export' | 'import'>('export');
   const [selection, setSelection] = useState<BackupSelection>({
     settings: true,
@@ -60,6 +64,8 @@ const DataManagerModal = ({
     operations: true,
     reports: true
   });
+
+  if (!isOpen) return null;
 
   const toggle = (key: keyof typeof selection) => setSelection(prev => ({ ...prev, [key]: !prev[key] }));
   const supportsNativeBackupPicker = Boolean(getMobileBackupBridge());
@@ -171,6 +177,23 @@ const DataManagerModal = ({
           </label>
         </div>
 
+        <div className="mb-6 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/60 p-3">
+          <p className="text-sm font-bold text-stone-800 dark:text-stone-200">Stockage local</p>
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-1">
+            Gere par l application: {formatStorageSize(storageStats.managedBytes)} ({storageStats.managedKeys} cles)
+          </p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Brouillons: {formatStorageSize(storageStats.draftBytes)} ({storageStats.draftKeys} cles)
+            {storageStats.unknownDraftKeys > 0 ? `, inconnues: ${storageStats.unknownDraftKeys}` : ''}
+          </p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Total localStorage: {formatStorageSize(storageStats.totalBytes)} ({storageStats.totalKeys} cles)
+          </p>
+          <Button size="sm" variant="ghost" onClick={onCleanupDraftStorage} className="w-full mt-2">
+            Nettoyer les brouillons obsoletes
+          </Button>
+        </div>
+
         <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/20 p-3">
           <p className="text-sm font-bold text-red-700 dark:text-red-300">Zone sensible</p>
           <p className="text-xs text-red-700/90 dark:text-red-300/90 mt-1">
@@ -203,6 +226,13 @@ const DataManagerModal = ({
       </div>
     </div>
   );
+};
+
+const formatStorageSize = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
 const serializeAppData = (data: AppData): string => JSON.stringify(data);
@@ -351,6 +381,7 @@ const App = () => {
   const [purchases, setPurchases] = usePersistentState<Purchase[]>('draft:app:purchases', initialSavedAppData.purchases);
   const [productionBatches, setProductionBatches] = usePersistentState<ProductionBatch[]>('draft:app:productionBatches', initialSavedAppData.productionBatches);
   const [activeDemoDatasetId, setActiveDemoDatasetId] = useState<string | undefined>(loadDemoSession()?.datasetId);
+  const [storageStats, setStorageStats] = useState<LocalStorageStats>(() => getLocalStorageStats());
 
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
@@ -367,7 +398,19 @@ const App = () => {
     }
   }, [activeDemoDatasetId]);
 
+  useEffect(() => {
+    if (!isDataModalOpen) return;
+    setStorageStats(getLocalStorageStats());
+  }, [isDataModalOpen]);
+
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const refreshStorageStats = () => setStorageStats(getLocalStorageStats());
+
+  const cleanupDraftStorage = () => {
+    const removed = runDraftStorageMaintenance(true);
+    refreshStorageStats();
+    alert(`Nettoyage termine. Entrees supprimees: ${removed}.`);
+  };
 
   const handleSettingsUpdate: React.Dispatch<React.SetStateAction<GlobalSettings>> = (updater) => {
     setSettings(prev => {
@@ -445,6 +488,7 @@ const App = () => {
     clearDemoSession();
     setActiveDemoDatasetId(undefined);
     setAllData(createEmptyAppData(firstLaunchSettings), { markAsSaved: true });
+    refreshStorageStats();
     setIsDataModalOpen(false);
     alert('Toutes les donnees locales ont ete supprimees.');
   };
@@ -566,6 +610,8 @@ const App = () => {
         data={{ ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches }}
         setData={setData}
         onResetAllData={resetAllData}
+        storageStats={storageStats}
+        onCleanupDraftStorage={cleanupDraftStorage}
       />
 
       <header className="bg-white dark:bg-stone-900 border-b border-rose-100 dark:border-stone-800 shrink-0 sticky top-0 z-30 shadow-sm no-print transition-colors duration-300">

@@ -1176,3 +1176,40 @@ Actions implemented:
 Validation this turn:
 - `npm.cmd run mobile:android:enforce-data-policy` => reports `allowBackup is already true`.
 - `npm.cmd run typecheck` => pass.
+
+## 47) Latest Turn Update (explicit anti-bloat storage hygiene for dead/orphan data concern)
+
+User feedback:
+- Said previous response did not address the "dead storage growth" concern.
+- Requested practical mitigation against opaque growth/orphan local data.
+
+Actions implemented:
+- Draft hygiene hardening in `usePersistentState.ts`:
+  - Added `runDraftStorageMaintenance(force?: boolean)` and switched startup cleanup to use it.
+  - Cleanup now removes draft keys that are:
+    - outside allowed draft namespaces,
+    - malformed/non-envelope JSON,
+    - missing payload content,
+    - stale beyond retention window.
+  - Allowed draft namespaces are explicit (`draft:app:`, `draft:recipe:`, `draft:order:`, `draft:product:`, `draft:production:`, `draft:stock:`) to avoid uncontrolled key sprawl.
+- Storage visibility added in `storage.ts`:
+  - Added `getLocalStorageStats()` + `LocalStorageStats` with totals for:
+    - total keys/bytes,
+    - managed keys/bytes,
+    - draft keys/bytes,
+    - unknown draft key count.
+- Data modal UX in `App.tsx`:
+  - Added "Stockage local" panel in backup/data modal showing live usage stats.
+  - Added explicit button `Nettoyer les brouillons obsoletes` to run forced draft maintenance and report removed entry count.
+  - Reset-all flow now refreshes storage stats after wipe.
+  - Also fixed hook ordering safety in `DataManagerModal` by initializing hooks before conditional return.
+- Tests:
+  - Added `tests/storageMaintenance.test.ts` covering:
+    - stale/malformed/unknown draft cleanup behavior,
+    - local storage stats reporting (including unknown draft detection).
+- Docs:
+  - Updated README Data Persistence section to mention storage usage visibility and cleanup action in modal.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `npx.cmd vitest run tests/storageMaintenance.test.ts tests/storage.test.ts` => blocked in host environment by known `spawn EPERM` (vite/esbuild startup).

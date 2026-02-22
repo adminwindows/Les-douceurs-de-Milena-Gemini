@@ -171,6 +171,7 @@ The scripts live in:
 * Normal app updates still keep data.
 * With backup enabled, uninstall + reinstall can restore prior data from Android backup.
 * Use the `Sauvegardes / Donnees` modal action `Reinitialiser toutes les donnees` to wipe all local state (app snapshot, demo session, drafts, and theme preference).
+* The same modal now shows local storage usage (managed keys vs total) and has `Nettoyer les brouillons obsoletes` to remove malformed/stale/orphan draft keys.
 * Browser/PWA uninstall does not always clear origin storage; for web resets, use the reset action above or clear site data in browser settings.
 * Use the “Sauvegardes / Données” modal to export or import a JSON backup.
 * Backup import/export supports a native mobile bridge when available (device picker/save flow), with browser file input/download fallback.

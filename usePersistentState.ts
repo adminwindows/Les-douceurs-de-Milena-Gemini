@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react';
 
 const DRAFT_KEY_PREFIX = 'draft:';
 const DRAFT_STORAGE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const ALLOWED_DRAFT_PREFIXES = [
+  'draft:app:',
+  'draft:recipe:',
+  'draft:order:',
+  'draft:product:',
+  'draft:production:',
+  'draft:stock:'
+] as const;
 
 let hasPrunedDraftStorage = false;
 
@@ -11,6 +19,7 @@ interface DraftEnvelope<T> {
 }
 
 const isDraftKey = (key: string) => key.startsWith(DRAFT_KEY_PREFIX);
+const isAllowedDraftKey = (key: string) => ALLOWED_DRAFT_PREFIXES.some(prefix => key.startsWith(prefix));
 
 const parseDraftEnvelope = <T,>(raw: string): DraftEnvelope<T> | undefined => {
   try {
@@ -31,8 +40,9 @@ const parseDraftEnvelope = <T,>(raw: string): DraftEnvelope<T> | undefined => {
   return undefined;
 };
 
-const pruneDraftStorage = () => {
-  if (typeof window === 'undefined' || hasPrunedDraftStorage) return;
+export const runDraftStorageMaintenance = (force = false): number => {
+  if (typeof window === 'undefined') return 0;
+  if (hasPrunedDraftStorage && !force) return 0;
   hasPrunedDraftStorage = true;
 
   const now = Date.now();
@@ -42,11 +52,22 @@ const pruneDraftStorage = () => {
     const storageKey = window.localStorage.key(i);
     if (!storageKey || !isDraftKey(storageKey)) continue;
 
+    if (!isAllowedDraftKey(storageKey)) {
+      keysToRemove.push(storageKey);
+      continue;
+    }
+
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) continue;
+    if (!raw) {
+      keysToRemove.push(storageKey);
+      continue;
+    }
 
     const envelope = parseDraftEnvelope(raw);
-    if (!envelope) continue;
+    if (!envelope) {
+      keysToRemove.push(storageKey);
+      continue;
+    }
 
     const savedAt = Date.parse(envelope.savedAt);
     if (Number.isNaN(savedAt) || now - savedAt > DRAFT_STORAGE_MAX_AGE_MS) {
@@ -55,13 +76,14 @@ const pruneDraftStorage = () => {
   }
 
   keysToRemove.forEach(storageKey => window.localStorage.removeItem(storageKey));
+  return keysToRemove.length;
 };
 
 export const usePersistentState = <T,>(key: string, initialValue: T) => {
   const [state, setState] = useState<T>(() => {
     if (typeof window === 'undefined') return initialValue;
 
-    pruneDraftStorage();
+    runDraftStorageMaintenance();
 
     try {
       const raw = window.localStorage.getItem(key);

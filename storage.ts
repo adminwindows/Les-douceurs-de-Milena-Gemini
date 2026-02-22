@@ -10,6 +10,13 @@ const DEMO_BACKUP_KEY = 'milena_demo_backup_v1';
 const DEMO_SESSION_KEY = 'milena_demo_session_v1';
 const DRAFT_STORAGE_KEY_PREFIX = 'draft:';
 const THEME_STORAGE_KEY = 'milena_theme';
+const MANAGED_STATIC_KEYS = new Set<string>([
+  APP_STATE_STORAGE_KEY,
+  ...LEGACY_APP_STATE_STORAGE_KEYS,
+  DEMO_BACKUP_KEY,
+  DEMO_SESSION_KEY,
+  THEME_STORAGE_KEY
+]);
 
 const versionedAppStateSchema = z.object({
   version: z.number(),
@@ -20,6 +27,23 @@ const versionedAppStateSchema = z.object({
 export interface DemoSession {
   datasetId: string;
 }
+
+export interface LocalStorageStats {
+  totalKeys: number;
+  totalBytes: number;
+  managedKeys: number;
+  managedBytes: number;
+  draftKeys: number;
+  draftBytes: number;
+  unknownDraftKeys: number;
+}
+
+const utf8ByteLength = (value: string): number => {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(value).length;
+  }
+  return value.length * 2;
+};
 
 export const configureStorageEngine = (engine: StorageEngine): void => {
   setStorageEngine(engine);
@@ -157,4 +181,68 @@ export const clearAllPersistedData = (): void => {
 
   draftKeys.forEach(key => window.localStorage.removeItem(key));
   window.localStorage.removeItem(THEME_STORAGE_KEY);
+};
+
+export const getLocalStorageStats = (): LocalStorageStats => {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+    return {
+      totalKeys: 0,
+      totalBytes: 0,
+      managedKeys: 0,
+      managedBytes: 0,
+      draftKeys: 0,
+      draftBytes: 0,
+      unknownDraftKeys: 0
+    };
+  }
+
+  let totalKeys = 0;
+  let totalBytes = 0;
+  let managedKeys = 0;
+  let managedBytes = 0;
+  let draftKeys = 0;
+  let draftBytes = 0;
+  let unknownDraftKeys = 0;
+
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key) continue;
+
+    totalKeys += 1;
+    const value = window.localStorage.getItem(key) ?? '';
+    const bytes = utf8ByteLength(key) + utf8ByteLength(value);
+    totalBytes += bytes;
+
+    const isDraft = key.startsWith(DRAFT_STORAGE_KEY_PREFIX);
+    const isManaged = isDraft || MANAGED_STATIC_KEYS.has(key);
+    if (isManaged) {
+      managedKeys += 1;
+      managedBytes += bytes;
+    }
+
+    if (isDraft) {
+      draftKeys += 1;
+      draftBytes += bytes;
+      if (
+        !key.startsWith('draft:app:') &&
+        !key.startsWith('draft:recipe:') &&
+        !key.startsWith('draft:order:') &&
+        !key.startsWith('draft:product:') &&
+        !key.startsWith('draft:production:') &&
+        !key.startsWith('draft:stock:')
+      ) {
+        unknownDraftKeys += 1;
+      }
+    }
+  }
+
+  return {
+    totalKeys,
+    totalBytes,
+    managedKeys,
+    managedBytes,
+    draftKeys,
+    draftBytes,
+    unknownDraftKeys
+  };
 };
