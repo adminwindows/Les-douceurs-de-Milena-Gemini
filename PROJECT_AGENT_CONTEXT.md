@@ -1011,3 +1011,47 @@ Files modified this turn:
 - `components/views/Settings.tsx`
 - `tests/monthlyReportMath.test.ts`
 - `tests/settingsLaborToggle.test.tsx`
+
+## 43) Latest Turn Update (orders->production completion bug, order UI, product visibility, duplicate line behavior)
+
+User report:
+- Marking an order as done incorrectly re-sent items to production even when user intended "already launched".
+- Completion modal meaning was unclear.
+- Order widgets needed visual improvement.
+- Product labels were missing in some order/report situations.
+- Duplicate product add behavior needed improvement:
+  - production context should not block repeated additions,
+  - monthly-report unsold add should increment existing quantity instead of forcing delete/recreate.
+- Visual artifact between quantity and price in order item rows (� separator) and €NaN displays seen in screenshots.
+
+Actions implemented:
+- components/views/Orders.tsx
+  - Reworked completion flow with explicit actions:
+    - Valider sans ajout (mark completed without creating production lines),
+    - Lancer la production maintenant / Ajouter a nouveau en production.
+  - Fixed original bug path: completion no longer auto-adds production when user chooses no add.
+  - Kept duplicate-launch confirmation on direct Produire action when already launched.
+  - Added stronger draft/order item numeric sanitization to prevent NaN totals/prices.
+  - Added fallback labels (Produit supprime) where product references are missing.
+  - Reworked add-item row layout for mobile readability (full-width product select + compact qty/price/action row).
+  - Refined order card/action styling and replaced problematic separator with ASCII (xN - price) to remove artifact.
+  - Added order total display per card for readability.
+
+- components/views/MonthlyReport.tsx
+  - Changed unsold add behavior:
+    - if product already exists, added quantity is now accumulated into existing line.
+  - Added product-name resolver fallback (Produit supprime) for editable/frozen lines.
+  - Added fallback <option> for missing product IDs in editable sales rows so product text remains visible.
+  - Improved sales/unsold row layouts with responsive min-width grid presets + horizontal safety wrapper to prevent product select collapsing to icon-only.
+  - Kept TVA column conditional behavior based on global TVA subject setting.
+
+- components/views/Production.tsx
+  - Hardened manual production batch IDs to include random suffix (prevents accidental same-id collisions when adding lines rapidly).
+  - Added product-name fallback in production alert list.
+
+- utils.ts
+  - Hardened formatCurrency to coerce invalid numeric input to 0 before formatting, preventing EUR NaN UI output.
+
+Validation:
+- cmd /c npm run typecheck ✅ pass.
+- cmd /c npm run test -- --run ❌ blocked by environment spawn EPERM (vite/esbuild startup), same host limitation as prior turns.

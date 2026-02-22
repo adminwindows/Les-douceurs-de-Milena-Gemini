@@ -106,6 +106,13 @@ export const MonthlyReport: React.FC<Props> = ({
   const showTvaRateColumn = settings.isTvaSubject;
   const lineFieldClass = 'w-full min-w-0 px-2 py-1.5 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 text-sm focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900';
   const lineReadonlyClass = 'w-full min-w-0 px-2 py-1.5 rounded border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-sm';
+  const salesHeaderCols = showTvaRateColumn ? 'grid-cols-[minmax(150px,1fr)_68px_88px_64px] min-w-[430px]' : 'grid-cols-[minmax(160px,1fr)_84px_108px] min-w-[380px]';
+  const salesEditCols = showTvaRateColumn ? 'grid-cols-[minmax(150px,1fr)_68px_88px_64px_24px] min-w-[454px]' : 'grid-cols-[minmax(160px,1fr)_84px_108px_24px] min-w-[404px]';
+  const salesCreateCols = showTvaRateColumn ? 'grid-cols-[minmax(150px,1fr)_68px_88px_64px_56px] min-w-[486px]' : 'grid-cols-[minmax(160px,1fr)_84px_108px_56px] min-w-[436px]';
+  const unsoldHeaderCols = 'grid-cols-[minmax(170px,1fr)_84px] min-w-[300px]';
+  const unsoldEditCols = 'grid-cols-[minmax(170px,1fr)_84px_24px] min-w-[324px]';
+  const unsoldCreateCols = 'grid-cols-[minmax(170px,1fr)_84px_56px] min-w-[356px]';
+  const getProductName = (productId: string) => products.find(p => p.id === productId)?.name || 'Produit supprime';
 
   useEffect(() => {
     const saved = savedReports.find(r => r.monthStr === selectedMonth);
@@ -208,20 +215,41 @@ export const MonthlyReport: React.FC<Props> = ({
   const addSaleLine = () => {
     if (!newSaleDraft.productId) return;
     const p = products.find(prod => prod.id === newSaleDraft.productId);
+    const quantitySold = Number(newSaleDraft.quantitySold ?? 0);
+    const actualPrice = Number(newSaleDraft.actualPrice ?? (p?.standardPrice ?? 0));
+    const nextTvaRate = Number(newSaleDraft.tvaRate ?? settings.defaultTvaRate);
+    if (!Number.isFinite(quantitySold) || quantitySold < 0) return;
+    if (!Number.isFinite(actualPrice) || actualPrice < 0) return;
+
     setEditableSales(prev => [...prev, {
       id: makeSaleId(),
       productId: newSaleDraft.productId!,
-      quantitySold: Number(newSaleDraft.quantitySold ?? 0),
-      actualPrice: Number(newSaleDraft.actualPrice ?? (p?.standardPrice ?? 0)),
+      quantitySold,
+      actualPrice,
       tvaRate: settings.isTvaSubject
-        ? (newSaleDraft.tvaRate ?? settings.defaultTvaRate)
+        ? (Number.isFinite(nextTvaRate) && nextTvaRate >= 0 ? nextTvaRate : settings.defaultTvaRate)
         : undefined
     }]);
     setNewSaleDraft({});
   };
   const addUnsoldLine = () => {
-    if (!newUnsoldDraft.productId || editableUnsold.some(e => e.productId === newUnsoldDraft.productId)) return;
-    setEditableUnsold(prev => [...prev, { productId: newUnsoldDraft.productId!, quantityUnsold: Number(newUnsoldDraft.quantityUnsold ?? 0) }]);
+    if (!newUnsoldDraft.productId) return;
+
+    const quantityToAdd = Number(newUnsoldDraft.quantityUnsold ?? 0);
+    if (!Number.isFinite(quantityToAdd) || quantityToAdd < 0) return;
+
+    setEditableUnsold((prev) => {
+      const existing = prev.find(line => line.productId === newUnsoldDraft.productId);
+      if (existing) {
+        return prev.map(line => (
+          line.productId === newUnsoldDraft.productId
+            ? { ...line, quantityUnsold: line.quantityUnsold + quantityToAdd }
+            : line
+        ));
+      }
+
+      return [...prev, { productId: newUnsoldDraft.productId!, quantityUnsold: quantityToAdd }];
+    });
     setNewUnsoldDraft({});
   };
   const mergeUnsold = (lines: UnsoldEntry[]) => {
@@ -281,126 +309,131 @@ export const MonthlyReport: React.FC<Props> = ({
         </div>
         {frozenTotals && <Card className="border-amber-200 bg-amber-50"><p className="text-sm">Lignes chargées figées. Ajouts possibles uniquement.</p></Card>}
 
-                <Card>
+        <Card>
           <h3 className="text-lg font-bold mb-3">1. Ventes</h3>
-          <div className={`grid ${showTvaRateColumn ? 'grid-cols-[1fr_72px_100px_68px]' : 'grid-cols-[1fr_90px_120px]'} gap-1 mb-2 text-[11px] uppercase tracking-wide text-stone-500 dark:text-stone-400`}>
-            <span>Produit</span>
-            <span>Qte</span>
-            <span>Prix</span>
-            {showTvaRateColumn && <span>TVA %</span>}
-          </div>
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {frozenSales.map(line => (
-              <div
-                key={`f-${line.id}`}
-                className={`grid ${showTvaRateColumn ? 'grid-cols-[1fr_72px_100px_68px]' : 'grid-cols-[1fr_90px_120px]'} gap-1`}
-              >
-                <div className={lineReadonlyClass}>{products.find(p => p.id === line.productId)?.name || 'Produit supprime'}</div>
-                <div className={lineReadonlyClass}>{line.quantitySold}</div>
-                <div className={lineReadonlyClass}>{line.actualPrice}</div>
-                {showTvaRateColumn && <div className={lineReadonlyClass}>{line.tvaRate ?? 0}</div>}
-              </div>
-            ))}
-            {editableSales.map(line => (
-              <div
-                key={line.id}
-                className={`grid ${showTvaRateColumn ? 'grid-cols-[1fr_72px_100px_68px_22px]' : 'grid-cols-[1fr_90px_120px_22px]'} gap-1`}
-              >
-                <select
-                  className={lineFieldClass}
-                  value={line.productId}
-                  onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, productId: e.target.value } : s))}
+          <div className="overflow-x-auto pb-1">
+            <div className={`grid ${salesHeaderCols} gap-1 mb-2 text-[11px] uppercase tracking-wide text-stone-500 dark:text-stone-400`}>
+              <span>Produit</span>
+              <span>Qte</span>
+              <span>Prix</span>
+              {showTvaRateColumn && <span>TVA %</span>}
+            </div>
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {frozenSales.map(line => (
+                <div
+                  key={`f-${line.id}`}
+                  className={`grid ${salesHeaderCols} gap-1`}
                 >
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <input
-                  className={lineFieldClass}
-                  value={line.quantitySold}
-                  onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, quantitySold: parseOptionalNumber(e.target.value) ?? 0 } : s))}
-                />
-                <input
-                  className={lineFieldClass}
-                  value={line.actualPrice}
-                  onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, actualPrice: parseOptionalNumber(e.target.value) ?? 0 } : s))}
-                />
-                {showTvaRateColumn && (
+                  <div className={lineReadonlyClass}>{getProductName(line.productId)}</div>
+                  <div className={lineReadonlyClass}>{line.quantitySold}</div>
+                  <div className={lineReadonlyClass}>{line.actualPrice}</div>
+                  {showTvaRateColumn && <div className={lineReadonlyClass}>{line.tvaRate ?? 0}</div>}
+                </div>
+              ))}
+              {editableSales.map(line => (
+                <div
+                  key={line.id}
+                  className={`grid ${salesEditCols} gap-1`}
+                >
+                  <select
+                    className={lineFieldClass}
+                    value={line.productId}
+                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, productId: e.target.value } : s))}
+                  >
+                    {!products.some(p => p.id === line.productId) && <option value={line.productId}>Produit supprime</option>}
+                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
                   <input
                     className={lineFieldClass}
-                    value={line.tvaRate ?? settings.defaultTvaRate}
-                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                    value={line.quantitySold}
+                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, quantitySold: parseOptionalNumber(e.target.value) ?? 0 } : s))}
                   />
-                )}
-                <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableSales(prev => prev.filter(s => s.id !== line.id))}>x</button>
-              </div>
-            ))}
-          </div>
-          <div className={`grid ${showTvaRateColumn ? 'grid-cols-[1fr_72px_100px_68px_56px]' : 'grid-cols-[1fr_90px_120px_56px]'} gap-1 mt-2`}>
-            <select
-              className={lineFieldClass}
-              value={newSaleDraft.productId ?? ''}
-              onChange={e => setNewSaleDraft({
-                ...newSaleDraft,
-                productId: e.target.value,
-                tvaRate: settings.isTvaSubject ? settings.defaultTvaRate : undefined
-              })}
-            >
-              <option value="">Produit</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input
-              className={lineFieldClass}
-              value={newSaleDraft.quantitySold ?? ''}
-              onChange={e => setNewSaleDraft({ ...newSaleDraft, quantitySold: parseOptionalNumber(e.target.value) ?? 0 })}
-              placeholder="Qte"
-            />
-            <input
-              className={lineFieldClass}
-              value={newSaleDraft.actualPrice ?? ''}
-              onChange={e => setNewSaleDraft({ ...newSaleDraft, actualPrice: parseOptionalNumber(e.target.value) ?? 0 })}
-              placeholder="Prix"
-            />
-            {showTvaRateColumn && (
+                  <input
+                    className={lineFieldClass}
+                    value={line.actualPrice}
+                    onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, actualPrice: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                  />
+                  {showTvaRateColumn && (
+                    <input
+                      className={lineFieldClass}
+                      value={line.tvaRate ?? settings.defaultTvaRate}
+                      onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: parseOptionalNumber(e.target.value) ?? 0 } : s))}
+                    />
+                  )}
+                  <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableSales(prev => prev.filter(s => s.id !== line.id))}>x</button>
+                </div>
+              ))}
+            </div>
+            <div className={`grid ${salesCreateCols} gap-1 mt-2`}>
+              <select
+                className={lineFieldClass}
+                value={newSaleDraft.productId ?? ''}
+                onChange={e => setNewSaleDraft({
+                  ...newSaleDraft,
+                  productId: e.target.value,
+                  tvaRate: settings.isTvaSubject ? settings.defaultTvaRate : undefined
+                })}
+              >
+                <option value="">Produit</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
               <input
                 className={lineFieldClass}
-                value={newSaleDraft.tvaRate ?? settings.defaultTvaRate}
-                onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: parseOptionalNumber(e.target.value) ?? 0 })}
-                placeholder="TVA"
+                value={newSaleDraft.quantitySold ?? ''}
+                onChange={e => setNewSaleDraft({ ...newSaleDraft, quantitySold: parseOptionalNumber(e.target.value) ?? 0 })}
+                placeholder="Qte"
               />
-            )}
-            <Button size="sm" onClick={addSaleLine}>+</Button>
+              <input
+                className={lineFieldClass}
+                value={newSaleDraft.actualPrice ?? ''}
+                onChange={e => setNewSaleDraft({ ...newSaleDraft, actualPrice: parseOptionalNumber(e.target.value) ?? 0 })}
+                placeholder="Prix"
+              />
+              {showTvaRateColumn && (
+                <input
+                  className={lineFieldClass}
+                  value={newSaleDraft.tvaRate ?? settings.defaultTvaRate}
+                  onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: parseOptionalNumber(e.target.value) ?? 0 })}
+                  placeholder="TVA"
+                />
+              )}
+              <Button size="sm" onClick={addSaleLine}>+</Button>
+            </div>
           </div>
         </Card>
 
         <Card>
           <h3 className="text-lg font-bold mb-3">2. Invendus</h3>
-          <div className="grid grid-cols-[1fr_90px] gap-1 mb-2 text-[11px] uppercase tracking-wide text-stone-500 dark:text-stone-400">
-            <span>Produit</span>
-            <span>Qte</span>
-          </div>
-          {frozenUnsold.map(line => (
-            <div key={`u-f-${line.productId}`} className="grid grid-cols-[1fr_90px] gap-1 mt-1">
-              <div className={lineReadonlyClass}>{products.find(p => p.id === line.productId)?.name || 'Produit supprime'}</div>
-              <div className={lineReadonlyClass}>{line.quantityUnsold}</div>
+          <div className="overflow-x-auto pb-1">
+            <div className={`grid ${unsoldHeaderCols} gap-1 mb-2 text-[11px] uppercase tracking-wide text-stone-500 dark:text-stone-400`}>
+              <span>Produit</span>
+              <span>Qte</span>
             </div>
-          ))}
-          {editableUnsold.map(line => (
-            <div key={`u-${line.productId}`} className="grid grid-cols-[1fr_90px_22px] gap-1 mt-1">
-              <span className={`${lineReadonlyClass} truncate`}>{products.find(p => p.id === line.productId)?.name}</span>
-              <input
-                className={lineFieldClass}
-                value={line.quantityUnsold}
-                onChange={e => setEditableUnsold(prev => prev.map(u => u.productId === line.productId ? { ...u, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 } : u))}
-              />
-              <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableUnsold(prev => prev.filter(u => u.productId !== line.productId))}>x</button>
+            {frozenUnsold.map(line => (
+              <div key={`u-f-${line.productId}`} className={`grid ${unsoldHeaderCols} gap-1 mt-1`}>
+                <div className={lineReadonlyClass}>{getProductName(line.productId)}</div>
+                <div className={lineReadonlyClass}>{line.quantityUnsold}</div>
+              </div>
+            ))}
+            {editableUnsold.map(line => (
+              <div key={`u-${line.productId}`} className={`grid ${unsoldEditCols} gap-1 mt-1`}>
+                <span className={`${lineReadonlyClass} truncate`} title={getProductName(line.productId)}>{getProductName(line.productId)}</span>
+                <input
+                  className={lineFieldClass}
+                  value={line.quantityUnsold}
+                  onChange={e => setEditableUnsold(prev => prev.map(u => u.productId === line.productId ? { ...u, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 } : u))}
+                />
+                <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableUnsold(prev => prev.filter(u => u.productId !== line.productId))}>x</button>
+              </div>
+            ))}
+            <div className={`grid ${unsoldCreateCols} gap-1 mt-2`}>
+              <select className={lineFieldClass} value={newUnsoldDraft.productId ?? ''} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, productId: e.target.value })}>
+                <option value="">Produit</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input className={lineFieldClass} value={newUnsoldDraft.quantityUnsold ?? ''} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 })} />
+              <Button size="sm" onClick={addUnsoldLine}>+</Button>
             </div>
-          ))}
-          <div className="grid grid-cols-[1fr_90px_56px] gap-1 mt-2">
-            <select className={lineFieldClass} value={newUnsoldDraft.productId ?? ''} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, productId: e.target.value })}>
-              <option value="">Produit</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input className={lineFieldClass} value={newUnsoldDraft.quantityUnsold ?? ''} onChange={e => setNewUnsoldDraft({ ...newUnsoldDraft, quantityUnsold: parseOptionalNumber(e.target.value) ?? 0 })} />
-            <Button size="sm" onClick={addUnsoldLine}>+</Button>
           </div>
         </Card>
 

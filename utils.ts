@@ -9,8 +9,9 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
   return price / (quantity * multiplier);
 };
 
-export const formatCurrency = (_amount: number, _currency = '€') => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(_amount);
+export const formatCurrency = (_amount: number, _currency = 'EUR') => {
+  const amount = Number.isFinite(_amount) ? _amount : 0;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
 export const ttcToHt = (priceTTC: number, vatRate: number): number => {

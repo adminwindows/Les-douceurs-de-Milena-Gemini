@@ -49,7 +49,7 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
     if (!newBatch.productId || !isBatchQuantityValid) return;
     setProductionBatches([
       {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
         date: newBatch.date || new Date().toISOString().split('T')[0],
         productId: newBatch.productId,
         quantity: Number(newBatch.quantity)
@@ -132,7 +132,7 @@ resetNewBatch();
               const p = products.find(prod => prod.id === alert.productId);
               return (
                 <li key={alert.productId}>
-                  <strong>{p?.name}</strong> : {alert.delivered} livrés vs {alert.produced} produits (Manque {alert.diff})
+                  <strong>{p?.name || 'Produit inconnu'}</strong> : {alert.delivered} livrés vs {alert.produced} produits (Manque {alert.diff})
                 </li>
               );
             })}
