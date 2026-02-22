@@ -68,9 +68,10 @@ describe('Settings salary field', () => {
     };
 
     render(<Settings settings={currentSettings} setSettings={setSettings} />);
-    const toggle = screen.getByLabelText(/assujetti à la tva/i);
+    const toggle = screen.getByLabelText(/assujetti/i);
     fireEvent.click(toggle);
 
     expect(currentSettings.isTvaSubject).toBe(true);
   });
 });
+

@@ -109,9 +109,10 @@ describe('computeMonthlyTotals', () => {
       actualFixedCosts: 0
     });
 
+    const revenueHT = 110 / (1 + 10 / 100);
     expectEqual(totals.totalRevenueTTC, 110);
-    expectEqual(totals.totalRevenueHT, 100);
-    expectEqual(totals.totalTvaCollected, 10);
+    expectEqual(totals.totalRevenueHT, revenueHT);
+    expectEqual(totals.totalTvaCollected, 110 - revenueHT);
   });
 
   it('supports mixed TVA rates line-by-line', () => {
@@ -322,7 +323,9 @@ describe('computeMonthlyTotals', () => {
       actualFixedCosts: 15
     });
 
-    const grossMargin = 100 - (10 + 20 + 20);
+    const revenueHT = 110 / (1 + 10 / 100);
+    const socialCharges = revenueHT * 0.2;
+    const grossMargin = revenueHT - (10 + 20 + socialCharges);
     expectEqual(totals.netResult, grossMargin - 15);
   });
 

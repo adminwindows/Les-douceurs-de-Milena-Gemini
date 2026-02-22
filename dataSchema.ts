@@ -148,6 +148,16 @@ export const appDataSchema = z.object({
 
 const asNumber = z.coerce.number().refine(Number.isFinite);
 const asString = z.coerce.string();
+const asBoolean = z.preprocess((value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off' || normalized === '') return false;
+  }
+  return value;
+}, z.boolean());
 
 const legacyUnitSchema = z.preprocess((value) => {
   if (typeof value !== 'string') return value;
@@ -190,8 +200,8 @@ const legacyProductSchema = z.object({
   packagingCost: asNumber.catch(0),
   lossRate: asNumber.catch(0),
   unsoldEstimate: asNumber.catch(0),
-  packagingUsedOnUnsold: z.coerce.boolean().catch(true),
-  applyLossToPackaging: z.coerce.boolean().catch(false),
+  packagingUsedOnUnsold: asBoolean.catch(true),
+  applyLossToPackaging: asBoolean.catch(false),
   targetMargin: asNumber.catch(0),
   standardPrice: asNumber.optional(),
   estimatedMonthlySales: asNumber.catch(0),
@@ -208,11 +218,11 @@ const legacySettingsSchema = z.object({
   currency: asString.catch('EUR'),
   fixedCostItems: z.array(legacyFixedCostSchema).default([]),
   taxRate: asNumber.catch(0),
-  isTvaSubject: z.coerce.boolean().catch(false),
+  isTvaSubject: asBoolean.catch(false),
   defaultTvaRate: asNumber.catch(5.5),
   pricingStrategy: z.enum(['margin', 'salary']).catch('margin'),
   targetMonthlySalary: asNumber.catch(0),
-  includePendingOrdersInMonthlyReport: z.coerce.boolean().catch(false)
+  includePendingOrdersInMonthlyReport: asBoolean.catch(false)
 }).passthrough();
 
 const legacyOrderStatusSchema = z.preprocess((value) => {
@@ -286,7 +296,7 @@ const legacyReportSchema = z.object({
   totalSocialCharges: asNumber.optional(),
   actualFixedCosts: asNumber.optional(),
   netResult: asNumber.catch(0),
-  isLocked: z.coerce.boolean().catch(false)
+  isLocked: asBoolean.catch(false)
 }).passthrough();
 
 export const importDataSchema = z.object({

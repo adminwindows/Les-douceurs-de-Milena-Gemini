@@ -111,7 +111,7 @@ export const Settings: React.FC<Props> = ({
           <div className="space-y-6">
             <div className="p-4 bg-stone-50 dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700">
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-bold text-stone-800 dark:text-stone-200">Assujetti à la TVA ?</label>
+                <label htmlFor="toggle-tva" className="text-sm font-bold text-stone-800 dark:text-stone-200">Assujetti à la TVA ?</label>
                 <div className="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
                   <input
                     type="checkbox"
