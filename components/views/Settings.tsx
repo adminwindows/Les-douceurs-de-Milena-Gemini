@@ -183,7 +183,7 @@ export const Settings: React.FC<Props> = ({
         <Card>
           <div className="flex justify-between items-center mb-6 border-b border-stone-200 dark:border-stone-700 pb-2">
             <h3 className="text-xl font-bold text-stone-800 dark:text-stone-100">Charges Fixes Mensuelles</h3>
-            <span className="text-xl font-bold text-[#D45D79] dark:text-rose-400">{formatCurrency(totalFixedCosts)}</span>
+            <span className="text-xl font-bold text-[#D45D79] dark:text-rose-400">{formatCurrency(totalFixedCosts, settings.currency)}</span>
           </div>
 
           <div className="space-y-4 mb-6">
@@ -192,7 +192,7 @@ export const Settings: React.FC<Props> = ({
                 <div key={item.id} className="flex justify-between items-center bg-stone-50 dark:bg-stone-900 p-3 rounded-lg border border-stone-200 dark:border-stone-700">
                   <span className="font-medium text-stone-700 dark:text-stone-300">{item.name}</span>
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-stone-900 dark:text-stone-100">{formatCurrency(item.amount)}</span>
+                    <span className="font-bold text-stone-900 dark:text-stone-100">{formatCurrency(item.amount, settings.currency)}</span>
                     <button onClick={() => removeCost(item.id)} className="text-stone-400 hover:text-red-500 dark:hover:text-red-400">×</button>
                   </div>
                 </div>

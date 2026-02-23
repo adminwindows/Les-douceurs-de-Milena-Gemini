@@ -1504,3 +1504,70 @@ Observed remaining messages:
 Status interpretation:
 - Current one-click helper flow is now stable and working on user machine.
 - Remaining Gradle messages are non-blocking upstream/toolchain notes (not app logic/test failures), with successful APK generation.
+
+## 58) Latest Turn Update (deep audit: potential issues/inconsistencies scan)
+
+User request:
+- Asked for a thorough deep search for potential issues, inconsistencies, and weak points.
+
+Audit performed:
+- Ran health checks locally in this environment:
+  - `npm.cmd run typecheck` => pass.
+  - `npm.cmd run test` => blocked by host `spawn EPERM` (vite/esbuild process spawn restriction in this environment).
+  - `npm.cmd run build` => blocked by same host `spawn EPERM` restriction.
+  - `npm.cmd audit --audit-level=high` => 0 vulnerabilities.
+- Performed targeted static/code review across:
+  - app data/save/import flows (`App.tsx`, `storage.ts`, `usePersistentState.ts`, `dataMigrations.ts`),
+  - monthly report and PDF export (`components/views/MonthlyReport.tsx`, `monthlyReportMath.ts`),
+  - order/production/stock/shopping flows,
+  - Windows and mobile helper/build scripts,
+  - README/script consistency.
+
+Key findings identified (detailed list returned in chat):
+- Potential import-normalization inconsistency when importing settings + orders/reports together (normalization uses current settings state).
+- Potential monthly-report unsold validation gap (save gate validates sales but not unsold edited values).
+- Production alert undercount risk when order contains duplicate lines for same product.
+- Stock/production/shopping consistency concerns around "automatic deduction" wording vs actual stock source usage.
+- Helper script reproducibility/step-count consistency concerns in first-time/release paths.
+- README behavior drift in PDF mobile share claim vs current implementation path.
+- Additional low/medium consistency findings (TVA bounds consistency, currency formatting setting not used, etc.).
+
+## 59) Latest Turn Update (implement fixes from deep-audit list; keep clean-reinstall preference for item 5)
+
+User request:
+- "fix all these in the best way possible"
+- exception for item 5 (user wants to keep possibility of clean reinstall)
+- item 6 must be implemented with native mobile share for monthly report PDF
+- add as many tests as possible and provide clear summary
+
+Actions completed this turn:
+- Finished the previously incomplete `MonthlyReport` re-application safely (no bulk rewrite):
+  - wired PDF export to native share/download fallback:
+    - imported and used `shareOrDownloadPdf` from `pdfExport.ts`
+    - `exportMonthlyReportPdf(...)` now receives `currency` and calls native share first, then download fallback
+  - wired stricter save validation:
+    - imported and used `canSaveMonthlyReportDraft(...)` from `monthlyReportValidation.ts`
+    - save button/handler now validate both sales and unsold edited lines
+  - wired TVA sanitation in monthly report editable/new sale lines:
+    - imported and used `sanitizeTvaRate(...)`
+  - completed monthly report currency consistency:
+    - all totals/history/export formatting paths now pass `settings.currency`
+- Fixed test text encoding mismatch introduced during earlier edits:
+  - `tests/importMerge.test.ts` now expects `Paramètres` (correct accent), matching runtime value.
+
+Tests and validation:
+- `npm.cmd run typecheck` => pass.
+- `npm.cmd run test` => blocked in this environment by host `spawn EPERM` (esbuild/vite startup).
+- `npm.cmd run build` => blocked in this environment by same host `spawn EPERM`.
+- Existing expanded test suite from prior turn remains present, including:
+  - `tests/importMerge.test.ts`
+  - `tests/stockMovements.test.ts`
+  - `tests/ordersMath.test.ts`
+  - `tests/monthlyReportValidation.test.ts`
+  - `tests/pdfExport.test.ts`
+  - `tests/windowsHelpers.test.ts`
+  - plus updates in `tests/validation.test.ts`, `tests/utils.test.ts`, `tests/dataMigrations.test.ts`.
+
+Status note for item 5 exception:
+- No additional change was applied this turn to force a behavior that would remove clean reinstall possibility.
+- Current app-level reset-all flow remains available (`clearAllPersistedData` path in `App.tsx`).

@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { GlobalSettings, Order, OrderItem, Product, ProductionBatch } from '../../types';
+import { GlobalSettings, Ingredient, Order, OrderItem, Product, ProductionBatch, Recipe } from '../../types';
 import { Card, Button, Input, InfoTooltip } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
-import { isPositiveNumber, parseOptionalNumber } from '../../validation';
+import { isPositiveNumber, parseOptionalNumber, sanitizeTvaRate } from '../../validation';
 import { formatCurrency } from '../../utils';
+import { computeProductionIngredientUsage, getStockShortages, applyIngredientUsage } from '../../stockMovements';
+import { sumCompletedDeliveredQuantityByProduct } from '../../ordersMath';
 
 interface Props {
   orders: Order[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   products: Product[];
+  ingredients: Ingredient[];
+  setIngredients: React.Dispatch<React.SetStateAction<Ingredient[]>>;
+  recipes: Recipe[];
   productionBatches: ProductionBatch[];
   setProductionBatches: React.Dispatch<React.SetStateAction<ProductionBatch[]>>;
   settings: GlobalSettings;
@@ -30,7 +35,17 @@ const formatLaunchDate = (value: string) => {
   return date.toLocaleString();
 };
 
-export const Orders: React.FC<Props> = ({ orders, setOrders, products, productionBatches, setProductionBatches, settings }) => {
+export const Orders: React.FC<Props> = ({
+  orders,
+  setOrders,
+  products,
+  ingredients,
+  setIngredients,
+  recipes,
+  productionBatches,
+  setProductionBatches,
+  settings
+}) => {
   const defaultTvaRate = settings.isTvaSubject ? settings.defaultTvaRate : 0;
 
   const [newOrder, setNewOrder, resetNewOrder] = usePersistentState<Partial<Order>>('draft:order:newOrder', {
@@ -73,18 +88,40 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     );
   };
 
-  const pushOrderItemsToProduction = (order: Order): string => {
-    const launchedAt = new Date().toISOString();
-    const validItems = order.items
+  const buildValidProductionRequests = (order: Order): Array<{ productId: string; quantity: number }> => (
+    order.items
       .filter(item => item.productId)
       .map((item) => ({
-        ...item,
+        productId: item.productId,
         quantity: toPositiveNumber(item.quantity, 0)
       }))
-      .filter(item => item.quantity > 0);
+      .filter(item => item.quantity > 0)
+  );
+
+  const confirmPotentialShortages = (order: Order, shortages: ReturnType<typeof getStockShortages>): boolean => {
+    if (shortages.length === 0) return true;
+    const details = shortages
+      .slice(0, 5)
+      .map(shortage => `- ${shortage.ingredientName}: manque ${shortage.missing.toFixed(2)} ${shortage.unit}`)
+      .join('\n');
+    const more = shortages.length > 5 ? `\n...et ${shortages.length - 5} autre(s).` : '';
+    return window.confirm(
+      `Stock insuffisant pour la commande "${order.customerName}".\n${details}${more}\n\nContinuer quand meme ?`
+    );
+  };
+
+  const pushOrderItemsToProduction = (order: Order): { launchedAt: string; pushed: boolean } => {
+    const launchedAt = new Date().toISOString();
+    const validItems = buildValidProductionRequests(order);
 
     if (validItems.length === 0) {
-      return launchedAt;
+      return { launchedAt, pushed: false };
+    }
+
+    const usageResult = computeProductionIngredientUsage(validItems, products, recipes, ingredients);
+    const shortages = getStockShortages(ingredients, usageResult.usages);
+    if (!confirmPotentialShortages(order, shortages)) {
+      return { launchedAt, pushed: false };
     }
 
     const newBatches: ProductionBatch[] = validItems.map(item => ({
@@ -96,7 +133,17 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     }));
 
     setProductionBatches(prev => [...prev, ...newBatches]);
-    return launchedAt;
+    setIngredients(prev => applyIngredientUsage(prev, usageResult.usages, 'consume'));
+
+    const issues: string[] = [];
+    if (usageResult.missingProductIds.length > 0) issues.push(`produits introuvables: ${usageResult.missingProductIds.length}`);
+    if (usageResult.missingRecipeProductIds.length > 0) issues.push(`produits sans recette: ${usageResult.missingRecipeProductIds.length}`);
+    if (usageResult.missingIngredientIds.length > 0) issues.push(`ingredients manquants: ${usageResult.missingIngredientIds.length}`);
+    if (issues.length > 0) {
+      alert(`Production ajoutee avec avertissement (${issues.join(', ')}).`);
+    }
+
+    return { launchedAt, pushed: true };
   };
 
   const isCurrentItemQuantityValid = isPositiveNumber(currentItem.quantity);
@@ -124,7 +171,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     if (!newOrder.customerName || !newOrder.date || !draftItems.length) return;
 
     const safeTvaRate = settings.isTvaSubject
-      ? toNonNegativeNumber(newOrder.tvaRate, defaultTvaRate)
+      ? sanitizeTvaRate(newOrder.tvaRate, defaultTvaRate)
       : 0;
 
     setOrders([
@@ -150,10 +197,11 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
 
   const sendToProduction = (order: Order) => {
     if (!confirmDuplicateLaunch(order)) return;
-    const launchedAt = pushOrderItemsToProduction(order);
+    const result = pushOrderItemsToProduction(order);
+    if (!result.pushed) return;
     setOrders(prev => prev.map(entry => (
       entry.id === order.id
-        ? { ...entry, productionLaunchedAt: launchedAt }
+        ? { ...entry, productionLaunchedAt: result.launchedAt }
         : entry
     )));
     alert('Produits ajoutes a la file de production.');
@@ -174,7 +222,9 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     let nextLaunchedAt = order.productionLaunchedAt;
 
     if (mode === 'launch-now') {
-      nextLaunchedAt = pushOrderItemsToProduction(order);
+      const result = pushOrderItemsToProduction(order);
+      if (!result.pushed) return;
+      nextLaunchedAt = result.launchedAt;
       alert('Production enregistree avec succes.');
     } else if (!nextLaunchedAt) {
       nextLaunchedAt = new Date().toISOString();
@@ -208,13 +258,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
     const product = products.find(entry => entry.id === productId);
     if (!product) return null;
 
-    const totalDelivered = orders
-      .filter(order => order.status === 'completed')
-      .reduce((sum, order) => {
-        return sum + order.items
-          .filter(item => item.productId === productId)
-          .reduce((subSum, item) => subSum + toPositiveNumber(item.quantity, 0), 0);
-      }, 0);
+    const totalDelivered = sumCompletedDeliveredQuantityByProduct(orders, productId);
 
     const totalProduced = productionBatches
       .filter(batch => batch.productId === productId)
@@ -284,7 +328,13 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                 type="number"
                 suffix="%"
                 value={settings.isTvaSubject ? (newOrder.tvaRate ?? defaultTvaRate) : 0}
-                onChange={event => setNewOrder({ ...newOrder, tvaRate: parseOptionalNumber(event.target.value) ?? 0 })}
+                onChange={event => {
+                  const parsed = parseOptionalNumber(event.target.value);
+                  setNewOrder({
+                    ...newOrder,
+                    tvaRate: parsed === undefined ? 0 : sanitizeTvaRate(parsed, defaultTvaRate)
+                  });
+                }}
                 helperText={settings.isTvaSubject ? 'Un seul taux TVA pour toute la commande.' : 'TVA inactive: le taux de commande reste a 0%.'}
                 disabled={!settings.isTvaSubject}
               />
@@ -344,7 +394,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                         <span className="dark:text-stone-300">{product?.name || 'Produit supprime'}</span>
                         <div className="flex items-center gap-2">
                           <span className="font-bold dark:text-stone-200">x {item.quantity}</span>
-                          <span className="text-stone-500">{formatCurrency(item.price)}</span>
+                          <span className="text-stone-500">{formatCurrency(item.price, settings.currency)}</span>
                           <button className="text-red-500" onClick={() => handleDeleteOrderItem(index)}>x</button>
                         </div>
                       </div>
@@ -353,7 +403,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                 </div>
                 {draftItems.length > 0 && (
                   <p className="text-xs text-stone-500 mt-2 text-right">
-                    Total commande: <strong>{formatCurrency(draftOrderTotal)}</strong>
+                    Total commande: <strong>{formatCurrency(draftOrderTotal, settings.currency)}</strong>
                   </p>
                 )}
               </div>
@@ -444,7 +494,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                             )}
                           </div>
                           <span className="font-bold text-stone-900 dark:text-stone-100 tabular-nums shrink-0">
-                            x{safeQuantity} - {formatCurrency(safePrice)}
+                            x{safeQuantity} - {formatCurrency(safePrice, settings.currency)}
                           </span>
                         </div>
                       );
@@ -452,7 +502,7 @@ export const Orders: React.FC<Props> = ({ orders, setOrders, products, productio
                   </div>
 
                   <p className="text-xs text-stone-500 dark:text-stone-400 mt-3 text-right">
-                    Total: <strong>{formatCurrency(safeOrderTotal)}</strong>
+                    Total: <strong>{formatCurrency(safeOrderTotal, settings.currency)}</strong>
                   </p>
 
                   {order.notes && <p className="text-xs text-stone-500 dark:text-stone-400 mt-3 italic bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">Note: {order.notes}</p>}

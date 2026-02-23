@@ -166,7 +166,7 @@ const normalizeSales = (
       productId: sale.productId,
       quantitySold: asNonNegativeNumber(sale.quantitySold, 0),
       actualPrice: asNonNegativeNumber(sale.actualPrice, 0),
-      tvaRate
+      tvaRate: tvaRate === undefined ? undefined : asPercentage(tvaRate, settings.defaultTvaRate)
     };
   })
 );

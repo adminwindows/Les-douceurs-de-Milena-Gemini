@@ -151,14 +151,14 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
                 Total estimé à vendre: <strong>{salaryPlan.totalUnitsNeeded.toFixed(1)} unités</strong>
               </p>
               <p className="text-stone-700 dark:text-stone-300 mb-2">
-                Gain net estimé: <strong>{formatCurrency(salaryPlan.estimatedNetResult)}</strong>
+                Gain net estimé: <strong>{formatCurrency(salaryPlan.estimatedNetResult, settings.currency)}</strong>
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {salaryPlan.rows.map(row => (
                   <div key={row.productId} className="rounded border border-stone-200 dark:border-stone-700 px-3 py-2">
                     <p className="font-medium">{row.productName}</p>
                     <p className="text-xs text-stone-500">
-                      Part: {(row.weight * 100).toFixed(1)}% · Net/unité: {formatCurrency(row.netPerUnit)}
+                      Part: {(row.weight * 100).toFixed(1)}% · Net/unité: {formatCurrency(row.netPerUnit, settings.currency)}
                     </p>
                     <p className="text-sm font-semibold">{row.estimatedUnits.toFixed(1)} unités</p>
                   </div>
@@ -211,36 +211,36 @@ export const Analysis: React.FC<Props> = ({ products, recipes, ingredients, sett
               return (
                 <tr key={product.id} className="hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors">
                   <td className="p-4 font-bold text-stone-800 dark:text-stone-200">{product.name}</td>
-                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.finalMaterialCost)}</td>
-                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.finalPackagingCost)}</td>
+                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.finalMaterialCost, settings.currency)}</td>
+                  <td className="p-4 text-stone-600 dark:text-stone-400">{formatCurrency(metrics.finalPackagingCost, settings.currency)}</td>
                   <td className="p-4 bg-stone-50 dark:bg-stone-800/50 border-l border-stone-200 dark:border-stone-700 font-medium">
-                    {formatCurrency(metrics.fullCost)}
+                    {formatCurrency(metrics.fullCost, settings.currency)}
                   </td>
                   <td className="p-4 bg-rose-50 dark:bg-rose-900/10 border-l border-rose-100 dark:border-rose-900/50">
                     <div className="flex flex-col">
-                      <span className="font-semibold">{formatCurrency(metrics.minPriceBreakevenTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.minPriceBreakeven)}</span>}
+                      <span className="font-semibold">{formatCurrency(metrics.minPriceBreakevenTTC, settings.currency)}</span>
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.minPriceBreakeven, settings.currency)}</span>}
                     </div>
                   </td>
                   <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10">
                     <div className="flex flex-col">
-                      <span className="font-semibold">{formatCurrency(metrics.priceWithMarginTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithMargin)}</span>}
+                      <span className="font-semibold">{formatCurrency(metrics.priceWithMarginTTC, settings.currency)}</span>
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithMargin, settings.currency)}</span>}
                       <span className="text-[11px] text-stone-500 dark:text-stone-300">
-                        Base HT: {formatCurrency(metrics.fullCost)} + {formatCurrency(product.targetMargin)}
+                        Base HT: {formatCurrency(metrics.fullCost, settings.currency)} + {formatCurrency(product.targetMargin, settings.currency)}
                       </span>
                     </div>
                   </td>
                   <td className="p-4 bg-emerald-50 dark:bg-emerald-900/10">
                     <div className="flex flex-col">
-                      <span className="font-semibold">{formatCurrency(metrics.priceWithSalaryTTC)}</span>
-                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithSalary)}</span>}
+                      <span className="font-semibold">{formatCurrency(metrics.priceWithSalaryTTC, settings.currency)}</span>
+                      {isTva && <span className="text-[11px] text-stone-500 dark:text-stone-300">HT: {formatCurrency(metrics.priceWithSalary, settings.currency)}</span>}
                     </div>
                   </td>
                   <td className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border-l border-indigo-100 dark:border-indigo-800">
                     <div className="flex flex-col">
-                      <span className="font-bold">{formatCurrency(product.standardPrice ?? activeRecommended)}</span>
-                      <span className="text-[11px] text-stone-500 dark:text-stone-300">Actif: {formatCurrency(activeRecommended)}</span>
+                      <span className="font-bold">{formatCurrency(product.standardPrice ?? activeRecommended, settings.currency)}</span>
+                      <span className="text-[11px] text-stone-500 dark:text-stone-300">Actif: {formatCurrency(activeRecommended, settings.currency)}</span>
                     </div>
                   </td>
                 </tr>

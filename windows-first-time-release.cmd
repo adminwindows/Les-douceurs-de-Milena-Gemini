@@ -14,6 +14,14 @@ REM Run from repository root.
 for /f "tokens=3" %%v in ('java -version 2^>^&1 ^| findstr /i "version"') do set "JAVA_VERSION_RAW=%%v"
 set "JAVA_VERSION=%JAVA_VERSION_RAW:"=%"
 for /f "tokens=1 delims=." %%m in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%m"
+if not defined JAVA_MAJOR (
+  echo [java] ERROR: Unable to detect Java version.
+  goto :fail
+)
+if !JAVA_MAJOR! LSS 21 (
+  echo [java] ERROR: Java !JAVA_MAJOR! detected. Android build requires Java 21+.
+  goto :fail
+)
 if defined JAVA_MAJOR if !JAVA_MAJOR! GEQ 25 (
   if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
     set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
@@ -26,7 +34,7 @@ if defined JAVA_MAJOR if !JAVA_MAJOR! GEQ 25 (
   )
 )
 
-echo [1/12] Removing previous install artifacts...
+echo [1/11] Removing previous install artifacts...
 if exist node_modules rmdir /s /q node_modules
 if exist dist rmdir /s /q dist
 
@@ -53,10 +61,10 @@ if exist android (
 if exist ios rmdir /s /q ios
 if exist package-lock.json del /f /q package-lock.json
 
-echo [2/12] Installing dependencies...
+echo [2/11] Installing dependencies...
 call npm install || goto :fail
 
-echo [3/12] Running tests...
+echo [3/11] Running tests...
 if defined TEST_NODE_OPTIONS (
   set "NODE_OPTIONS=!TEST_NODE_OPTIONS!"
   echo [node] Node !NODE_MAJOR! detected. Running tests with !TEST_NODE_OPTIONS!.
@@ -64,25 +72,25 @@ if defined TEST_NODE_OPTIONS (
 call npm run test || goto :fail
 set "NODE_OPTIONS="
 
-echo [4/12] Running typecheck...
+echo [4/11] Running typecheck...
 call npm run typecheck || goto :fail
 
-echo [5/12] Building web app...
+echo [5/11] Building web app...
 call npm run build || goto :fail
 
-echo [6/12] Creating Android project...
+echo [6/11] Creating Android project...
 call npm run mobile:add:android || goto :fail
 
-echo [7/12] Applying app logo to Android launcher icons...
+echo [7/11] Applying app logo to Android launcher icons...
 call npm run mobile:icons:android || goto :fail
 
-echo [8/12] Syncing native project...
+echo [8/11] Syncing native project...
 call npm run mobile:sync || goto :fail
 
-echo [9/12] Building RELEASE APK...
+echo [9/11] Building RELEASE APK...
 call npm run mobile:apk:release:win || goto :fail
 
-echo [10/12] APK outputs:
+echo [10/11] APK outputs:
 dir /s /b android\app\build\outputs\apk\*.apk
 
 if exist android\app\build\outputs\apk\release\app-release-unsigned.apk (
@@ -91,7 +99,7 @@ if exist android\app\build\outputs\apk\release\app-release-unsigned.apk (
   call windows-sign-release-apk.cmd || goto :fail
 )
 
-echo [11/12] NOTE: release APK can be unsigned unless signing config is set.
+echo [11/11] NOTE: release APK can be unsigned unless signing config is set.
 echo Create key with windows-create-release-key.cmd then configure android signing.
 
 echo.

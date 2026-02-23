@@ -14,6 +14,14 @@ REM Run from repository root.
 for /f "tokens=3" %%v in ('java -version 2^>^&1 ^| findstr /i "version"') do set "JAVA_VERSION_RAW=%%v"
 set "JAVA_VERSION=%JAVA_VERSION_RAW:"=%"
 for /f "tokens=1 delims=." %%m in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%m"
+if not defined JAVA_MAJOR (
+  echo [java] ERROR: Unable to detect Java version.
+  goto :fail
+)
+if !JAVA_MAJOR! LSS 21 (
+  echo [java] ERROR: Java !JAVA_MAJOR! detected. Android build requires Java 21+.
+  goto :fail
+)
 if defined JAVA_MAJOR if !JAVA_MAJOR! GEQ 25 (
   if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
     set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
@@ -52,6 +60,7 @@ call npm run mobile:sync || goto :fail
 echo [7/8] Building RELEASE APK...
 call npm run mobile:apk:release:win || goto :fail
 
+echo [8/8] APK outputs:
 dir /s /b android\app\build\outputs\apk\*.apk
 
 if exist android\app\build\outputs\apk\release\app-release-unsigned.apk (

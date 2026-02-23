@@ -17,6 +17,12 @@ export const isPositiveNumber = (value: unknown): value is number =>
 export const isPercentage = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 100;
 
+export const sanitizeTvaRate = (value: unknown, fallback: number): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (isPercentage(parsed)) return parsed;
+  return isPercentage(fallback) ? fallback : 0;
+};
+
 /**
  * Tolerance for price-drift detection (standard vs purchase price).
  * 0 = strict equality (any difference triggers the update suggestion).

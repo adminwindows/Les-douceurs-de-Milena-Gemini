@@ -290,7 +290,7 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
 
             {recommendedPreview !== undefined && (
               <p className="text-xs text-stone-500 dark:text-stone-400">
-                Prix conseillé ({settings.pricingStrategy === 'salary' ? 'mode salaire' : 'mode marge'}): <strong>{formatCurrency(recommendedPreview)}</strong>
+                Prix conseillé ({settings.pricingStrategy === 'salary' ? 'mode salaire' : 'mode marge'}): <strong>{formatCurrency(recommendedPreview, settings.currency)}</strong>
               </p>
             )}
 
@@ -394,7 +394,7 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
                       </div>
                       <div>
                         <span className="block text-stone-400 dark:text-stone-500">Prix standard</span>
-                        <span className="font-semibold">{formatCurrency(product.standardPrice ?? 0)}</span>
+                        <span className="font-semibold">{formatCurrency(product.standardPrice ?? 0, settings.currency)}</span>
                       </div>
                       <div>
                         <span className="block text-stone-400 dark:text-stone-500">Pertes Fab.</span>

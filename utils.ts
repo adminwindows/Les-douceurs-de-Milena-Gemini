@@ -9,9 +9,17 @@ export const convertToCostPerBaseUnit = (price: number, quantity: number, unit: 
   return price / (quantity * multiplier);
 };
 
-export const formatCurrency = (_amount: number, _currency = 'EUR') => {
-  const amount = Number.isFinite(_amount) ? _amount : 0;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
+export const formatCurrency = (amountInput: number, currencyInput = 'EUR') => {
+  const amount = Number.isFinite(amountInput) ? amountInput : 0;
+  const normalizedCurrency = typeof currencyInput === 'string' && currencyInput.trim().length > 0
+    ? currencyInput.trim().toUpperCase()
+    : 'EUR';
+
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizedCurrency }).format(amount);
+  } catch {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount);
+  }
 };
 
 export const ttcToHt = (priceTTC: number, vatRate: number): number => {

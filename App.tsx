@@ -41,18 +41,20 @@ import {
   normalizePurchase,
   normalizeSettings
 } from './dataMigrations';
+import { mergeImportedAppData } from './importMerge';
+import { isPercentage } from './validation';
 import { runDraftStorageMaintenance, usePersistentState } from './usePersistentState';
 
 const DataManagerModal = ({
   isOpen, onClose,
-  data, setData, onResetAllData,
+  data, onImportData, onResetAllData,
   storageStats,
   onCleanupDraftStorage
 }: {
   isOpen: boolean,
   onClose: () => void,
   data: any,
-  setData: (key: string, val: any) => void,
+  onImportData: (importedData: Partial<AppData>, selection: BackupSelection) => string[],
   onResetAllData: () => void,
   storageStats: LocalStorageStats,
   onCleanupDraftStorage: () => void
@@ -73,24 +75,10 @@ const DataManagerModal = ({
   const applyImportedData = (rawContent: string) => {
     try {
       const dataToImport = parseImportedAppData(rawContent);
-      let msg = 'Données chargées :\n';
-
-      if (dataToImport.settings && selection.settings) { setData('settings', dataToImport.settings); msg += '- Paramètres\n'; }
-
-      if (selection.catalog) {
-        if (dataToImport.ingredients) { setData('ingredients', dataToImport.ingredients); msg += '- Ingrédients\n'; }
-        if (dataToImport.recipes) { setData('recipes', dataToImport.recipes); msg += '- Recettes\n'; }
-        if (dataToImport.products) { setData('products', dataToImport.products); msg += '- Produits\n'; }
-      }
-
-      if (selection.operations) {
-        if (dataToImport.orders) { setData('orders', dataToImport.orders); msg += '- Commandes\n'; }
-        if (dataToImport.purchases) { setData('purchases', dataToImport.purchases); msg += '- Achats\n'; }
-        if (dataToImport.productionBatches) { setData('productionBatches', dataToImport.productionBatches); msg += '- Production\n'; }
-      }
-
-      if (dataToImport.savedReports && selection.reports) { setData('savedReports', dataToImport.savedReports); msg += '- Bilans archivés\n'; }
-
+      const importedSections = onImportData(dataToImport, selection);
+      const msg = importedSections.length > 0
+        ? `Données chargées :\n${importedSections.map(section => `- ${section}`).join('\n')}`
+        : 'Aucune section sélectionnée n était présente dans le fichier.';
       alert(msg);
       onClose();
     } catch {
@@ -273,8 +261,8 @@ const getFirstDomainValidationError = (data: AppData): string | null => {
   if (data.settings.taxRate < 0 || data.settings.taxRate >= 100) {
     return 'Parametres invalides: le taux de cotisations sociales doit etre entre 0 et 99.99.';
   }
-  if (data.settings.defaultTvaRate < 0) {
-    return 'Parametres invalides: le taux TVA par defaut doit etre >= 0.';
+  if (!isPercentage(data.settings.defaultTvaRate)) {
+    return 'Parametres invalides: le taux TVA par defaut doit etre entre 0 et 99.99.';
   }
   if (data.settings.targetMonthlySalary < 0) {
     return 'Parametres invalides: le salaire cible doit etre >= 0.';
@@ -286,8 +274,8 @@ const getFirstDomainValidationError = (data: AppData): string | null => {
   }
 
   for (const order of data.orders) {
-    if (order.tvaRate < 0) {
-      return `Commande invalide (${order.customerName}): TVA commande < 0.`;
+    if (!isPercentage(order.tvaRate)) {
+      return `Commande invalide (${order.customerName}): TVA commande doit etre comprise entre 0 et 99.99.`;
     }
     for (const item of order.items) {
       if (item.quantity <= 0 || item.price < 0) {
@@ -323,8 +311,8 @@ const getFirstDomainValidationError = (data: AppData): string | null => {
       }
     }
     for (const line of report.sales) {
-      if (line.quantitySold < 0 || line.actualPrice < 0 || (line.tvaRate !== undefined && line.tvaRate < 0)) {
-        return `Bilan invalide (${report.monthStr}): ventes avec valeurs negatives.`;
+      if (line.quantitySold < 0 || line.actualPrice < 0 || (line.tvaRate !== undefined && !isPercentage(line.tvaRate))) {
+        return `Bilan invalide (${report.monthStr}): ventes avec valeurs invalides (quantites/prix >= 0, TVA < 100).`;
       }
     }
     for (const line of report.unsold) {
@@ -517,23 +505,11 @@ const App = () => {
     setActiveDemoDatasetId(undefined);
   };
 
-  const setData = (key: string, val: any) => {
-    const productsById = new Map<string, Product>(products.map((product): [string, Product] => [product.id, product]));
-    switch (key) {
-      case 'ingredients': setIngredients((val as Ingredient[]).map(normalizeIngredient)); break;
-      case 'recipes': setRecipes(val); break;
-      case 'products': setProducts((val as Product[]).map(normalizeProduct)); break;
-      case 'settings': {
-        const normalizedSettings = normalizeSettings(val);
-        setSettings(normalizedSettings);
-        setIngredients(prev => prev.map(normalizeIngredient));
-        break;
-      }
-      case 'orders': setOrders((val as Order[]).map(order => normalizeOrder(order, settings, productsById))); break;
-      case 'savedReports': setSavedReports((val as MonthlyReportData[]).map(report => normalizeMonthlyReport(report, settings))); break;
-      case 'purchases': setPurchases((val as Purchase[]).map(normalizePurchase)); break;
-      case 'productionBatches': setProductionBatches((val as ProductionBatch[]).map(normalizeProductionBatch)); break;
-    }
+  const handleImportData = (importedData: Partial<AppData>, selection: BackupSelection): string[] => {
+    const { mergedData, importedSections } = mergeImportedAppData(getCurrentData(), importedData, selection);
+    setAllData(mergedData);
+    refreshStorageStats();
+    return importedSections;
   };
 
   const renderContent = () => {
@@ -555,9 +531,6 @@ const App = () => {
           setIngredients={setIngredients}
           purchases={purchases}
           setPurchases={setPurchases}
-          productionBatches={productionBatches}
-          recipes={recipes}
-          products={products}
           settings={settings}
         />;
       case 'production':
@@ -567,6 +540,7 @@ const App = () => {
           products={products}
           recipes={recipes}
           ingredients={ingredients}
+          setIngredients={setIngredients}
           orders={orders}
         />;
       case 'products':
@@ -576,6 +550,9 @@ const App = () => {
           orders={orders}
           setOrders={setOrders}
           products={products}
+          ingredients={ingredients}
+          setIngredients={setIngredients}
+          recipes={recipes}
           productionBatches={productionBatches}
           setProductionBatches={setProductionBatches}
           settings={settings}
@@ -608,7 +585,7 @@ const App = () => {
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}
         data={{ ingredients, recipes, products, settings, orders, savedReports, purchases, productionBatches }}
-        setData={setData}
+        onImportData={handleImportData}
         onResetAllData={resetAllData}
         storageStats={storageStats}
         onCleanupDraftStorage={cleanupDraftStorage}

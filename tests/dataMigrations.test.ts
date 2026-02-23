@@ -252,6 +252,25 @@ describe('normalizeMonthlyReport', () => {
     expect(report.inventory).toEqual([{ ingredientId: 'i1', startStock: 0, purchasedQuantity: 3, endStock: 0 }]);
   });
 
+  it('sanitizes report sales tvaRate above 100 using settings fallback', () => {
+    const report = normalizeMonthlyReport(
+      {
+        id: 'm1',
+        monthStr: '2026-01',
+        sales: [{ id: 's1', productId: 'p1', quantitySold: 1, actualPrice: 10, tvaRate: 150 }],
+        unsold: [],
+        actualFixedCostItems: [],
+        actualIngredientSpend: 0,
+        inventory: [],
+        netResult: 0,
+        isLocked: false
+      } as unknown as MonthlyReportData,
+      { ...baseSettings, defaultTvaRate: 8 }
+    );
+
+    expectEqual(report.sales[0].tvaRate ?? 0, 8);
+  });
+
   it('falls back totals from legacy fields and defaults report modes', () => {
     const report = normalizeMonthlyReport(
       {

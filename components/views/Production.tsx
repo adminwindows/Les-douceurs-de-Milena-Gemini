@@ -3,6 +3,8 @@ import { ProductionBatch, Product, Order, Recipe, Ingredient, Unit } from '../..
 import { Card, Button, Input } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber } from '../../validation';
+import { applyIngredientUsage, computeProductionIngredientUsage, getStockShortages } from '../../stockMovements';
+import { sumCompletedDeliveredQuantityByProduct } from '../../ordersMath';
 
 interface Props {
   productionBatches: ProductionBatch[];
@@ -10,6 +12,7 @@ interface Props {
   products: Product[];
   recipes: Recipe[];
   ingredients: Ingredient[];
+  setIngredients: React.Dispatch<React.SetStateAction<Ingredient[]>>;
   orders?: Order[];
 }
 
@@ -19,7 +22,7 @@ const getDisplayUnit = (unit: Unit) => {
   return 'pièce';
 };
 
-export const Production: React.FC<Props> = ({ productionBatches, setProductionBatches, products, recipes, ingredients, orders = [] }) => {
+export const Production: React.FC<Props> = ({ productionBatches, setProductionBatches, products, recipes, ingredients, setIngredients, orders = [] }) => {
   const [newBatch, setNewBatch, resetNewBatch] = usePersistentState<Partial<ProductionBatch>>('draft:production:newBatch', {
     date: new Date().toISOString().split('T')[0],
     quantity: 0
@@ -47,16 +50,36 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
 
   const handleAddBatch = () => {
     if (!newBatch.productId || !isBatchQuantityValid) return;
+
+    const quantity = Number(newBatch.quantity);
+    const usageResult = computeProductionIngredientUsage(
+      [{ productId: newBatch.productId, quantity }],
+      products,
+      recipes,
+      ingredients
+    );
+    const shortages = getStockShortages(ingredients, usageResult.usages);
+    if (shortages.length > 0) {
+      const lines = shortages
+        .slice(0, 5)
+        .map(shortage => `- ${shortage.ingredientName}: manque ${shortage.missing.toFixed(2)} ${shortage.unit}`)
+        .join('\n');
+      const more = shortages.length > 5 ? `\n...et ${shortages.length - 5} autre(s).` : '';
+      const proceed = window.confirm(`Stock insuffisant:\n${lines}${more}\n\nContinuer quand meme ?`);
+      if (!proceed) return;
+    }
+
     setProductionBatches([
       {
         id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
         date: newBatch.date || new Date().toISOString().split('T')[0],
         productId: newBatch.productId,
-        quantity: Number(newBatch.quantity)
+        quantity
       },
       ...productionBatches
     ]);
-resetNewBatch();
+    setIngredients(prev => applyIngredientUsage(prev, usageResult.usages, 'consume'));
+    resetNewBatch();
   };
 
 
@@ -85,7 +108,14 @@ resetNewBatch();
       : 'Supprimer cette ligne de production ? Cette action peut desynchroniser une commande marquee comme production lancee.';
 
     if (!window.confirm(warningMessage)) return;
+    const usageResult = computeProductionIngredientUsage(
+      [{ productId: batch.productId, quantity: batch.quantity }],
+      products,
+      recipes,
+      ingredients
+    );
     setProductionBatches(productionBatches.filter(b => b.id !== id));
+    setIngredients(prev => applyIngredientUsage(prev, usageResult.usages, 'restore'));
   };
 
   // Calculate Alerts
@@ -93,12 +123,7 @@ resetNewBatch();
     const alerts: { productId: string; produced: number; delivered: number; diff: number }[] = [];
 
     products.forEach(p => {
-      const totalDelivered = orders
-        .filter(o => o.status === 'completed')
-        .reduce((sum, o) => {
-          const item = o.items.find(i => i.productId === p.id);
-          return sum + (item?.quantity || 0);
-        }, 0);
+      const totalDelivered = sumCompletedDeliveredQuantityByProduct(orders, p.id);
 
       const totalProduced = productionBatches
         .filter(b => b.productId === p.id)

@@ -5,6 +5,7 @@ import {
   calculateRecipeMaterialCost,
   convertToCostPerBaseUnit,
   estimateUnitsForTargetSalary,
+  formatCurrency,
   rebuildIngredientCost,
   ttcToHt
 } from '../utils';
@@ -98,6 +99,18 @@ describe('ttcToHt', () => {
 
   it('returns unchanged value when VAT is negative', () => {
     expectEqual(ttcToHt(12, -10), 12);
+  });
+});
+
+describe('formatCurrency', () => {
+  it('uses provided currency when valid', () => {
+    const formatted = formatCurrency(12.5, 'usd');
+    expect(formatted).toContain('$');
+  });
+
+  it('falls back to EUR when currency is invalid', () => {
+    const formatted = formatCurrency(12.5, 'not-a-currency');
+    expect(formatted).toContain('€');
   });
 });
 

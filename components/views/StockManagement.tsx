@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { Ingredient, Unit, Purchase, ProductionBatch, Recipe, Product, GlobalSettings } from '../../types';
+import { Ingredient, Unit, Purchase, GlobalSettings } from '../../types';
 import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost } from '../../utils';
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber, hasPriceDrift } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
@@ -12,14 +12,11 @@ interface Props {
   setIngredients: React.Dispatch<React.SetStateAction<Ingredient[]>>;
   purchases: Purchase[];
   setPurchases: React.Dispatch<React.SetStateAction<Purchase[]>>;
-  productionBatches: ProductionBatch[];
-  recipes: Recipe[];
-  products: Product[];
   settings: GlobalSettings;
 }
 
 export const StockManagement: React.FC<Props> = ({
-  ingredients, setIngredients, purchases, setPurchases, productionBatches, recipes, products, settings
+  ingredients, setIngredients, purchases, setPurchases, settings
 }) => {
   const [activeTab, setActiveTab] = usePersistentState<'purchases' | 'analysis' | 'definitions'>('draft:stock:activeTab', 'purchases');
   const isTva = settings.isTvaSubject;
@@ -37,18 +34,31 @@ export const StockManagement: React.FC<Props> = ({
 
   const handleAddPurchase = () => {
     if (!isPurchaseFormValid) return;
+    const quantity = Number(newPurchase.quantity);
     setPurchases([...purchases, {
       id: Date.now().toString(),
       date: newPurchase.date || new Date().toISOString().split('T')[0],
       ingredientId: newPurchase.ingredientId!,
-      quantity: Number(newPurchase.quantity),
+      quantity,
       price: Number(newPurchase.price)
     }]);
+    setIngredients(prev => prev.map(ingredient => (
+      ingredient.id === newPurchase.ingredientId
+        ? { ...ingredient, quantity: Math.max(0, ingredient.quantity + quantity) }
+        : ingredient
+    )));
     resetNewPurchase();
   };
 
   const handleDeletePurchase = (id: string) => {
+    const purchase = purchases.find(entry => entry.id === id);
     setPurchases(purchases.filter(p => p.id !== id));
+    if (!purchase) return;
+    setIngredients(prev => prev.map(ingredient => (
+      ingredient.id === purchase.ingredientId
+        ? { ...ingredient, quantity: Math.max(0, ingredient.quantity - purchase.quantity) }
+        : ingredient
+    )));
   };
 
   // --- Ingredient Definition Logic ---
@@ -141,29 +151,7 @@ export const StockManagement: React.FC<Props> = ({
       const lastPurchase = sortedPurchases[0];
       const lastPrice = lastPurchase ? (lastPurchase.price / lastPurchase.quantity) : 0;
 
-      let totalConsumed = 0;
-      productionBatches.forEach(batch => {
-        const product = products.find(p => p.id === batch.productId);
-        if(!product) return;
-        const recipe = recipes.find(r => r.id === product.recipeId);
-        if(!recipe) return;
-
-        const recipeIng = recipe.ingredients.find(ri => ri.ingredientId === ing.id);
-        if(!recipeIng) return;
-
-        let qtyPerUnit = recipeIng.quantity / (recipe.batchYield ?? 1);
-        const lossMultiplier = 1 / (1 - (product.lossRate / 100));
-        qtyPerUnit = qtyPerUnit * lossMultiplier;
-
-        let convertedQtyPerUnit = qtyPerUnit;
-        if (ing.unit === Unit.KG || ing.unit === Unit.L) {
-           convertedQtyPerUnit = qtyPerUnit / 1000;
-        }
-
-        totalConsumed += convertedQtyPerUnit * batch.quantity;
-      });
-
-      const currentStock = totalPurchasedQty - totalConsumed;
+      const currentStock = ing.quantity;
 
       return {
         ingredient: ing,
@@ -173,7 +161,7 @@ export const StockManagement: React.FC<Props> = ({
         totalPurchasedQty
       };
     });
-  }, [ingredients, purchases, productionBatches, recipes, products]);
+  }, [ingredients, purchases]);
 
   const updateStandardPrice = (ingId: string, newPrice: number) => {
     setIngredients(prev => prev.map(i => {
@@ -282,7 +270,7 @@ export const StockManagement: React.FC<Props> = ({
                      <tr key={ing.id} className={`hover:bg-stone-50 dark:hover:bg-stone-800 ${editingId === ing.id ? 'bg-rose-50 dark:bg-rose-900/20' : ''}`}>
                        <td className="p-3 font-medium">{ing.name}</td>
                        <td className="p-3"><span className="bg-stone-200 dark:bg-stone-700 px-2 py-0.5 rounded text-xs">{ing.unit}</span></td>
-                       <td className="p-3">{formatCurrency(ing.price)}</td>
+                       <td className="p-3">{formatCurrency(ing.price, settings.currency)}</td>
                        <td className="p-3 space-x-2">
                          <button onClick={() => startEditIngredient(ing)} className="text-indigo-500 hover:text-indigo-700 text-xs font-bold">Modifier</button>
                          <button onClick={() => handleDeleteIngredient(ing.id)} className="text-red-500 hover:text-red-700 text-xs">Supprimer</button>
@@ -387,7 +375,7 @@ export const StockManagement: React.FC<Props> = ({
                         <td className="p-3">{new Date(p.date).toLocaleDateString()}</td>
                         <td className="p-3 font-medium text-stone-800 dark:text-stone-200">{ing?.name || 'Inconnu'}</td>
                         <td className="p-3 text-right">{p.quantity} {ing?.unit}</td>
-                        <td className="p-3 text-right font-bold">{formatCurrency(p.price)}</td>
+                        <td className="p-3 text-right font-bold">{formatCurrency(p.price, settings.currency)}</td>
                         <td className="p-3 text-right text-xs text-stone-400">
                           {unitPrice.toFixed(2)}€/{ing?.unit}
                         </td>
@@ -437,13 +425,13 @@ export const StockManagement: React.FC<Props> = ({
                       {row.currentStock.toFixed(2)}
                     </td>
                     <td className="p-3 text-right font-bold bg-rose-50 dark:bg-rose-900/10 text-rose-700 dark:text-rose-400">
-                      {formatCurrency(row.ingredient.price)}
+                      {formatCurrency(row.ingredient.price, settings.currency)}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
-                      {row.lastPrice > 0 ? formatCurrency(row.lastPrice) : '-'}
+                      {row.lastPrice > 0 ? formatCurrency(row.lastPrice, settings.currency) : '-'}
                     </td>
                     <td className="p-3 text-right text-stone-600 dark:text-stone-400">
-                       {row.averagePrice > 0 ? formatCurrency(row.averagePrice) : '-'}
+                       {row.averagePrice > 0 ? formatCurrency(row.averagePrice, settings.currency) : '-'}
                     </td>
                     <td className="p-3 text-center">
                       <div className="flex gap-2 justify-center">
@@ -453,7 +441,7 @@ export const StockManagement: React.FC<Props> = ({
                             className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                             title="Mettre à jour le prix standard avec le dernier prix d'achat"
                           >
-                            Utiliser Dernier ({formatCurrency(row.lastPrice)})
+                            Utiliser Dernier ({formatCurrency(row.lastPrice, settings.currency)})
                           </button>
                         )}
                         {row.averagePrice > 0 && hasPriceDrift(row.ingredient.price, row.averagePrice) && (
@@ -462,7 +450,7 @@ export const StockManagement: React.FC<Props> = ({
                              className="text-xs bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 px-2 py-1 rounded transition-colors"
                              title="Mettre à jour le prix standard avec le Coût Moyen Lissé"
                            >
-                             Utiliser Moyen ({formatCurrency(row.averagePrice)})
+                             Utiliser Moyen ({formatCurrency(row.averagePrice, settings.currency)})
                            </button>
                         )}
                         {row.lastPrice === 0 && row.averagePrice === 0 && <span className="text-xs text-stone-300">Pas d'achats</span>}

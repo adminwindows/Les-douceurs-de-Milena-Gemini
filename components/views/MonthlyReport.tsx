@@ -17,7 +17,9 @@ import {
 } from '../../types';
 import { applyIngredientPriceMode, formatCurrency } from '../../utils';
 import { computeMonthlyTotals, shouldIncludeOrder } from '../../monthlyReportMath';
-import { isNonNegativeNumber, parseOptionalNumber } from '../../validation';
+import { parseOptionalNumber, sanitizeTvaRate } from '../../validation';
+import { canSaveMonthlyReportDraft } from '../../monthlyReportValidation';
+import { shareOrDownloadPdf } from '../../pdfExport';
 import { Card, Button, Input } from '../ui/Common';
 import { BrandLogo } from '../ui/BrandLogo';
 
@@ -46,7 +48,12 @@ interface TotalsSnapshot {
 
 const makeSaleId = () => `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 
-const exportMonthlyReportPdf = async (monthLabel: string, totals: TotalsSnapshot, grossMargin: number) => {
+const exportMonthlyReportPdf = async (
+  monthLabel: string,
+  totals: TotalsSnapshot,
+  grossMargin: number,
+  currency: string
+) => {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595.28, 841.89]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -64,26 +71,25 @@ const exportMonthlyReportPdf = async (monthLabel: string, totals: TotalsSnapshot
   y -= 34;
   page.drawText(`Bilan Mensuel - ${monthLabel}`, { x: left, y, size: 14, font: bold, color: rgb(0.2, 0.2, 0.2) });
   y -= 34;
-  drawLine(`Chiffre d'affaires (TTC)`, formatCurrency(totals.totalRevenueTTC));
-  drawLine('CA Hors Taxe', formatCurrency(totals.totalRevenueHT));
-  drawLine('TVA Collectée', formatCurrency(totals.totalTvaCollected));
+  drawLine(`Chiffre d'affaires (TTC)`, formatCurrency(totals.totalRevenueTTC, currency));
+  drawLine('CA Hors Taxe', formatCurrency(totals.totalRevenueHT, currency));
+  drawLine('TVA Collectée', formatCurrency(totals.totalTvaCollected, currency));
   y -= 8;
-  drawLine('Matières Premières', formatCurrency(totals.finalFoodCost));
-  drawLine('Emballages', formatCurrency(totals.totalPackagingCost));
-  drawLine('Cotisations Sociales', formatCurrency(totals.totalSocialCharges));
+  drawLine('Matières Premières', formatCurrency(totals.finalFoodCost, currency));
+  drawLine('Emballages', formatCurrency(totals.totalPackagingCost, currency));
+  drawLine('Cotisations Sociales', formatCurrency(totals.totalSocialCharges, currency));
   y -= 8;
-  drawLine('Marge sur Coûts Variables', formatCurrency(grossMargin), true);
-  drawLine('Charges Fixes', formatCurrency(totals.actualFixedCosts));
+  drawLine('Marge sur Coûts Variables', formatCurrency(grossMargin, currency), true);
+  drawLine('Charges Fixes', formatCurrency(totals.actualFixedCosts, currency));
   y -= 8;
-  drawLine('RÉSULTAT NET', formatCurrency(totals.netResult), true);
+  drawLine('RÉSULTAT NET', formatCurrency(totals.netResult, currency), true);
   const bytes = await pdf.save();
-  const blob = new Blob([bytes], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `bilan_milena_${monthLabel}.pdf`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  await shareOrDownloadPdf({
+    bytes,
+    fileName: `bilan_milena_${monthLabel}.pdf`,
+    title: `Bilan mensuel ${monthLabel}`,
+    text: `Bilan mensuel ${monthLabel}`
+  });
 };
 
 export const MonthlyReport: React.FC<Props> = ({
@@ -104,6 +110,7 @@ export const MonthlyReport: React.FC<Props> = ({
   const [newSaleDraft, setNewSaleDraft] = useState<Partial<MonthlyEntry>>({});
   const [newUnsoldDraft, setNewUnsoldDraft] = useState<Partial<UnsoldEntry>>({});
   const showTvaRateColumn = settings.isTvaSubject;
+  const currency = settings.currency;
   const lineFieldClass = 'w-full min-w-0 px-2 py-1.5 rounded border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 text-sm focus:outline-none focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900';
   const lineReadonlyClass = 'w-full min-w-0 px-2 py-1.5 rounded border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-sm';
   const salesHeaderCols = showTvaRateColumn ? 'grid-cols-[minmax(150px,1fr)_68px_88px_64px] min-w-[430px]' : 'grid-cols-[minmax(160px,1fr)_84px_108px] min-w-[380px]';
@@ -242,7 +249,7 @@ export const MonthlyReport: React.FC<Props> = ({
     const p = products.find(prod => prod.id === newSaleDraft.productId);
     const quantitySold = Number(newSaleDraft.quantitySold ?? 0);
     const actualPrice = Number(newSaleDraft.actualPrice ?? (p?.standardPrice ?? 0));
-    const nextTvaRate = Number(newSaleDraft.tvaRate ?? settings.defaultTvaRate);
+    const nextTvaRate = sanitizeTvaRate(newSaleDraft.tvaRate, settings.defaultTvaRate);
     if (!Number.isFinite(quantitySold) || quantitySold < 0) return;
     if (!Number.isFinite(actualPrice) || actualPrice < 0) return;
 
@@ -252,7 +259,7 @@ export const MonthlyReport: React.FC<Props> = ({
       quantitySold,
       actualPrice,
       tvaRate: settings.isTvaSubject
-        ? (Number.isFinite(nextTvaRate) && nextTvaRate >= 0 ? nextTvaRate : settings.defaultTvaRate)
+        ? nextTvaRate
         : undefined
     }]);
     setNewSaleDraft({});
@@ -282,7 +289,7 @@ export const MonthlyReport: React.FC<Props> = ({
     lines.forEach(line => map.set(line.productId, (map.get(line.productId) ?? 0) + line.quantityUnsold));
     return Array.from(map.entries()).map(([productId, quantityUnsold]) => ({ productId, quantityUnsold }));
   };
-  const canSave = editableSales.every(s => isNonNegativeNumber(s.quantitySold) && isNonNegativeNumber(s.actualPrice) && (s.tvaRate === undefined || isNonNegativeNumber(s.tvaRate)));
+  const canSave = canSaveMonthlyReportDraft(editableSales, editableUnsold);
   const saveReport = () => {
     if (!canSave) return alert('Valeurs invalides.');
     const report: MonthlyReportData = {
@@ -317,7 +324,7 @@ export const MonthlyReport: React.FC<Props> = ({
           {savedReports.map(report => (
             <Card key={report.id} onClick={() => { setSelectedMonth(report.monthStr); setViewHistory(false); }} className="cursor-pointer hover:border-rose-300">
               <div className="font-bold mb-2">{report.monthStr}</div>
-              <div className={report.netResult >= 0 ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'}>{formatCurrency(report.netResult)}</div>
+              <div className={report.netResult >= 0 ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'}>{formatCurrency(report.netResult, currency)}</div>
             </Card>
           ))}
         </div>
@@ -382,7 +389,7 @@ export const MonthlyReport: React.FC<Props> = ({
                     <input
                       className={lineFieldClass}
                       value={displayNumericCellValue(line.tvaRate)}
-                      onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: parseEditableNumber(e.target.value) } : s))}
+                      onChange={e => setEditableSales(prev => prev.map(s => s.id === line.id ? { ...s, tvaRate: sanitizeTvaRate(parseEditableNumber(e.target.value), settings.defaultTvaRate) } : s))}
                     />
                   )}
                   <button className="text-stone-500 hover:text-red-500" onClick={() => setEditableSales(prev => prev.filter(s => s.id !== line.id))}>x</button>
@@ -418,7 +425,7 @@ export const MonthlyReport: React.FC<Props> = ({
                 <input
                   className={lineFieldClass}
                   value={displayNumericCellValue(newSaleDraft.tvaRate)}
-                  onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: parseEditableNumber(e.target.value) })}
+                  onChange={e => setNewSaleDraft({ ...newSaleDraft, tvaRate: sanitizeTvaRate(parseEditableNumber(e.target.value), settings.defaultTvaRate) })}
                   placeholder="TVA"
                 />
               )}
@@ -476,7 +483,7 @@ export const MonthlyReport: React.FC<Props> = ({
             </div>
           )}
           {costMode === 1 && <Input label="Dépenses ingrédients" type="number" value={actualIngredientSpend} onChange={e => setActualIngredientSpend(parseOptionalNumber(e.target.value) ?? 0)} />}
-          <p className="text-xs text-stone-500 mt-2">Mode stock: coût variation inventaire = {formatCurrency(inventoryVariationCost)}</p>
+          <p className="text-xs text-stone-500 mt-2">Mode stock: coût variation inventaire = {formatCurrency(inventoryVariationCost, currency)}</p>
           <Button className="w-full mt-3" onClick={saveReport} disabled={!canSave}>Sauvegarder ce bilan</Button>
         </Card>
       </div>
@@ -491,22 +498,21 @@ export const MonthlyReport: React.FC<Props> = ({
                 <p className="text-stone-500">{selectedMonth}</p>
               </div>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => { void exportMonthlyReportPdf(selectedMonth, totals, grossMargin); }}>📄 Exporter PDF</Button>
+            <Button size="sm" variant="secondary" onClick={() => { void exportMonthlyReportPdf(selectedMonth, totals, grossMargin, currency); }}>📄 Exporter PDF</Button>
           </div>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span>Chiffre d'affaires (TTC)</span><strong>{formatCurrency(totals.totalRevenueTTC)}</strong></div>
-            <div className="flex justify-between"><span>CA HT</span><strong>{formatCurrency(totals.totalRevenueHT)}</strong></div>
-            <div className="flex justify-between"><span>TVA collectée</span><strong>{formatCurrency(totals.totalTvaCollected)}</strong></div>
-            <div className="flex justify-between"><span>Matières</span><strong className="text-red-500">{formatCurrency(totals.finalFoodCost)}</strong></div>
-            <div className="flex justify-between"><span>Emballages</span><strong className="text-red-500">{formatCurrency(totals.totalPackagingCost)}</strong></div>
-            <div className="flex justify-between"><span>Cotisations sociales</span><strong className="text-red-500">{formatCurrency(totals.totalSocialCharges)}</strong></div>
-            <div className="flex justify-between border-t pt-2"><span>Marge sur coûts variables</span><strong>{formatCurrency(grossMargin)}</strong></div>
-            <div className="flex justify-between"><span>Charges fixes</span><strong className="text-red-500">{formatCurrency(totals.actualFixedCosts)}</strong></div>
-            <div className="flex justify-between text-lg font-bold border-t pt-3"><span>RÉSULTAT NET</span><span>{formatCurrency(totals.netResult)}</span></div>
+            <div className="flex justify-between"><span>Chiffre d'affaires (TTC)</span><strong>{formatCurrency(totals.totalRevenueTTC, currency)}</strong></div>
+            <div className="flex justify-between"><span>CA HT</span><strong>{formatCurrency(totals.totalRevenueHT, currency)}</strong></div>
+            <div className="flex justify-between"><span>TVA collectée</span><strong>{formatCurrency(totals.totalTvaCollected, currency)}</strong></div>
+            <div className="flex justify-between"><span>Matières</span><strong className="text-red-500">{formatCurrency(totals.finalFoodCost, currency)}</strong></div>
+            <div className="flex justify-between"><span>Emballages</span><strong className="text-red-500">{formatCurrency(totals.totalPackagingCost, currency)}</strong></div>
+            <div className="flex justify-between"><span>Cotisations sociales</span><strong className="text-red-500">{formatCurrency(totals.totalSocialCharges, currency)}</strong></div>
+            <div className="flex justify-between border-t pt-2"><span>Marge sur coûts variables</span><strong>{formatCurrency(grossMargin, currency)}</strong></div>
+            <div className="flex justify-between"><span>Charges fixes</span><strong className="text-red-500">{formatCurrency(totals.actualFixedCosts, currency)}</strong></div>
+            <div className="flex justify-between text-lg font-bold border-t pt-3"><span>RÉSULTAT NET</span><span>{formatCurrency(totals.netResult, currency)}</span></div>
           </div>
         </Card>
       </div>
     </div>
   );
 };
-

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber, hasPriceDrift } from '../validation';
+import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber, hasPriceDrift, sanitizeTvaRate } from '../validation';
 
 describe('validation helpers', () => {
   it('parses optional numbers safely', () => {
@@ -33,6 +33,15 @@ describe('validation helpers', () => {
     expect(isPercentage(99.99)).toBe(true);
     expect(isPercentage(100)).toBe(false);
     expect(isPercentage(-1)).toBe(false);
+  });
+
+  it('sanitizes TVA rate with fallback', () => {
+    expect(sanitizeTvaRate(5.5, 20)).toBe(5.5);
+    expect(sanitizeTvaRate(120, 20)).toBe(20);
+    expect(sanitizeTvaRate(-1, 20)).toBe(20);
+    expect(sanitizeTvaRate('8.2', 20)).toBe(8.2);
+    expect(sanitizeTvaRate('invalid', 20)).toBe(20);
+    expect(sanitizeTvaRate('invalid', 120)).toBe(0);
   });
 
   it('detects price drift with strict tolerance (0)', () => {
