@@ -5,7 +5,6 @@ import { convertToCostPerBaseUnit, formatCurrency, rebuildIngredientCost } from 
 import { isNonNegativeNumber, isPositiveNumber, parseOptionalNumber, hasPriceDrift } from '../../validation';
 import { Button, Card, Input, Select } from '../ui/Common';
 import { TtcToHtHelper } from '../ui/TtcToHtHelper';
-import { usePersistentState } from '../../usePersistentState';
 
 interface Props {
   ingredients: Ingredient[];
@@ -18,15 +17,22 @@ interface Props {
 export const StockManagement: React.FC<Props> = ({
   ingredients, setIngredients, purchases, setPurchases, settings
 }) => {
-  const [activeTab, setActiveTab] = usePersistentState<'purchases' | 'analysis' | 'definitions'>('draft:stock:activeTab', 'purchases');
+  const [activeTab, setActiveTab] = React.useState<'purchases' | 'analysis' | 'definitions'>('purchases');
   const isTva = settings.isTvaSubject;
 
   // --- Purchase Logic ---
-  const [newPurchase, setNewPurchase, resetNewPurchase] = usePersistentState<Partial<Purchase>>('draft:stock:newPurchase', {
+  const [newPurchase, setNewPurchase] = React.useState<Partial<Purchase>>({
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
     price: 0
   });
+  const resetNewPurchase = () => {
+    setNewPurchase({
+      date: new Date().toISOString().split('T')[0],
+      quantity: 0,
+      price: 0
+    });
+  };
 
   const isPurchaseQuantityValid = isPositiveNumber(newPurchase.quantity);
   const isPurchasePriceValid = isPositiveNumber(newPurchase.price);
@@ -62,11 +68,17 @@ export const StockManagement: React.FC<Props> = ({
   };
 
   // --- Ingredient Definition Logic ---
-  const [newIng, setNewIng, resetNewIng] = usePersistentState<Partial<Ingredient>>('draft:stock:newIng', {
+  const [newIng, setNewIng] = React.useState<Partial<Ingredient>>({
     unit: Unit.KG,
     price: 0
   });
-  const [editingId, setEditingId, resetEditingId] = usePersistentState<string | null>('draft:stock:editingId', null);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const resetNewIng = () => {
+    setNewIng({
+      unit: Unit.KG,
+      price: 0
+    });
+  };
   const isIngredientPriceValid = isNonNegativeNumber(newIng.price);
   const isIngredientFormValid = Boolean(newIng.name && isIngredientPriceValid);
 
@@ -125,7 +137,7 @@ export const StockManagement: React.FC<Props> = ({
     const hasDraft = Boolean(newIng.name || newIng.price);
     if (!hasDraft && !editingId) return;
     if (window.confirm('Annuler la création/modification ingrédient ? Les saisies en cours seront perdues.')) {
-      resetEditingId();
+      setEditingId(null);
       resetNewIng();
     }
   };

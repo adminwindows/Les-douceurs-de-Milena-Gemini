@@ -1678,3 +1678,54 @@ Tests added:
 Validation this turn:
 - `npm.cmd run typecheck` => pass.
 - `npm.cmd run test -- tests/userGuide.test.tsx` => blocked in this environment by known host issue (`spawn EPERM` during Vitest/Vite/esbuild startup).
+
+## 63) Latest Turn Update (removed explicit validation + draft persistence; restored natural persistence)
+
+User request:
+- Explicitly asked to remove the global explicit validation flow (header `Valider/Annuler`) and all draft persistence behavior.
+- Requested return to the older natural persistence model.
+- Requested a clean/robust implementation with no regressions, dead code, or stale help content.
+
+Actions implemented:
+1. App-level persistence rollback to natural autosave
+- `App.tsx` refactored to:
+  - remove global pending-changes workflow (`savedSnapshot`, `hasPendingChanges`, `commitPendingChanges`, `discardPendingChanges`),
+  - remove explicit validation banner from header,
+  - replace app-wide `usePersistentState('draft:app:*')` with regular `useState`,
+  - add immediate autosave effect (`saveAppState`) on app data changes,
+  - keep full reset/import/demo behaviors working with immediate persistence.
+- Data modal updated:
+  - removed draft cleanup action,
+  - removed draft-specific storage lines,
+  - kept managed/total storage stats and reset action.
+
+2. Removed draft-backed form persistence in views
+- Replaced `usePersistentState` with local `useState` in:
+  - `components/views/IngredientsRecettes.tsx`
+  - `components/views/Orders.tsx`
+  - `components/views/Production.tsx`
+  - `components/views/Products.tsx`
+  - `components/views/StockManagement.tsx`
+- Preserved form reset/cancel behavior by adding local reset helpers.
+- Kept prior functional state update safety in place.
+
+3. Draft infrastructure cleanup
+- Deleted `usePersistentState.ts` (no longer used by runtime).
+- Kept legacy draft-key cleanup support in `clearAllPersistedData` (for old installs/migrations).
+- Simplified `LocalStorageStats` in `storage.ts` by removing draft-specific counters from public stats API.
+
+4. Docs and help synchronization
+- `components/views/UserGuide.tsx` updated to describe natural autosave behavior (removed outdated explicit-validate/draft explanations).
+- `README.md` data persistence section updated to natural persistence model and current reset/stats behavior.
+
+5. Tests updated
+- `tests/storageMaintenance.test.ts` rewritten to validate:
+  - managed vs total storage stats,
+  - legacy draft-key cleanup during full reset.
+- Existing new help test file remains present (`tests/userGuide.test.tsx`).
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `npx.cmd tsc --noEmit --noUnusedLocals --noUnusedParameters` => pass.
+- `npm.cmd run test` => blocked in this environment by known host issue (`spawn EPERM` from Vitest/Vite/esbuild startup).
+- `npm.cmd run build` => blocked in this environment by same host `spawn EPERM` limitation.

@@ -4,7 +4,6 @@ import { Ingredient, Recipe, Unit, RecipeIngredient } from '../../types';
 import { calculateRecipeMaterialCost } from '../../utils';
 import { isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input } from '../ui/Common';
-import { usePersistentState } from '../../usePersistentState';
 
 interface Props {
   ingredients: Ingredient[];
@@ -17,11 +16,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   const [scalerTargets, setScalerTargets] = useState<Record<string, string>>({});
 
   // --- Recipe State ---
-  const [newRecipe, setNewRecipe, resetNewRecipe] = usePersistentState<Partial<Recipe>>('draft:recipe:newRecipe', { name: '', batchYield: 1, lossPercentage: 0 });
-  const [currentRecipeIngs, setCurrentRecipeIngs, resetCurrentRecipeIngs] = usePersistentState<RecipeIngredient[]>('draft:recipe:ingredients', []);
-  const [selectedIngId, setSelectedIngId, resetSelectedIngId] = usePersistentState<string>('draft:recipe:selectedIngId', '');
-  const [selectedIngQty, setSelectedIngQty, resetSelectedIngQty] = usePersistentState<string>('draft:recipe:selectedIngQty', '');
-  const [editingRecipeId, setEditingRecipeId, resetEditingRecipeId] = usePersistentState<string | null>('draft:recipe:editingId', null);
+  const [newRecipe, setNewRecipe] = useState<Partial<Recipe>>({ name: '', batchYield: 1, lossPercentage: 0 });
+  const [currentRecipeIngs, setCurrentRecipeIngs] = useState<RecipeIngredient[]>([]);
+  const [selectedIngId, setSelectedIngId] = useState<string>('');
+  const [selectedIngQty, setSelectedIngQty] = useState<string>('');
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
 
   const isBatchYieldValid = isPositiveNumber(newRecipe.batchYield);
   const isLossPercentageValid = isPercentage(newRecipe.lossPercentage);
@@ -53,11 +52,11 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   };
 
   const resetRecipeDraft = () => {
-    resetNewRecipe();
-    resetCurrentRecipeIngs();
-    resetSelectedIngId();
-    resetSelectedIngQty();
-    resetEditingRecipeId();
+    setNewRecipe({ name: '', batchYield: 1, lossPercentage: 0 });
+    setCurrentRecipeIngs([]);
+    setSelectedIngId('');
+    setSelectedIngQty('');
+    setEditingRecipeId(null);
   };
 
   const confirmCancelRecipeDraft = () => {

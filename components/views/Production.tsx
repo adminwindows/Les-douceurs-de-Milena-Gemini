@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { ProductionBatch, Product, Order, Recipe, Ingredient, Unit } from '../../types';
 import { Card, Button, Input } from '../ui/Common';
-import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { applyIngredientUsage, computeProductionIngredientUsage, getStockShortages } from '../../stockMovements';
 import { sumCompletedDeliveredQuantityByProduct } from '../../ordersMath';
@@ -23,10 +22,16 @@ const getDisplayUnit = (unit: Unit) => {
 };
 
 export const Production: React.FC<Props> = ({ productionBatches, setProductionBatches, products, recipes, ingredients, setIngredients, orders = [] }) => {
-  const [newBatch, setNewBatch, resetNewBatch] = usePersistentState<Partial<ProductionBatch>>('draft:production:newBatch', {
+  const [newBatch, setNewBatch] = React.useState<Partial<ProductionBatch>>({
     date: new Date().toISOString().split('T')[0],
     quantity: 0
   });
+  const resetNewBatch = () => {
+    setNewBatch({
+      date: new Date().toISOString().split('T')[0],
+      quantity: 0
+    });
+  };
   const isBatchQuantityValid = isPositiveNumber(newBatch.quantity);
 
   const selectedProduct = products.find(p => p.id === newBatch.productId);
@@ -69,14 +74,14 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
       if (!proceed) return;
     }
 
-    setProductionBatches([
+    setProductionBatches(prev => [
       {
         id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
         date: newBatch.date || new Date().toISOString().split('T')[0],
         productId: newBatch.productId,
         quantity
       },
-      ...productionBatches
+      ...prev
     ]);
     setIngredients(prev => applyIngredientUsage(prev, usageResult.usages, 'consume'));
     resetNewBatch();

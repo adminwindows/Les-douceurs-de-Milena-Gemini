@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GlobalSettings, Ingredient, Order, OrderItem, Product, ProductionBatch, Recipe } from '../../types';
 import { Card, Button, Input, InfoTooltip } from '../ui/Common';
-import { usePersistentState } from '../../usePersistentState';
 import { isPositiveNumber, parseOptionalNumber, sanitizeTvaRate } from '../../validation';
 import { formatCurrency } from '../../utils';
 import { computeProductionIngredientUsage, getStockShortages, applyIngredientUsage } from '../../stockMovements';
@@ -48,15 +47,29 @@ export const Orders: React.FC<Props> = ({
 }) => {
   const defaultTvaRate = settings.isTvaSubject ? settings.defaultTvaRate : 0;
 
-  const [newOrder, setNewOrder, resetNewOrder] = usePersistentState<Partial<Order>>('draft:order:newOrder', {
+  const [newOrder, setNewOrder] = useState<Partial<Order>>({
     customerName: '',
     date: new Date().toISOString().split('T')[0],
     items: [],
     tvaRate: defaultTvaRate,
     status: 'pending'
   });
-  const [currentItem, setCurrentItem, resetCurrentItem] = usePersistentState<{ productId: string; quantity?: number; price?: number }>('draft:order:currentItem', { productId: '', quantity: 1, price: undefined });
+  const [currentItem, setCurrentItem] = useState<{ productId: string; quantity?: number; price?: number }>({ productId: '', quantity: 1, price: undefined });
   const [orderPendingProductionConfirm, setOrderPendingProductionConfirm] = useState<Order | null>(null);
+
+  const resetNewOrder = () => {
+    setNewOrder({
+      customerName: '',
+      date: new Date().toISOString().split('T')[0],
+      items: [],
+      tvaRate: defaultTvaRate,
+      status: 'pending'
+    });
+  };
+
+  const resetCurrentItem = () => {
+    setCurrentItem({ productId: '', quantity: 1, price: undefined });
+  };
 
   useEffect(() => {
     if (newOrder.tvaRate === undefined) {

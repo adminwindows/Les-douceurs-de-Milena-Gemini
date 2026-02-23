@@ -2,7 +2,6 @@ import React from 'react';
 import { Product, Recipe, GlobalSettings, Ingredient } from '../../types';
 import { isNonNegativeNumber, isPercentage, isPositiveNumber, parseOptionalNumber } from '../../validation';
 import { Button, Card, Input, Select, InfoTooltip } from '../ui/Common';
-import { usePersistentState } from '../../usePersistentState';
 import { calculateProductMetrics, formatCurrency } from '../../utils';
 
 interface Props {
@@ -32,9 +31,9 @@ export const Products: React.FC<Props> = ({ products, setProducts, recipes, ingr
 );
 
 export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipes, ingredients, settings }) => {
-  const [newProduct, setNewProduct, resetNewProduct] = usePersistentState<Partial<Product>>('draft:product:newProduct', getDefaultDraft());
-  const [isCustomCategory, setIsCustomCategory, resetIsCustomCategory] = usePersistentState<boolean>('draft:product:isCustomCategory', false);
-  const [editingProductId, setEditingProductId, resetEditingProductId] = usePersistentState<string | null>('draft:product:editingId', null);
+  const [newProduct, setNewProduct] = React.useState<Partial<Product>>(getDefaultDraft());
+  const [isCustomCategory, setIsCustomCategory] = React.useState<boolean>(false);
+  const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
 
   const isLossRateValid = isPercentage(newProduct.lossRate);
   const isEstimatedSalesValid = isPositiveNumber(newProduct.estimatedMonthlySales);
@@ -148,9 +147,9 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
     const hasDraft = Boolean(newProduct.name || newProduct.recipeId || (newProduct.category && newProduct.category !== 'Gâteau'));
     if (!hasDraft && !editingProductId) return;
     if (window.confirm('Annuler la création/modification du produit ? Les saisies en cours seront perdues.')) {
-      resetEditingProductId();
-      resetIsCustomCategory();
-      resetNewProduct();
+      setEditingProductId(null);
+      setIsCustomCategory(false);
+      setNewProduct(getDefaultDraft());
     }
   };
 

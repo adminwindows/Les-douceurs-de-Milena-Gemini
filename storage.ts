@@ -33,9 +33,6 @@ export interface LocalStorageStats {
   totalBytes: number;
   managedKeys: number;
   managedBytes: number;
-  draftKeys: number;
-  draftBytes: number;
-  unknownDraftKeys: number;
 }
 
 const utf8ByteLength = (value: string): number => {
@@ -189,10 +186,7 @@ export const getLocalStorageStats = (): LocalStorageStats => {
       totalKeys: 0,
       totalBytes: 0,
       managedKeys: 0,
-      managedBytes: 0,
-      draftKeys: 0,
-      draftBytes: 0,
-      unknownDraftKeys: 0
+      managedBytes: 0
     };
   }
 
@@ -200,9 +194,6 @@ export const getLocalStorageStats = (): LocalStorageStats => {
   let totalBytes = 0;
   let managedKeys = 0;
   let managedBytes = 0;
-  let draftKeys = 0;
-  let draftBytes = 0;
-  let unknownDraftKeys = 0;
 
   for (let i = 0; i < window.localStorage.length; i += 1) {
     const key = window.localStorage.key(i);
@@ -213,26 +204,11 @@ export const getLocalStorageStats = (): LocalStorageStats => {
     const bytes = utf8ByteLength(key) + utf8ByteLength(value);
     totalBytes += bytes;
 
-    const isDraft = key.startsWith(DRAFT_STORAGE_KEY_PREFIX);
-    const isManaged = isDraft || MANAGED_STATIC_KEYS.has(key);
+    const isLegacyDraft = key.startsWith(DRAFT_STORAGE_KEY_PREFIX);
+    const isManaged = isLegacyDraft || MANAGED_STATIC_KEYS.has(key);
     if (isManaged) {
       managedKeys += 1;
       managedBytes += bytes;
-    }
-
-    if (isDraft) {
-      draftKeys += 1;
-      draftBytes += bytes;
-      if (
-        !key.startsWith('draft:app:') &&
-        !key.startsWith('draft:recipe:') &&
-        !key.startsWith('draft:order:') &&
-        !key.startsWith('draft:product:') &&
-        !key.startsWith('draft:production:') &&
-        !key.startsWith('draft:stock:')
-      ) {
-        unknownDraftKeys += 1;
-      }
     }
   }
 
@@ -240,9 +216,6 @@ export const getLocalStorageStats = (): LocalStorageStats => {
     totalKeys,
     totalBytes,
     managedKeys,
-    managedBytes,
-    draftKeys,
-    draftBytes,
-    unknownDraftKeys
+    managedBytes
   };
 };

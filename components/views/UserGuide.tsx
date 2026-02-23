@@ -45,19 +45,17 @@ const GUIDE_SECTIONS: GuideSection[] = [
     id: 'start-save-model',
     tab: 'start',
     title: 'Comment la sauvegarde fonctionne',
-    summary: 'Les modifications restent en brouillon tant que vous ne validez pas.',
+    summary: 'Les modifications sont sauvegardees automatiquement pendant l utilisation.',
     steps: [
-      'Quand vous modifiez une valeur, la modification reste en attente.',
-      'Le bandeau du haut affiche Modifications en attente.',
-      'Cliquez Valider pour sauvegarder les changements.',
-      'Cliquez Annuler pour revenir au dernier etat valide.',
-      'Si vous changez d onglet sans valider, le brouillon reste disponible.'
+      'Quand vous modifiez une valeur metier (catalogue, commandes, production, bilans sauvegardes), l application persiste naturellement vos donnees.',
+      'Vous pouvez changer d onglet sans action supplementaire.',
+      'Les boutons Annuler presents dans les formulaires annulent la saisie en cours du formulaire uniquement.',
+      'Le bouton Reinitialiser toutes les donnees reste disponible dans Sauvegardes / Donnees.'
     ],
     tips: [
-      'C est normal de voir des brouillons: cela evite de perdre une saisie en cours.',
-      'La validation globale est le moment officiel de sauvegarde.'
+      'Faites un export regulier pour conserver une sauvegarde externe de securite.'
     ],
-    keywords: ['valider', 'annuler', 'brouillon', 'modifications en attente', 'save']
+    keywords: ['sauvegarde auto', 'annuler', 'persistant', 'save', 'reinitialiser']
   },
   {
     id: 'start-backups',
@@ -67,7 +65,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
     steps: [
       'Export: choisissez les blocs a sauvegarder (parametres, catalogue, operations, bilans).',
       'Import: rechargez un fichier et choisissez quels blocs remplacer.',
-      'Nettoyer les brouillons obsoletes: supprime les brouillons anciens/corrompus.',
       'Reinitialiser toutes les donnees: efface toutes les donnees locales de l application.'
     ],
     tips: [
@@ -294,7 +291,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     title: 'Ou sont stockees les donnees et comment tout effacer ?',
     summary: 'Les donnees sont locales a l application/appareil.',
     steps: [
-      'Les brouillons et donnees valides sont stockes localement.',
+      'Les donnees applicatives sont stockees localement.',
       'Utilisez Reinitialiser toutes les donnees pour un effacement propre depuis l app.',
       'Un export JSON est recommande avant toute suppression.',
       'Sur Android, la restauration systeme peut remettre des donnees selon les reglages de sauvegarde.'
