@@ -100,7 +100,7 @@ if exist android\app\build\outputs\apk\release\app-release-unsigned.apk (
 )
 
 echo [11/11] NOTE: release APK can be unsigned unless signing config is set.
-echo Create key with windows-create-release-key.cmd then configure android signing.
+echo Create key with windows-create-release-key.cmd ^(creates .\milena-share.keystore in project root^) then configure android signing.
 
 echo.
 echo SUCCESS: First-time RELEASE build completed.

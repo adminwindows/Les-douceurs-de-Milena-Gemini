@@ -1729,3 +1729,31 @@ Validation this turn:
 - `npx.cmd tsc --noEmit --noUnusedLocals --noUnusedParameters` => pass.
 - `npm.cmd run test` => blocked in this environment by known host issue (`spawn EPERM` from Vitest/Vite/esbuild startup).
 - `npm.cmd run build` => blocked in this environment by same host `spawn EPERM` limitation.
+
+## 64) Latest Turn Update (move release keystore out of android/ to survive clean reinstall)
+
+User request:
+- Update all scripts so the Android release key is created in the project root (not inside `android/`), so clean reinstall flows that delete `android/` do not delete the key.
+- Ensure all related processes use the new valid key path.
+
+Actions implemented:
+- Updated key creation helper:
+  - `windows-create-release-key.cmd`
+  - now creates `.\milena-share.keystore` in repository root via `KEYSTORE_PATH=milena-share.keystore`.
+  - added guard to fail clearly if the key file already exists (prevents accidental identity replacement).
+- Updated signing helper:
+  - `windows-sign-release-apk.cmd`
+  - now reads the key from `KEYSTORE_PATH=milena-share.keystore` (project root).
+- Added legacy-path compatibility migration:
+  - both key helpers detect existing old key at `android\keystores\milena-share.keystore` and copy it to root automatically.
+- Updated release helper messaging:
+  - `windows-first-time-release.cmd` note now explicitly says key is created at project root.
+- Updated docs:
+  - `README.md` now documents root-level key location (`.\milena-share.keystore`) and explains this survives first-time clean rebuilds.
+  - updated manual keytool example to use root path.
+- Added regression coverage:
+  - `tests/windowsHelpers.test.ts` now asserts both key helper scripts use root-level keystore path and do not reference `android\keystores`.
+
+Validation this turn:
+- Static script/path consistency verified by repository search and updated tests.
+- Runtime command execution was not re-run in this sandbox for Windows `.cmd` flows.

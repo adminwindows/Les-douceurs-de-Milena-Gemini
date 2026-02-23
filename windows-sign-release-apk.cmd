@@ -7,7 +7,8 @@ REM Prefer apksigner (v1/v2/v3 signatures). Fallback to jarsigner if SDK tools a
 set "UNSIGNED_APK=android\app\build\outputs\apk\release\app-release-unsigned.apk"
 set "ALIGNED_APK=android\app\build\outputs\apk\release\app-release-aligned.apk"
 set "SIGNED_APK=android\app\build\outputs\apk\release\app-release-signed.apk"
-set "KEYSTORE_PATH=android\keystores\milena-share.keystore"
+set "KEYSTORE_PATH=milena-share.keystore"
+set "LEGACY_KEYSTORE_PATH=android\keystores\milena-share.keystore"
 set "KEY_ALIAS=milena-share"
 
 if not exist "%UNSIGNED_APK%" (
@@ -16,6 +17,17 @@ if not exist "%UNSIGNED_APK%" (
   echo Build release first with windows-first-time-release.cmd or windows-next-release.cmd.
   pause
   exit /b 1
+)
+
+if not exist "%KEYSTORE_PATH%" if exist "%LEGACY_KEYSTORE_PATH%" (
+  echo.
+  echo INFO: Migrating legacy key from %LEGACY_KEYSTORE_PATH% to project root...
+  copy /y "%LEGACY_KEYSTORE_PATH%" "%KEYSTORE_PATH%" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not migrate legacy key to project root.
+    pause
+    exit /b 1
+  )
 )
 
 if not exist "%KEYSTORE_PATH%" (

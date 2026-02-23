@@ -30,5 +30,18 @@ describe('windows helper scripts', () => {
     const nextRelease = readHelper('windows-next-release.cmd');
     expect(nextRelease).toContain('[8/8] APK outputs:');
   });
-});
 
+  it('keeps release keystore at project root (outside android folder)', () => {
+    const createKey = readHelper('windows-create-release-key.cmd');
+    const signApk = readHelper('windows-sign-release-apk.cmd');
+
+    expect(createKey).toContain('set "KEYSTORE_PATH=milena-share.keystore"');
+    expect(signApk).toContain('set "KEYSTORE_PATH=milena-share.keystore"');
+    expect(createKey).toContain('-keystore "%KEYSTORE_PATH%"');
+    expect(signApk).toContain('--ks "%KEYSTORE_PATH%"');
+    expect(signApk).toContain('-keystore "%KEYSTORE_PATH%"');
+    expect(createKey).not.toContain('-keystore android\\keystores');
+    expect(signApk).not.toContain('--ks "android\\keystores');
+    expect(signApk).not.toContain('-keystore "android\\keystores');
+  });
+});

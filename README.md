@@ -97,6 +97,8 @@ Use root-level one-click files:
 - `windows-sign-release-apk.cmd`
 
 These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`. They also clear inherited `NODE_OPTIONS` and both npm node-options env variants (`npm_config_node_options` / `NPM_CONFIG_NODE_OPTIONS`) to avoid noisy Node flag warnings in test runs. Release helpers also auto-call `windows-sign-release-apk.cmd` when they detect `app-release-unsigned.apk`.
+`windows-create-release-key.cmd` now creates the key at `.\milena-share.keystore` (project root), outside `android/`, so first-time clean rebuilds do not delete it.
+If you still have an older key at `android\keystores\milena-share.keystore`, the key helpers auto-migrate it to the project root path.
 
 ### iOS equivalent
 
@@ -123,7 +125,7 @@ These scripts are designed for double-click usage, run `npm run build` immediate
 Example (local keystore only, for direct sharing):
 
 1. Create a local key once:
-   * `keytool -genkeypair -v -keystore milena-share.keystore -alias milena-share -keyalg RSA -keysize 2048 -validity 3650`
+   * `keytool -genkeypair -v -keystore .\milena-share.keystore -alias milena-share -keyalg RSA -keysize 2048 -validity 3650`
 2. Configure your local Android signing (in your local `android/` project) with that keystore.
 3. Build release APK:
    * Linux/macOS: `npm run mobile:apk:release`
