@@ -1757,3 +1757,25 @@ Actions implemented:
 Validation this turn:
 - Static script/path consistency verified by repository search and updated tests.
 - Runtime command execution was not re-run in this sandbox for Windows `.cmd` flows.
+
+## 65) Latest Turn Update (fix flaky/ambiguous UserGuide test query)
+
+User report:
+- Full one-click run failed at tests with:
+  - `tests/userGuide.test.tsx > switches to screen-by-screen documentation`
+  - `Found multiple elements with the text: /bilan mensuel/i`.
+
+Root cause:
+- Test used `getByText(/bilan mensuel/i)`, which became ambiguous after guide content updates because the same phrase exists both in:
+  - a list item (`inclure ... dans le bilan mensuel`),
+  - and the section heading (`Bilan mensuel`).
+
+Actions implemented:
+- Updated `tests/userGuide.test.tsx` to assert semantic headings instead of broad text matches:
+  - `getByRole('heading', { name: /ecran parametres/i })`
+  - `getByRole('heading', { name: /bilan mensuel/i })`
+- Updated the search test similarly for `Bilan mensuel` to prevent future duplicate-text fragility.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `npm.cmd run test -- tests/userGuide.test.tsx` => blocked in this sandbox by known host issue (`spawn EPERM` from Vitest/Vite/esbuild startup), not by test logic.

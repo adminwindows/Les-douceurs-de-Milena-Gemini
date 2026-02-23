@@ -17,8 +17,8 @@ describe('UserGuide', () => {
 
     await user.click(screen.getByRole('button', { name: /par ecran/i }));
 
-    expect(screen.getByText(/ecran parametres/i)).toBeInTheDocument();
-    expect(screen.getByText(/bilan mensuel/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /ecran parametres/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /bilan mensuel/i })).toBeInTheDocument();
   });
 
   it('searches across all categories', async () => {
@@ -28,7 +28,7 @@ describe('UserGuide', () => {
     await user.type(screen.getByTestId('guide-search-input'), 'pdf');
 
     expect(screen.getByText(/pdf mobile: que se passe-t-il au clic/i)).toBeInTheDocument();
-    expect(screen.getByText(/bilan mensuel/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /bilan mensuel/i })).toBeInTheDocument();
   });
 
   it('shows an explicit no-result state for unknown terms', async () => {
