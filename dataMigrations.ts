@@ -10,6 +10,8 @@ import {
   Product,
   ProductionBatch,
   Purchase,
+  Recipe,
+  RecipeIngredient,
   UnsoldEntry
 } from './types';
 import { rebuildIngredientCost } from './utils';
@@ -96,6 +98,22 @@ export const normalizeProduct = (product: Product): Product => ({
   estimatedMonthlySales: asNonNegativeNumber(product.estimatedMonthlySales, 0),
   category: product.category || 'Autre'
 });
+
+const normalizeRecipeIngredient = (item: RecipeIngredient): RecipeIngredient => ({
+  ingredientId: item.ingredientId,
+  quantity: asNonNegativeNumber(item.quantity, 0)
+});
+
+export const normalizeRecipe = (recipe: Recipe): Recipe => {
+  const safeBatchYield = asFiniteNumber(recipe.batchYield, 1);
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    ingredients: (recipe.ingredients ?? []).map((item) => normalizeRecipeIngredient(item)),
+    batchYield: safeBatchYield > 0 ? safeBatchYield : 1,
+    lossPercentage: asPercentage(recipe.lossPercentage, 0)
+  };
+};
 
 const normalizeOrderItem = (item: OrderItem, productsById: Map<string, Product>): OrderItem => {
   const product = productsById.get(item.productId);
@@ -235,6 +253,7 @@ export const normalizeMonthlyReport = (
 export const normalizeAppData = (data: AppData): AppData => {
   const settings = normalizeSettings(data.settings as GlobalSettings);
   const ingredients = data.ingredients.map((ingredient) => normalizeIngredient(ingredient as Ingredient));
+  const recipes = data.recipes.map((recipe) => normalizeRecipe(recipe as Recipe));
   const products = data.products.map(normalizeProduct);
   const productsById = new Map(products.map(product => [product.id, product]));
 
@@ -242,6 +261,7 @@ export const normalizeAppData = (data: AppData): AppData => {
     ...data,
     settings,
     ingredients,
+    recipes,
     products,
     orders: data.orders.map((order) => normalizeOrder(order as Order, settings, productsById)),
     purchases: data.purchases.map((purchase) => normalizePurchase(purchase as Purchase)),

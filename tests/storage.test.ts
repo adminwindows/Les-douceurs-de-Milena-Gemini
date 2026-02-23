@@ -54,6 +54,16 @@ describe('storage helpers', () => {
     expect(loadAppState()).toBeUndefined();
   });
 
+  it('falls back to legacy key when current key has malformed JSON', () => {
+    localStorage.setItem(APP_STATE_STORAGE_KEY, '{"broken":');
+    localStorage.setItem('milena_app_state_v1', JSON.stringify(payload));
+
+    const loaded = loadAppState();
+
+    expect(loaded).toEqual(payload);
+    expect(localStorage.getItem('milena_app_state_v1')).toBeNull();
+  });
+
   it('falls back to legacy key when current key has invalid envelope', () => {
     localStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify({ version: 2, data: { nope: true } }));
     localStorage.setItem('milena_app_state_v1', JSON.stringify(payload));

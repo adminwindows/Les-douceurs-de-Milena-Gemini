@@ -40,12 +40,13 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
     if (!selectedIngId || !isPositiveNumber(qty)) return;
     
     // Check if already added
-    const exists = currentRecipeIngs.find(i => i.ingredientId === selectedIngId);
-    if (exists) {
-      setCurrentRecipeIngs(currentRecipeIngs.map(i => i.ingredientId === selectedIngId ? { ...i, quantity: i.quantity + qty } : i));
-    } else {
-      setCurrentRecipeIngs([...currentRecipeIngs, { ingredientId: selectedIngId, quantity: qty }]);
-    }
+    setCurrentRecipeIngs((prev) => {
+      const exists = prev.find(i => i.ingredientId === selectedIngId);
+      if (exists) {
+        return prev.map(i => i.ingredientId === selectedIngId ? { ...i, quantity: i.quantity + qty } : i);
+      }
+      return [...prev, { ingredientId: selectedIngId, quantity: qty }];
+    });
     
     setSelectedIngId('');
     setSelectedIngQty('');
@@ -77,15 +78,15 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
     };
 
     if (editingRecipeId) {
-      setRecipes(recipes.map(r => r.id === editingRecipeId ? recipeToSave : r));
+      setRecipes(prev => prev.map(r => r.id === editingRecipeId ? recipeToSave : r));
     } else {
-      setRecipes([...recipes, recipeToSave]);
+      setRecipes(prev => [...prev, recipeToSave]);
     }
     resetRecipeDraft();
   };
 
   const handleDeleteRecipe = (id: string) => {
-    setRecipes(recipes.filter(r => r.id !== id));
+    setRecipes(prev => prev.filter(r => r.id !== id));
   };
 
   const handleEditRecipe = (recipe: Recipe) => {
@@ -97,13 +98,13 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
   };
 
   const handleRemoveRecipeIngredient = (ingredientId: string) => {
-    setCurrentRecipeIngs(currentRecipeIngs.filter(i => i.ingredientId !== ingredientId));
+    setCurrentRecipeIngs(prev => prev.filter(i => i.ingredientId !== ingredientId));
   };
 
   const handleUpdateRecipeIngredientQuantity = (ingredientId: string, value: string) => {
     const qty = parseOptionalNumber(value);
     if (!isPositiveNumber(qty)) return;
-    setCurrentRecipeIngs(currentRecipeIngs.map(i => i.ingredientId === ingredientId ? { ...i, quantity: qty } : i));
+    setCurrentRecipeIngs(prev => prev.map(i => i.ingredientId === ingredientId ? { ...i, quantity: qty } : i));
   };
 
   const toggleScaler = (recipeId: string) => {
@@ -247,7 +248,8 @@ export const IngredientsRecettes: React.FC<Props> = ({ ingredients, recipes, set
               const isScaling = scalerTargets.hasOwnProperty(recipe.id);
               const targetQtyStr = scalerTargets[recipe.id] || '';
               const targetQty = parseOptionalNumber(targetQtyStr);
-              const scaleRatio = (targetQty && !isNaN(targetQty)) ? targetQty / (recipe.batchYield ?? 1) : 1;
+              const safeBatchYield = recipe.batchYield > 0 ? recipe.batchYield : 1;
+              const scaleRatio = targetQty === undefined ? 1 : targetQty / safeBatchYield;
 
               return (
                 <Card key={recipe.id} className="relative hover:shadow-md transition-shadow">

@@ -324,9 +324,9 @@ describe('normalizeAppData', () => {
         {
           id: 'r1',
           name: 'R1',
-          ingredients: [{ ingredientId: 'i1', quantity: 10 }],
-          batchYield: 10,
-          lossPercentage: 0
+          ingredients: [{ ingredientId: 'i1', quantity: -10 }],
+          batchYield: 0,
+          lossPercentage: 120
         }
       ],
       products: [
@@ -373,6 +373,9 @@ describe('normalizeAppData', () => {
 
     expectEqual(normalized.settings.taxRate, 0);
     expectEqual(normalized.ingredients[0].costPerBaseUnit, 4 / 1000);
+    expectEqual(normalized.recipes[0].ingredients[0].quantity, 0);
+    expectEqual(normalized.recipes[0].batchYield, 1);
+    expectEqual(normalized.recipes[0].lossPercentage, 0);
     expectEqual(normalized.orders[0].items[0].quantity, 0);
     expectEqual(normalized.orders[0].items[0].price, 7);
     expectEqual(normalized.orders[0].tvaRate, 8);

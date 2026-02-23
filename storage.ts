@@ -72,7 +72,7 @@ export const loadAppState = (): AppData | undefined => {
       const parsed = parseAppStateFromUnknown(JSON.parse(currentRaw));
       if (parsed) return parsed;
     } catch {
-      return undefined;
+      engine.removeItem(APP_STATE_STORAGE_KEY);
     }
   }
 

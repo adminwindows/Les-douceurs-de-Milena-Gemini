@@ -34,11 +34,6 @@ import { BackupSelection, exportBackupFile, getMobileBackupBridge, parseImported
 import {
   normalizeAppData,
   normalizeIngredient,
-  normalizeMonthlyReport,
-  normalizeOrder,
-  normalizeProductionBatch,
-  normalizeProduct,
-  normalizePurchase,
   normalizeSettings
 } from './dataMigrations';
 import { mergeImportedAppData } from './importMerge';

@@ -1571,3 +1571,44 @@ Tests and validation:
 Status note for item 5 exception:
 - No additional change was applied this turn to force a behavior that would remove clean reinstall possibility.
 - Current app-level reset-all flow remains available (`clearAllPersistedData` path in `App.tsx`).
+
+## 60) Latest Turn Update (user asked to explain deep-audit findings clearly and fix them)
+
+User request:
+- Asked for a clear explanation of remaining deep-audit issues.
+- Then asked to fix them.
+
+Issues fixed this turn:
+1. Recipe import normalization gap:
+   - Added `normalizeRecipe(...)` and recipe-ingredient sanitization in `dataMigrations.ts`.
+   - `normalizeAppData(...)` now normalizes `recipes` as well (not only settings/products/orders/etc.).
+   - Recipe rules now enforce:
+     - `batchYield > 0` (fallback `1`),
+     - `lossPercentage` as valid percentage (`0 <= x < 100`),
+     - ingredient quantities `>= 0`.
+2. Recipe scaler target `0` bug:
+   - In `components/views/IngredientsRecettes.tsx`, scaler ratio logic no longer treats `0` as falsy fallback.
+   - `0` now correctly produces a ratio of `0` instead of reverting to ratio `1`.
+3. Corrupted current app-state fallback:
+   - In `storage.ts`, malformed JSON in current key no longer returns early.
+   - It now removes corrupted current key and continues fallback to legacy key migration path.
+4. Non-functional array state updates (race-prone under rapid actions):
+   - Converted to functional state updates in:
+     - `components/views/IngredientsRecettes.tsx`
+     - `components/views/StockManagement.tsx`
+   - This avoids stale-closure drops for rapid consecutive mutations.
+
+Tests added/updated:
+- Updated `tests/dataMigrations.test.ts`:
+  - added recipe normalization assertions via `normalizeAppData(...)`:
+    - invalid recipe ingredient quantity -> `0`
+    - `batchYield=0` -> `1`
+    - `lossPercentage=120` -> `0`
+- Updated `tests/storage.test.ts`:
+  - added case: malformed current key + valid legacy key -> successfully fallback/migrate.
+- Added new `tests/ingredientsScaler.test.tsx`:
+  - verifies scaler target `0` results in `0.0` scaled ingredient quantity.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `npm.cmd run test` => blocked in this environment by host `spawn EPERM` (vite/esbuild process spawn restriction).

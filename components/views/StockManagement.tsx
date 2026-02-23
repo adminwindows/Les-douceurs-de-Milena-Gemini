@@ -35,7 +35,7 @@ export const StockManagement: React.FC<Props> = ({
   const handleAddPurchase = () => {
     if (!isPurchaseFormValid) return;
     const quantity = Number(newPurchase.quantity);
-    setPurchases([...purchases, {
+    setPurchases(prev => [...prev, {
       id: Date.now().toString(),
       date: newPurchase.date || new Date().toISOString().split('T')[0],
       ingredientId: newPurchase.ingredientId!,
@@ -52,7 +52,7 @@ export const StockManagement: React.FC<Props> = ({
 
   const handleDeletePurchase = (id: string) => {
     const purchase = purchases.find(entry => entry.id === id);
-    setPurchases(purchases.filter(p => p.id !== id));
+    setPurchases(prev => prev.filter(p => p.id !== id));
     if (!purchase) return;
     setIngredients(prev => prev.map(ingredient => (
       ingredient.id === purchase.ingredientId
@@ -93,7 +93,7 @@ export const StockManagement: React.FC<Props> = ({
         } : i));
         setEditingId(null);
     } else {
-        setIngredients([...ingredients, normalized]);
+        setIngredients(prev => [...prev, normalized]);
     }
     resetNewIng();
   };
@@ -115,7 +115,7 @@ export const StockManagement: React.FC<Props> = ({
 
   const handleDeleteIngredient = (id: string) => {
     if(confirm("Supprimer cet ingrédient ? Cela affectera les recettes qui l'utilisent.")) {
-        setIngredients(ingredients.filter(i => i.id !== id));
+        setIngredients(prev => prev.filter(i => i.id !== id));
         if (editingId === id) cancelEdit();
     }
   };

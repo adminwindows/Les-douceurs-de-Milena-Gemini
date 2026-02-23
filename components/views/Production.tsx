@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { ProductionBatch, Product, Order, Recipe, Ingredient, Unit } from '../../types';
 import { Card, Button, Input } from '../ui/Common';
 import { usePersistentState } from '../../usePersistentState';
