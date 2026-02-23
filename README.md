@@ -35,6 +35,7 @@ By default, the app starts in **dark mode** (and remembers your theme choice).
 * Run unit tests: `npm run test`
 * Run a typecheck: `npm run typecheck`
 * Build for production: `npm run build`
+* Node.js 25 note: Vitest workers can print `--localstorage-file` warnings due upstream Node/WebStorage behavior. This is non-blocking. One-click Windows helpers now run tests with `NODE_OPTIONS=--no-webstorage` on Node 25+ automatically. For manual CLI usage, prefer Node.js 22/24 LTS (recommended) or run tests with `set NODE_OPTIONS=--no-webstorage` in the current terminal.
 
 ## Mobile (Capacitor Scaffold)
 
@@ -56,6 +57,8 @@ This project includes a source-only Capacitor scaffold for Android/iOS packaging
 > If cleanup fails with "file is used by another process" (e.g. classes.dex), close Android Studio/emulator/Gradle daemons and rerun; first-time Windows scripts now try `gradlew --stop` and one retry before failing with a clear message.
 > If SDK location errors still appear, set `ANDROID_HOME`/`ANDROID_SDK_ROOT` manually or create `android/local.properties` with `sdk.dir=...`.
 > If you see `invalid source release: 21`, upgrade Java to JDK 21+ and ensure `java -version` points to that JDK.
+> If Java 25 is active, root Windows helper scripts auto-switch to Android Studio JBR (`C:\Program Files\Android\Android Studio\jbr`) when available, because current Android Gradle stack is most stable on Java 21-24.
+> `mobile:android:enforce-data-policy` also applies Gradle hygiene patches after `cap add/sync`: `flatDir` repos are enabled only when local `.aar` files exist, reducing avoidable `flatDir` warnings on clean Capacitor setups.
 > If release install shows `Application non installée`, run `windows-sign-release-apk.cmd` (now uses `apksigner` + `zipalign` when available) and install `app-release-signed.apk`. If an older/debug app is already installed, uninstall it first because APKs signed with different keys cannot update each other.
 > If `apksigner` prints Java restricted-access warnings, the script now passes `--enable-native-access=ALL-UNNAMED`; remaining warnings are informational and not the root failure.
 
@@ -93,7 +96,7 @@ Use root-level one-click files:
 - `windows-create-release-key.cmd`
 - `windows-sign-release-apk.cmd`
 
-These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`. Release helpers also auto-call `windows-sign-release-apk.cmd` when they detect `app-release-unsigned.apk`.
+These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`. They also clear inherited `NODE_OPTIONS` and both npm node-options env variants (`npm_config_node_options` / `NPM_CONFIG_NODE_OPTIONS`) to avoid noisy Node flag warnings in test runs. Release helpers also auto-call `windows-sign-release-apk.cmd` when they detect `app-release-unsigned.apk`.
 
 ### iOS equivalent
 

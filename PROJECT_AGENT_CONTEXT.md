@@ -1213,3 +1213,294 @@ Actions implemented:
 Validation this turn:
 - `npm.cmd run typecheck` => pass.
 - `npx.cmd vitest run tests/storageMaintenance.test.ts tests/storage.test.ts` => blocked in host environment by known `spawn EPERM` (vite/esbuild startup).
+
+## 48) Latest Turn Update (warning triage and warning-reduction changes)
+
+User report:
+- Shared full pipeline log with warnings:
+  - repeated Node warning: `--localstorage-file was provided without a valid path` during tests,
+  - Vite warning about chunks >500 kB,
+  - Gradle warnings (`flatDir`, unchecked operations).
+
+Analysis:
+- The `--localstorage-file` flag is not present in repository code/config and is likely inherited from external runtime/node options on the user machine/tooling chain.
+- Vite warning is actionable in project bundling config.
+- Gradle warnings come from Capacitor/Android upstream build setup and are non-blocking.
+
+Actions implemented:
+- Added Vitest launcher wrapper:
+  - new file `scripts/run-vitest.mjs`,
+  - sanitizes `NODE_OPTIONS` and `npm_config_node_options` by stripping `--localstorage-file` before spawning Vitest.
+- Updated package scripts:
+  - `test` -> `node ./scripts/run-vitest.mjs run`
+  - `test:watch` -> `node ./scripts/run-vitest.mjs`
+- Added manual vendor chunking in `vite.config.ts`:
+  - split `react/react-dom`, `pdf-lib`, and `zod` into dedicated chunks to reduce main bundle size and address chunk warning pressure.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- Wrapper sanity check: `node scripts/run-vitest.mjs --version` => pass.
+- Full Vitest/build execution remains blocked in this host by known `spawn EPERM` limitation, so runtime warning suppression needs confirmation on user machine.
+
+## 49) Latest Turn Update (warning cleanup hardening)
+
+User report:
+- Shared pipeline output highlighting warning noise:
+  - repeated test warning about `--localstorage-file`,
+  - Vite chunk-size warning,
+  - Gradle warnings.
+
+Actions implemented:
+- Test warning mitigation:
+  - added `scripts/run-vitest.mjs` that sanitizes `NODE_OPTIONS` and `npm_config_node_options` by removing `--localstorage-file` before spawning Vitest.
+  - updated package scripts:
+    - `test` => `node ./scripts/run-vitest.mjs run`
+    - `test:watch` => `node ./scripts/run-vitest.mjs`
+- Windows helper hardening:
+  - added at top of all main Windows build helpers:
+    - `set "NODE_OPTIONS="`
+    - `set "npm_config_node_options="`
+  - files:
+    - `windows-first-time-debug.cmd`
+    - `windows-first-time-release.cmd`
+    - `windows-next-debug.cmd`
+    - `windows-next-release.cmd`
+- Vite chunk warning mitigation:
+  - added manual vendor chunk splitting in `vite.config.ts` for:
+    - react/react-dom,
+    - pdf-lib,
+    - zod.
+- Docs sync:
+  - updated README Windows helper description to mention NODE_OPTIONS sanitation.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `node scripts/run-vitest.mjs --version` => pass.
+- Full `npm run test`/`npm run build` still blocked in this host by existing `spawn EPERM` limitation (esbuild process spawn), so final warning delta should be validated on user machine.
+
+## 50) Latest Turn Update (follow-up on persistent `--localstorage-file` warning)
+
+User report:
+- After prior warning mitigation, the Vite chunk warning disappeared, but repeated Node warnings `--localstorage-file was provided without a valid path` still appeared during Vitest workers.
+
+Actions implemented:
+- Hardened Vitest launcher env sanitation (`scripts/run-vitest.mjs`):
+  - removes all case variants of `NODE_OPTIONS` and `npm_config_node_options` from child env,
+  - re-injects normalized/sanitized values for:
+    - `NODE_OPTIONS`,
+    - `NPM_CONFIG_NODE_OPTIONS`,
+    - `npm_config_node_options`.
+- This is intended to prevent polluted node flags from propagating into Vitest child worker processes.
+
+Validation this turn:
+- `node scripts/run-vitest.mjs --version` => pass.
+- Host environment still cannot run full Vitest/build due known `spawn EPERM`, so final elimination of repeated warnings must be confirmed on user machine.
+
+## 51) Latest Turn Update (request to fix non-blocking Gradle warnings)
+
+User request:
+- Asked to fix non-blocking Android/Gradle warnings instead of ignoring them.
+
+Actions implemented:
+- Extended `scripts/enforce-android-data-policy.mjs` to apply additional Android Gradle hygiene on every run (already wired to `mobile:add:android` and `mobile:sync`):
+  1. App module `flatDir` guard (`android/app/build.gradle`):
+     - `flatDir` repository now activates only when local `.aar` files are present in `../capacitor-cordova-android-plugins/src/main/libs` or `app/libs`.
+  2. Cordova bridge module `flatDir` guard (`android/capacitor-cordova-android-plugins/build.gradle`):
+     - same conditional activation for local `.aar` folders.
+  3. Java unchecked note suppression (`android/build.gradle`):
+     - adds global JavaCompile compiler arg `-Xlint:-unchecked` across subprojects.
+- Script now reports per-file update status instead of early-exiting after manifest check.
+- README updated to document this behavior in mobile troubleshooting notes.
+
+Validation this turn:
+- `npm.cmd run mobile:android:enforce-data-policy` => updated all targeted Gradle files successfully.
+- Confirmed there are currently no local `.aar` files in relevant folders (so `flatDir` should stay inactive).
+- Attempted `npm.cmd run mobile:apk:debug:win` for live warning verification, but build run in this environment failed due external Gradle lock permission issue (`...gradle-8.14.3-all.zip.lck (Access denied)`), so final warning reduction should be confirmed on user machine.
+
+## 52) Latest Turn Update (post-fix regression: major version 69 build failure)
+
+User report:
+- New Android build failure after prior warning patch:
+  - `Unsupported class file major version 69`
+  - failure during Gradle buildscript semantic analysis.
+- Test warning spam `--localstorage-file` still present.
+
+Actions implemented:
+- Reverted risky root-Gradle javac patch path:
+  - `scripts/enforce-android-data-policy.mjs` no longer injects `-Xlint:-unchecked`.
+  - Added cleanup step to remove previously injected `subprojects { tasks.withType(JavaCompile)... }` block from `android/build.gradle`.
+  - Re-ran `mobile:android:enforce-data-policy`; root cleanup applied.
+- Kept safe `flatDir` conditional guards in app + cordova plugin modules.
+- Hardened test launcher further:
+  - `scripts/run-vitest.mjs` now force-clears all NODE_OPTIONS channels for spawned Vitest process,
+  - runs Vitest child with `--no-warnings` to suppress external Node warning spam in worker processes.
+
+Validation this turn:
+- `npm.cmd run mobile:android:enforce-data-policy` => root cleanup updated.
+- Verified `android/build.gradle` no longer contains injected JavaCompile block.
+- `node scripts/run-vitest.mjs --version` => pass.
+- `npm.cmd run typecheck` => pass.
+- Full Android build/warning confirmation still must be run on user machine due local Gradle/JDK state.
+
+## 53) Latest Turn Update (user requested one-click simplicity and real fixes, no warning hiding)
+
+User request:
+- Wants one-click workflow only.
+- Asked to keep fixes simple and avoid "weird/dangerous" warning-hiding.
+
+Actions implemented:
+- Test warning fix path adjusted to root-cause workaround (not generic warning suppression):
+  - `scripts/run-vitest.mjs` now:
+    - force-clears inherited NODE_OPTIONS channels for child Vitest process,
+    - on Node.js 25+ adds `--no-webstorage` (workaround for upstream Node25 localStorage worker warning behavior).
+  - removed previous `--no-warnings` launch behavior.
+- One-click JDK compatibility hardening in root Windows scripts:
+  - added Java version probe at script start.
+  - if Java major >= 25, scripts auto-switch to Android Studio JBR path when present:
+    - `C:\Program Files\Android\Android Studio\jbr`
+  - if not available, scripts fail early with explicit guidance.
+  - updated files:
+    - `windows-first-time-debug.cmd`
+    - `windows-first-time-release.cmd`
+    - `windows-next-debug.cmd`
+    - `windows-next-release.cmd`
+- Docs sync:
+  - README updated with:
+    - Node 25+ test launcher behavior (`--no-webstorage` for Vitest),
+    - Java 25 auto-fallback to Android Studio JBR in one-click scripts.
+
+Validation this turn:
+- `node scripts/run-vitest.mjs --version` => pass.
+- `npm.cmd run mobile:android:enforce-data-policy` => pass.
+- `npm.cmd run typecheck` => pass.
+
+## 54) Latest Turn Update (rollback to stable helpers + clean targeted fixes)
+
+User feedback:
+- Reported helpers no longer worked and requested rollback to a working baseline.
+- Asked for clean underlying fixes (not warning hiding), or explicit statement if not fully fixable.
+
+Actions implemented:
+- Rolled back custom Vitest launcher approach:
+  - restored package scripts:
+    - `test` => `vitest run`
+    - `test:watch` => `vitest`
+  - removed `scripts/run-vitest.mjs`.
+- Kept and strengthened stable helper behavior:
+  - fixed CMD parser breakage in Java fallback block (parenthesis escaping + delayed expansion-safe PATH update).
+  - explicitly enabled command extensions in all root Windows helpers:
+    - `setlocal enableextensions enabledelayedexpansion`
+  - verified script now executes and reaches build pipeline steps (no immediate parser crash).
+- One-click mitigation for Node 25 test warning (targeted, not generic warning suppression):
+  - helpers detect Node major version,
+  - if Node >= 25, they set `NODE_OPTIONS=--no-webstorage` for the test step only, then reset it.
+  - applied in:
+    - `windows-first-time-debug.cmd`
+    - `windows-first-time-release.cmd`
+    - `windows-next-debug.cmd`
+    - `windows-next-release.cmd`
+- Underlying Java/Gradle issue handling remains:
+  - helpers still auto-switch to Android Studio JBR when Java 25+ is detected (if JBR exists), preventing `Unsupported class file major version 69`.
+  - Gradle hygiene enforcement script keeps safe conditional `flatDir` patches and removes prior risky root javac injection.
+- Vitest config:
+  - set `pool: 'threads'` in `vitest.config.ts` to reduce multi-process worker churn/noise.
+- Docs synced:
+  - README updated for current one-click behavior and Node25 guidance.
+
+Validation this turn:
+- `cmd /c windows-next-debug.cmd` now executes through dependency + test step initiation (no parser crash).
+- `npm.cmd run typecheck` => pass.
+
+## 55) Latest Turn Update (hotfix for helper parser crash + revert to normal test scripts)
+
+User feedback:
+- Helpers were reported as broken and requested to rollback "weird" changes.
+
+Actions implemented:
+- Reverted test script wrapper:
+  - removed `scripts/run-vitest.mjs`,
+  - restored `package.json` scripts:
+    - `test`: `vitest run`,
+    - `test:watch`: `vitest`.
+- Fixed root cause of helper parser crash:
+  - batch block contained unescaped parentheses in echo text (`(JBR)`), causing `or was unexpected` parse failure.
+  - corrected with escaped parentheses `^(JBR^)`.
+  - ensured robust block-safe expansions:
+    - `setlocal enableextensions enabledelayedexpansion`,
+    - `!PATH!`/`!JAVA_MAJOR!` inside parenthesized blocks.
+- Kept one-click Node25 mitigation for warning noise:
+  - helpers detect Node major at startup,
+  - test step only uses `NODE_OPTIONS=--no-webstorage` when Node >= 25, then resets it.
+- Kept one-click Java25 mitigation for Gradle major-version failure:
+  - helpers auto-switch to Android Studio JBR path when Java >= 25 and JBR exists.
+- Maintained safe Gradle hygiene script behavior:
+  - conditional `flatDir` guard stays,
+  - no risky root javac injection.
+
+Validation this turn:
+- `cmd /c windows-next-debug.cmd` now runs through java check, dependency install, and test launch (no immediate parser failure).
+- `npm.cmd run typecheck` => pass.
+
+## 56) Latest Turn Update (user requested full rollback to stable helpers + clean warning fixes)
+
+User request:
+- Reported helper scripts were broken and asked to revert to the previously working flow.
+- Requested clean fixes for underlying warning causes (or explicit explanation when a warning is not fully fixable).
+
+Actions implemented:
+- Confirmed rollback to direct test command path (no custom wrapper):
+  - `package.json` keeps `test` as `vitest run` and `test:watch` as `vitest`.
+- Fixed helper-script parser/runtime reliability:
+  - escaped parenthesis text in Java fallback message to avoid CMD parse errors,
+  - kept delayed expansion-safe PATH update in Java fallback block,
+  - verified helper starts correctly and reaches test step (`cmd /c windows-next-debug.cmd`).
+- Kept one-click root-cause mitigation for Node 25 test warning noise:
+  - helper detects Node major,
+  - for Node >= 25, test step runs with `NODE_OPTIONS=--no-webstorage` only for that step.
+- Hardened env cleanup in all four root helpers to prevent global npm/node option leakage:
+  - now clears `NODE_OPTIONS`, `npm_config_node_options`, and `NPM_CONFIG_NODE_OPTIONS`.
+- Kept safe Gradle warning cleanup only:
+  - `flatDir` guards remain conditional in app and Cordova plugin gradle files,
+  - no root `JavaCompile` suppression injection (previous risky path remains removed).
+- Kept Java 25 compatibility fallback in one-click scripts:
+  - auto-switch to Android Studio JBR when Java 25+ is detected, to avoid `Unsupported class file major version 69`.
+- README synchronized with current helper behavior and env cleanup details.
+
+Validation this turn:
+- `cmd /c windows-next-debug.cmd` now runs through Java detection, dependency install, and test invocation (no parser crash).
+- In this execution environment, Vitest cannot complete due host `spawn EPERM` restriction (esbuild process spawn), so final warning visibility must be confirmed on user machine.
+
+Warning status clarity:
+- `--localstorage-file` warning:
+  - Usually caused by Node 25 webstorage behavior and/or inherited node-options config.
+  - Clean mitigation in one-click helpers is applied; long-term stable baseline remains Node 22/24 LTS.
+- Vite chunk-size warning:
+  - already addressed by manual chunk split in `vite.config.ts`.
+- Gradle `flatDir` warning:
+  - mitigated via conditional repository guards.
+- Java unchecked/unsafe operations note from Capacitor sources:
+  - informational upstream compiler note; safely removing it from app side is not reliable without patching vendor sources.
+
+## 57) Latest Turn Update (user validated full first-time debug flow success)
+
+User report:
+- Ran `windows-first-time-debug.cmd` end-to-end successfully on local machine.
+- Pipeline completed all steps:
+  - install deps,
+  - tests,
+  - typecheck,
+  - web build,
+  - `cap add android`,
+  - icon generation,
+  - sync,
+  - debug APK build.
+- Output artifact confirmed:
+  - `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+Observed remaining messages:
+- Gradle note: `Some input files use unchecked or unsafe operations` and `Recompile with -Xlint:unchecked`.
+- Gradle incubating problems report path emitted.
+
+Status interpretation:
+- Current one-click helper flow is now stable and working on user machine.
+- Remaining Gradle messages are non-blocking upstream/toolchain notes (not app logic/test failures), with successful APK generation.
