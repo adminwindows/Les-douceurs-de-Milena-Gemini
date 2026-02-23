@@ -1636,3 +1636,45 @@ Deep-search status:
 - No remaining dead code reported by strict TypeScript unused-local/param checks.
 - No high-severity logic regression found in this pass.
 - Remaining verification gap is runtime test execution in this sandbox only (host EPERM process-spawn restriction).
+
+## 62) Latest Turn Update (in-app user guide overhaul + help search)
+
+User request:
+- Asked whether the in-app user guide is up to date, exhaustive, and didactic.
+- Requested that every feature be documented for a beginner.
+- Requested (optionally) a search feature in help.
+
+Actions implemented:
+- Rebuilt `components/views/UserGuide.tsx` into a complete structured manual with:
+  - three modes: `Demarrage`, `Par ecran`, `FAQ`,
+  - exhaustive sections covering all app modules and cross-cutting behaviors:
+    - startup workflow,
+    - draft/validation save model (`Valider`/`Annuler`),
+    - backup/import/export/reset,
+    - settings + TVA,
+    - demo mode,
+    - stocks & purchases,
+    - recipes,
+    - products,
+    - pricing analysis,
+    - orders,
+    - production,
+    - shopping list,
+    - monthly report + PDF,
+    - common FAQ topics (pricing formula, TVA visibility, deleted products, data lifecycle, mobile PDF share).
+- Added in-guide search (keyword + free text):
+  - search input + clear button,
+  - live filtering,
+  - global search across all guide categories,
+  - explicit no-result state.
+
+Tests added:
+- New file `tests/userGuide.test.tsx` with coverage for:
+  - default beginner sections render,
+  - category tab switching,
+  - cross-category search behavior,
+  - no-result state.
+
+Validation this turn:
+- `npm.cmd run typecheck` => pass.
+- `npm.cmd run test -- tests/userGuide.test.tsx` => blocked in this environment by known host issue (`spawn EPERM` during Vitest/Vite/esbuild startup).
