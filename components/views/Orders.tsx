@@ -174,8 +174,8 @@ export const Orders: React.FC<Props> = ({
       ? sanitizeTvaRate(newOrder.tvaRate, defaultTvaRate)
       : 0;
 
-    setOrders([
-      ...orders,
+    setOrders(prev => [
+      ...prev,
       {
         id: Date.now().toString(),
         customerName: newOrder.customerName,
@@ -192,7 +192,7 @@ export const Orders: React.FC<Props> = ({
   };
 
   const deleteOrder = (id: string) => {
-    setOrders(orders.filter(order => order.id !== id));
+    setOrders(prev => prev.filter(order => order.id !== id));
   };
 
   const sendToProduction = (order: Order) => {
@@ -215,7 +215,7 @@ export const Orders: React.FC<Props> = ({
       return;
     }
 
-    setOrders(orders.map(entry => entry.id === order.id ? { ...entry, status: nextStatus } : entry));
+    setOrders(prev => prev.map(entry => entry.id === order.id ? { ...entry, status: nextStatus } : entry));
   };
 
   const markCompleted = (order: Order, mode: 'already-launched' | 'launch-now') => {

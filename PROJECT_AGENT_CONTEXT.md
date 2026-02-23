@@ -1612,3 +1612,27 @@ Tests added/updated:
 Validation this turn:
 - `npm.cmd run typecheck` => pass.
 - `npm.cmd run test` => blocked in this environment by host `spawn EPERM` (vite/esbuild process spawn restriction).
+
+## 61) Latest Turn Update (second deep search + dead code/refactor pass)
+
+User request:
+- Asked for another deep search.
+- Explicitly asked to check dead code and possible refactoring.
+
+Actions completed:
+- Ran strict static checks:
+  - `npm.cmd run typecheck` => pass.
+  - `npx.cmd tsc --noEmit --noUnusedLocals --noUnusedParameters` => pass after cleanup.
+  - `npm.cmd run test` => still blocked in this environment (`spawn EPERM` from esbuild/vite startup).
+- Removed production dead code found by strict unused checks:
+  - `App.tsx`: replaced `data: any` with `data: AppData`, introduced `AppTab` type, removed `as any` in tab switching.
+  - `components/views/Production.tsx`: removed unused `useState` import.
+- Applied safe refactor for state-update consistency (reduce stale-closure/race risks):
+  - `components/views/Products.tsx`: converted add/edit/delete `setProducts(...)` to functional updates.
+  - `components/views/Orders.tsx`: converted save/delete/toggle status `setOrders(...)` to functional updates.
+  - `components/views/Production.tsx`: converted batch delete `setProductionBatches(...)` to functional update.
+
+Deep-search status:
+- No remaining dead code reported by strict TypeScript unused-local/param checks.
+- No high-severity logic regression found in this pass.
+- Remaining verification gap is runtime test execution in this sandbox only (host EPERM process-spawn restriction).

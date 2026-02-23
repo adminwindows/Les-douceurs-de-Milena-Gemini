@@ -114,7 +114,7 @@ export const Production: React.FC<Props> = ({ productionBatches, setProductionBa
       recipes,
       ingredients
     );
-    setProductionBatches(productionBatches.filter(b => b.id !== id));
+    setProductionBatches(prev => prev.filter(b => b.id !== id));
     setIngredients(prev => applyIngredientUsage(prev, usageResult.usages, 'restore'));
   };
 

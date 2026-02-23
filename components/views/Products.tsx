@@ -106,8 +106,8 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
     if (!draft || !isProductFormValid) return;
     const finalDraft = fillStandardPriceIfMissing(draft);
 
-    setProducts([
-      ...products,
+    setProducts(prev => [
+      ...prev,
       {
         ...finalDraft,
         id: Date.now().toString()
@@ -117,7 +117,7 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
   };
 
   const handleDeleteProduct = (id: string) => {
-    setProducts(products.filter(product => product.id !== id));
+    setProducts(prev => prev.filter(product => product.id !== id));
   };
 
   const handleStartEditProduct = (product: Product) => {
@@ -136,7 +136,7 @@ export const ProductsContent: React.FC<Props> = ({ products, setProducts, recipe
     if (!editingProductId || !draft || !isProductFormValid) return;
     const finalDraft = fillStandardPriceIfMissing(draft);
 
-    setProducts(products.map(product => (
+    setProducts(prev => prev.map(product => (
       product.id === editingProductId
         ? { ...finalDraft, id: product.id }
         : product

@@ -40,6 +40,7 @@ import { mergeImportedAppData } from './importMerge';
 import { isPercentage } from './validation';
 import { runDraftStorageMaintenance, usePersistentState } from './usePersistentState';
 
+type AppTab = 'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production';
 const DataManagerModal = ({
   isOpen, onClose,
   data, onImportData, onResetAllData,
@@ -48,7 +49,7 @@ const DataManagerModal = ({
 }: {
   isOpen: boolean,
   onClose: () => void,
-  data: any,
+  data: AppData,
   onImportData: (importedData: Partial<AppData>, selection: BackupSelection) => string[],
   onResetAllData: () => void,
   storageStats: LocalStorageStats,
@@ -332,7 +333,7 @@ const getValidationError = (data: AppData): string | null => {
 };
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'ingredients' | 'products' | 'orders' | 'analysis' | 'report' | 'guide' | 'shopping' | 'stock' | 'production'>('guide');
+  const [activeTab, setActiveTab] = useState<AppTab>('guide');
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window === 'undefined') return 'dark';
@@ -632,10 +633,10 @@ const App = () => {
               { id: 'analysis', label: 'Prix' },
               { id: 'report', label: 'Bilan' },
               { id: 'settings', label: 'Paramètres' },
-            ].map((tab) => (
+            ].map((tab: { id: AppTab; label: string }) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`
                    whitespace-nowrap pb-3 px-2.5 sm:px-3 border-b-2 font-medium text-xs sm:text-sm transition-colors
                    ${activeTab === tab.id
