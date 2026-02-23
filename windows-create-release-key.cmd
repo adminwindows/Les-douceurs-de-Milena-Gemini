@@ -15,6 +15,7 @@ if not exist "%KEYSTORE_PATH%" if exist "%LEGACY_KEYSTORE_PATH%" (
     pause
     exit /b 1
   )
+  call :stage_key_for_git
   echo SUCCESS: Existing key copied to project root at %KEYSTORE_PATH%.
   echo You can now reuse the same signing identity outside android\.
   pause
@@ -23,10 +24,11 @@ if not exist "%KEYSTORE_PATH%" if exist "%LEGACY_KEYSTORE_PATH%" (
 
 if exist "%KEYSTORE_PATH%" (
   echo.
-  echo ERROR: %KEYSTORE_PATH% already exists in project root.
+  echo INFO: %KEYSTORE_PATH% already exists in project root.
+  call :stage_key_for_git
   echo Keep this file safe. Replacing it will break updates for already installed signed APKs.
   pause
-  exit /b 1
+  exit /b 0
 )
 
 keytool -genkeypair -v ^
@@ -43,8 +45,21 @@ if errorlevel 1 (
   exit /b 1
 )
 
+call :stage_key_for_git
 echo.
 echo SUCCESS: Key created at %KEYSTORE_PATH%
 echo Keep it safe. If you lose it, you cannot update previously signed APKs with the same identity.
 pause
 exit /b 0
+
+:stage_key_for_git
+if not exist ".git" goto :eof
+where git >nul 2>&1
+if errorlevel 1 goto :eof
+git add "%KEYSTORE_PATH%" >nul 2>&1
+if errorlevel 1 (
+  echo INFO: Git key staging skipped ^(file stays available locally^).
+) else (
+  echo INFO: Key staged in Git index: %KEYSTORE_PATH%
+)
+goto :eof

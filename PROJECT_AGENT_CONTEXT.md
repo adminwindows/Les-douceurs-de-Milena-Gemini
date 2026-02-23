@@ -1779,3 +1779,41 @@ Actions implemented:
 Validation this turn:
 - `npm.cmd run typecheck` => pass.
 - `npm.cmd run test -- tests/userGuide.test.tsx` => blocked in this sandbox by known host issue (`spawn EPERM` from Vitest/Vite/esbuild startup), not by test logic.
+
+## 66) Latest Turn Update (Git archiving for release key + non-closing CMD behavior hardening)
+
+User request:
+- Release key was not archived in Git.
+- `windows-sign-release-apk.cmd` window closed unexpectedly after run.
+- Requested all `.cmd` helpers to not close automatically.
+
+Actions implemented:
+- Git archiving fix for release key:
+  - updated `.gitignore` to keep generic `*.keystore` ignore but explicitly allow `milena-share.keystore` via:
+    - `!milena-share.keystore`
+  - this allows tracking the root key file in Git when desired.
+  - `windows-create-release-key.cmd` now also attempts `git add milena-share.keystore` automatically when Git is available.
+- Signing helper robustness + pause control:
+  - updated `windows-sign-release-apk.cmd`:
+    - added optional `--no-pause` argument for nested automation calls,
+    - default behavior remains `pause` before exit when run directly,
+    - removed inline CMD password variables and switched to native `apksigner` / `jarsigner` interactive password prompts (avoids special-character parsing breakages that can abruptly terminate batch execution),
+    - retained legacy key auto-migration from `android\keystores\milena-share.keystore` to root.
+- Release orchestrators updated to avoid double pause while still keeping outer script non-closing:
+  - `windows-first-time-release.cmd` now calls `windows-sign-release-apk.cmd --no-pause`
+  - `windows-next-release.cmd` now calls `windows-sign-release-apk.cmd --no-pause`
+  - both parent scripts still end with `pause`.
+- Tests/docs sync:
+  - `tests/windowsHelpers.test.ts` extended to assert:
+    - root keystore path usage,
+    - `--no-pause` nested call usage in release orchestrators,
+    - `--no-pause` handling in signing helper.
+  - `README.md` updated:
+    - documents that `milena-share.keystore` can now be versioned in Git,
+    - clarifies signer password prompts are handled by signing tools directly.
+    - notes automatic Git staging attempt for the key helper.
+
+Validation this turn:
+- Static review of all root `windows-*.cmd` scripts confirms explicit `pause` behavior remains in parent helpers.
+- Runtime tests remain partially blocked in sandbox by known host Vitest `spawn EPERM` limitation.
+- Direct `git add milena-share.keystore` from this sandbox failed with `.git/index.lock` permission denied; helper-side auto-stage logic remains in place for normal local runs.

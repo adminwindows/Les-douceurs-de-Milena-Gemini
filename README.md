@@ -99,6 +99,8 @@ Use root-level one-click files:
 These scripts are designed for double-click usage, run `npm run build` immediately after `npm run typecheck`, apply your logo to Android launcher icons, then native sync, and keep the window open with `pause`. They also clear inherited `NODE_OPTIONS` and both npm node-options env variants (`npm_config_node_options` / `NPM_CONFIG_NODE_OPTIONS`) to avoid noisy Node flag warnings in test runs. Release helpers also auto-call `windows-sign-release-apk.cmd` when they detect `app-release-unsigned.apk`.
 `windows-create-release-key.cmd` now creates the key at `.\milena-share.keystore` (project root), outside `android/`, so first-time clean rebuilds do not delete it.
 If you still have an older key at `android\keystores\milena-share.keystore`, the key helpers auto-migrate it to the project root path.
+`milena-share.keystore` is now explicitly allowed in `.gitignore`, so it can be versioned in Git if you choose to archive it.
+The key helper also tries to stage `milena-share.keystore` automatically in Git (`git add`) when Git is available.
 
 ### iOS equivalent
 
@@ -113,6 +115,7 @@ If you still have an older key at `android\keystores\milena-share.keystore`, the
   * Linux/macOS: `npm run mobile:apk:release`
   * Windows: `npm run mobile:apk:release:win`
 * Sign an existing unsigned release APK (Windows): `windows-sign-release-apk.cmd`
+  * Passwords are requested directly by `apksigner`/`jarsigner` prompts (safer with special characters than inline CMD args).
 * Generate Android launcher icons from your logo: `npm run mobile:icons:android`
 * App icon/splash generation via `@capacitor/assets` remains out of default flow to avoid deprecated/vulnerable transitive dependency noise during normal installs.
 

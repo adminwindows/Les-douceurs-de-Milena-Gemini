@@ -96,7 +96,7 @@ dir /s /b android\app\build\outputs\apk\*.apk
 if exist android\app\build\outputs\apk\release\app-release-unsigned.apk (
   echo.
   echo INFO: Unsigned release APK detected. Running local signing helper...
-  call windows-sign-release-apk.cmd || goto :fail
+  call windows-sign-release-apk.cmd --no-pause || goto :fail
 )
 
 echo [11/11] NOTE: release APK can be unsigned unless signing config is set.

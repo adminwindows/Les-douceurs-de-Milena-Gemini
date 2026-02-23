@@ -4,19 +4,23 @@ setlocal enabledelayedexpansion
 REM Run from repository root. Signs app-release-unsigned.apk using local keystore.
 REM Prefer apksigner (v1/v2/v3 signatures). Fallback to jarsigner if SDK tools are unavailable.
 
+set "NO_PAUSE=0"
+if /i "%~1"=="--no-pause" set "NO_PAUSE=1"
+
 set "UNSIGNED_APK=android\app\build\outputs\apk\release\app-release-unsigned.apk"
 set "ALIGNED_APK=android\app\build\outputs\apk\release\app-release-aligned.apk"
 set "SIGNED_APK=android\app\build\outputs\apk\release\app-release-signed.apk"
 set "KEYSTORE_PATH=milena-share.keystore"
 set "LEGACY_KEYSTORE_PATH=android\keystores\milena-share.keystore"
 set "KEY_ALIAS=milena-share"
+set "EXIT_CODE=0"
 
 if not exist "%UNSIGNED_APK%" (
   echo.
   echo ERROR: %UNSIGNED_APK% not found.
   echo Build release first with windows-first-time-release.cmd or windows-next-release.cmd.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 if not exist "%KEYSTORE_PATH%" if exist "%LEGACY_KEYSTORE_PATH%" (
@@ -25,8 +29,12 @@ if not exist "%KEYSTORE_PATH%" if exist "%LEGACY_KEYSTORE_PATH%" (
   copy /y "%LEGACY_KEYSTORE_PATH%" "%KEYSTORE_PATH%" >nul
   if errorlevel 1 (
     echo ERROR: Could not migrate legacy key to project root.
-    pause
-    exit /b 1
+    set "EXIT_CODE=1"
+    goto :finish
+  )
+  if exist ".git" (
+    where git >nul 2>&1
+    if not errorlevel 1 git add "%KEYSTORE_PATH%" >nul 2>&1
   )
 )
 
@@ -34,8 +42,8 @@ if not exist "%KEYSTORE_PATH%" (
   echo.
   echo ERROR: %KEYSTORE_PATH% not found.
   echo Create one first with windows-create-release-key.cmd.
-  pause
-  exit /b 1
+  set "EXIT_CODE=1"
+  goto :finish
 )
 
 set "SDK_ROOT="
@@ -53,16 +61,7 @@ if defined SDK_ROOT (
 )
 
 echo.
-echo Enter keystore password for %KEYSTORE_PATH%
-set /p STOREPASS=Keystore password: 
-if "%STOREPASS%"=="" (
-  echo ERROR: Empty password.
-  pause
-  exit /b 1
-)
-
-set /p KEYPASS=Key password ^(press Enter to reuse keystore password^): 
-if "%KEYPASS%"=="" set "KEYPASS=%STOREPASS%"
+echo Keystore path: %KEYSTORE_PATH%
 
 if defined APKSIGNER (
   echo.
@@ -77,9 +76,14 @@ if defined APKSIGNER (
     set "INPUT_APK=%UNSIGNED_APK%"
   )
 
-  set "JAVA_TOOL_OPTIONS=--enable-native-access=ALL-UNNAMED %JAVA_TOOL_OPTIONS%"
+  echo Enter keystore and key passwords when prompted by apksigner.
+  if defined JAVA_TOOL_OPTIONS (
+    set "JAVA_TOOL_OPTIONS=--enable-native-access=ALL-UNNAMED !JAVA_TOOL_OPTIONS!"
+  ) else (
+    set "JAVA_TOOL_OPTIONS=--enable-native-access=ALL-UNNAMED"
+  )
 
-  "%APKSIGNER%" sign --ks "%KEYSTORE_PATH%" --ks-key-alias "%KEY_ALIAS%" --ks-pass pass:%STOREPASS% --key-pass pass:%KEYPASS% --out "%SIGNED_APK%" "!INPUT_APK!"
+  "%APKSIGNER%" sign --ks "%KEYSTORE_PATH%" --ks-key-alias "%KEY_ALIAS%" --out "%SIGNED_APK%" "!INPUT_APK!"
   if errorlevel 1 goto :fail
 
   "%APKSIGNER%" verify --verbose "%SIGNED_APK%"
@@ -93,7 +97,8 @@ echo WARNING: apksigner not found in Android SDK. Falling back to jarsigner.
 copy /y "%UNSIGNED_APK%" "%SIGNED_APK%" >nul
 if errorlevel 1 goto :fail
 
-jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore "%KEYSTORE_PATH%" -storepass "%STOREPASS%" -keypass "%KEYPASS%" "%SIGNED_APK%" "%KEY_ALIAS%"
+echo Enter keystore and key passwords when prompted by jarsigner.
+jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore "%KEYSTORE_PATH%" "%SIGNED_APK%" "%KEY_ALIAS%"
 if errorlevel 1 goto :fail
 
 jarsigner -verify -verbose -certs "%SIGNED_APK%" >nul
@@ -106,11 +111,15 @@ echo %SIGNED_APK%
 echo.
 echo If installation still says "Application non installee", uninstall the debug/old Milena app first,
 echo then install this signed release APK again (different signing keys cannot upgrade each other).
-pause
-exit /b 0
+set "EXIT_CODE=0"
+goto :finish
 
 :fail
 echo.
 echo ERROR: APK signing failed.
+set "EXIT_CODE=1"
+
+:finish
+if "%NO_PAUSE%"=="1" exit /b %EXIT_CODE%
 pause
-exit /b 1
+exit /b %EXIT_CODE%

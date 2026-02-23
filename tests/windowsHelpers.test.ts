@@ -8,6 +8,22 @@ const readHelper = (name: string): string => {
 };
 
 describe('windows helper scripts', () => {
+  it('keeps explicit pause behavior in all root windows cmd helpers', () => {
+    const helpers = [
+      'windows-first-time-debug.cmd',
+      'windows-first-time-release.cmd',
+      'windows-next-debug.cmd',
+      'windows-next-release.cmd',
+      'windows-create-release-key.cmd',
+      'windows-sign-release-apk.cmd'
+    ];
+
+    for (const helper of helpers) {
+      const content = readHelper(helper);
+      expect(content).toMatch(/\bpause\b/i);
+    }
+  });
+
   it('guard Java versions below 21 in all one-click helpers', () => {
     const helpers = [
       'windows-first-time-debug.cmd',
@@ -43,5 +59,23 @@ describe('windows helper scripts', () => {
     expect(createKey).not.toContain('-keystore android\\keystores');
     expect(signApk).not.toContain('--ks "android\\keystores');
     expect(signApk).not.toContain('-keystore "android\\keystores');
+  });
+
+  it('keeps one-click release flow non-closing while avoiding double pause in nested signing call', () => {
+    const firstRelease = readHelper('windows-first-time-release.cmd');
+    const nextRelease = readHelper('windows-next-release.cmd');
+    const signApk = readHelper('windows-sign-release-apk.cmd');
+
+    expect(firstRelease).toContain('call windows-sign-release-apk.cmd --no-pause || goto :fail');
+    expect(nextRelease).toContain('call windows-sign-release-apk.cmd --no-pause || goto :fail');
+    expect(signApk).toContain('if /i "%~1"=="--no-pause" set "NO_PAUSE=1"');
+  });
+
+  it('allows milena release keystore to be archived in git', () => {
+    const gitignore = readHelper('.gitignore');
+    const createKey = readHelper('windows-create-release-key.cmd');
+
+    expect(gitignore).toContain('!milena-share.keystore');
+    expect(createKey).toContain('git add "%KEYSTORE_PATH%"');
   });
 });

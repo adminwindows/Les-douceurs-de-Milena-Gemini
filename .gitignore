@@ -33,6 +33,7 @@ ios/
 *.ipa
 *.keystore
 *.jks
+!milena-share.keystore
 
 # Patch/rebase leftovers
 *.orig
